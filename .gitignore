@@ -1,5 +1,5 @@
-coverage.out
-shipkit
+coverage.*
+/shipkit
 dist/
 *.tmp
 *.swp

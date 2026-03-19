@@ -22,7 +22,7 @@ type GoReleaserConfig struct {
 	DockerFile   string
 }
 
-func runGoReleaserGenerate(args []string) error {
+func runGoReleaser(args []string) error {
 	fs := newFlagSet("goreleaser")
 
 	projectName := fs.String("project", "", "Project name (required)")

@@ -24,10 +24,6 @@ coverage:
 	@go tool cover -func=coverage.out | grep 'total:' | awk '{printf "│ %-55s │ %7s  │ %7s  │\n", "TOTAL", "-", $$3}'
 	@echo "└─────────────────────────────────────────────────────────┴──────────┴──────────┘"
 
-validate: test lint plan-all
-
-plan-all: plan-release plan-rerelease plan-docker
-
 lint:
 	@command -v actionlint >/dev/null 2>&1 || { \
 		echo "actionlint is required (install: go install github.com/rhysd/actionlint/cmd/actionlint@latest)"; \
@@ -56,3 +52,5 @@ plan-docker:
 		--input tag=v0.1.0 \
 		--input tool_ref=main \
 		-P ubuntu-latest=$(ACT_IMAGE)
+
+validate: test lint plan-release plan-rerelease plan-docker

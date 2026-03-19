@@ -87,7 +87,7 @@ jobs:
       - name: Cleanup on failure
         if: ${{ failure() && steps.plan.outputs.next_tag != '' && steps.plan.outputs.dryrun != 'true' }}
         run: >-
-          go run github.com/karloie/shipkit/cmd/shipkit@${{ inputs.tool_ref }} git-cleanup-tag
+          go run github.com/karloie/shipkit/cmd/shipkit@${{ inputs.tool_ref }} git-tag-cleanup
           -tag=${{ steps.plan.outputs.next_tag }}
 
   docker:

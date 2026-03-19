@@ -70,8 +70,8 @@ func createGitTag(tag string) error {
 	return nil
 }
 
-func runGitCleanupTag(args []string) error {
-	fs := newFlagSet("git-cleanup-tag")
+func runGitTagCleanup(args []string) error {
+	fs := newFlagSet("git-tag-cleanup")
 	tag := fs.String("tag", "", "Tag name to delete (required)")
 
 	if err := fs.Parse(args); err != nil {
@@ -99,8 +99,8 @@ func runGitCleanupTag(args []string) error {
 	return nil
 }
 
-func runCheckDocker(args []string) error {
-	fs := newFlagSet("check-docker")
+func runDockerCheck(args []string) error {
+	fs := newFlagSet("docker-check")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}

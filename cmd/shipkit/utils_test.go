@@ -244,4 +244,3 @@ func TestNewFlagSet(t *testing.T) {
 		t.Errorf("newFlagSet().Name() = %q, want test-command", fs.Name())
 	}
 }
-

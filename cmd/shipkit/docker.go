@@ -24,7 +24,7 @@ type dockerHubRepoUpdate struct {
 	FullDescription string `json:"full_description"`
 }
 
-func runDockerReadme(args []string) error {
+func runDockerHubReadme(args []string) error {
 	fs := newFlagSet("docker-readme")
 
 	repo := fs.String("repo", "", "Docker Hub repository (owner/name) (required)")
@@ -44,7 +44,6 @@ func runDockerReadme(args []string) error {
 		return fmt.Errorf("username is required (set via -username or %s env)", EnvDockerHubUsername)
 	}
 
-	// Try multiple password environment variables
 	if *password == "" {
 		*password = getSecretWithFallbacks(EnvDockerHubPassword, EnvDockerHubToken)
 	}
@@ -52,7 +51,6 @@ func runDockerReadme(args []string) error {
 		return fmt.Errorf("password is required (set via -password, %s, or %s env)", EnvDockerHubPassword, EnvDockerHubToken)
 	}
 
-	// Parse and validate repo format
 	owner, name, err := parseRepoFormat(*repo)
 	if err != nil {
 		return err

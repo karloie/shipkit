@@ -1,6 +1,6 @@
 # 🚢 Shipkit
 
-<img src="doc/vibecoded.png" width="120" alt="Vibe Coded Badge" align="right">
+<img src="doc/vibecoded.png" width="256" alt="Vibe Coded Badge" align="right">
 
 Reusable GitHub workflow tooling for my GitHub projects.
 
