@@ -1,0 +1,122 @@
+name: Reusable Re-release
+
+on:
+  workflow_call:
+    inputs:
+      image:
+        description: Docker image repository name
+        required: true
+        type: string
+      tool_ref:
+        description: shipkit ref for go run module@ref
+        required: false
+        default: main
+        type: string
+      go_version:
+        description: Go version for running tool
+        required: false
+        default: "1.25"
+        type: string
+      node_version:
+        description: Node version for projects that need frontend build metadata
+        required: false
+        default: "22"
+        type: string
+      setup_node:
+        description: Set to false for repositories that do not need Node.js in release jobs
+        required: false
+        default: "true"
+        type: string
+      project_name:
+        description: Project name for goreleaser config generation (defaults to repo name)
+        required: false
+        default: ""
+        type: string
+      binary_name:
+        description: Binary name for goreleaser config generation (defaults to project name)
+        required: false
+        default: ""
+        type: string
+      project_description:
+        description: Project description for goreleaser config
+        required: false
+        default: "Application built with Go"
+        type: string
+    secrets:
+      DOCKERHUB_USERNAME:
+        required: true
+      DOCKERHUB_TOKEN:
+        required: true
+      HOMEBREW_TAP_GITHUB_TOKEN:
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  rerelease:
+    runs-on: ubuntu-latest
+    outputs:
+      should_publish: ${{ steps.plan.outputs.should_publish }}
+      release_tag: ${{ steps.plan.outputs.release_tag }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go_version }}
+          cache: true
+
+      - name: Plan re-release
+        id: plan
+        run: >-
+          go run github.com/karloie/shipkit/cmd/shipkit@${{ inputs.tool_ref }} plan
+          -mode=rerelease
+          -resolve-latest-tag=true
+          -image=${{ inputs.image }}
+          -sha=${{ github.sha }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+
+      - name: Summary
+        run: printf '%s\n' "${{ steps.plan.outputs.summary_message }}"
+
+  docker:
+    needs: rerelease
+    if: ${{ needs.rerelease.outputs.should_publish == 'true' }}
+    uses: ./.github/workflows/docker.yml
+    with:
+      image: ${{ inputs.image }}
+      event_name: push
+      tag: ${{ needs.rerelease.outputs.release_tag }}
+      tool_ref: ${{ inputs.tool_ref }}
+      go_version: ${{ inputs.go_version }}
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+
+  goreleaser:
+    needs: rerelease
+    if: ${{ needs.rerelease.outputs.should_publish == 'true' }}
+    uses: ./.github/workflows/goreleaser.yml
+    with:
+      event_name: push
+      tag: ${{ needs.rerelease.outputs.release_tag }}
+      publish: true
+      tool_ref: ${{ inputs.tool_ref }}
+      go_version: ${{ inputs.go_version }}
+      node_version: ${{ inputs.node_version }}
+      setup_node: ${{ inputs.setup_node }}
+      project_name: ${{ inputs.project_name }}
+      binary_name: ${{ inputs.binary_name }}
+      project_description: ${{ inputs.project_description }}
+    secrets:
+      HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}

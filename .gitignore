@@ -1,0 +1,6 @@
+coverage.out
+shipkit
+dist/
+*.tmp
+*.swp
+.DS_Store

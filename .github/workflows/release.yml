@@ -1,0 +1,115 @@
+name: Reusable Release
+
+on:
+  workflow_call:
+    inputs:
+      image:
+        description: Docker image repository name
+        required: true
+        type: string
+      event_name:
+        description: Original caller event name (push or workflow_dispatch)
+        required: true
+        type: string
+      bump:
+        description: Manual bump input (patch, minor, major)
+        required: false
+        type: string
+      tool_ref:
+        description: shipkit ref for go run module@ref
+        required: false
+        default: main
+        type: string
+      go_version:
+        description: Go version for running tool
+        required: false
+        default: "1.25"
+        type: string
+    secrets:
+      DOCKERHUB_USERNAME:
+        required: true
+      DOCKERHUB_TOKEN:
+        required: true
+      HOMEBREW_TAP_GITHUB_TOKEN:
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    outputs:
+      should_publish: ${{ steps.plan.outputs.should_publish }}
+      next_tag: ${{ steps.plan.outputs.next_tag }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go_version }}
+          cache: true
+
+      - name: Plan release
+        id: plan
+        run: >-
+          go run github.com/karloie/shipkit/cmd/shipkit@${{ inputs.tool_ref }} plan
+          -mode=release
+          -bump=${{ inputs.bump }}
+          -image=${{ inputs.image }}
+          -sha=${{ github.sha }}
+        env:
+          GITHUB_EVENT_NAME: ${{ inputs.event_name }}
+          GH_TOKEN: ${{ github.token }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Configure Git
+        if: ${{ steps.plan.outputs.should_publish == 'true' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create and push tag
+        if: ${{ steps.plan.outputs.should_publish == 'true' }}
+        run: |
+          set -euo pipefail
+          next_tag='${{ steps.plan.outputs.next_tag }}'
+          git tag -a "$next_tag" -m "Release $next_tag"
+          git push origin "$next_tag"
+
+      - name: Summary
+        run: printf '%s\n' "${{ steps.plan.outputs.summary_message }}"
+
+  docker:
+    needs: release
+    if: ${{ needs.release.outputs.should_publish == 'true' }}
+    uses: ./.github/workflows/docker.yml
+    with:
+      image: ${{ inputs.image }}
+      event_name: push
+      tag: ${{ needs.release.outputs.next_tag }}
+      tool_ref: ${{ inputs.tool_ref }}
+      go_version: ${{ inputs.go_version }}
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+
+  goreleaser:
+    needs: release
+    if: ${{ needs.release.outputs.should_publish == 'true' }}
+    uses: ./.github/workflows/goreleaser.yml
+    with:
+      event_name: push
+      tag: ${{ needs.release.outputs.next_tag }}
+      publish: true
+      tool_ref: ${{ inputs.tool_ref }}
+      go_version: ${{ inputs.go_version }}
+    secrets:
+      HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
