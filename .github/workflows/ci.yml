@@ -10,7 +10,7 @@ on:
       mode:
         description: CI mode to run (validation or build-test)
         required: false
-        default: validation
+        default: ""
         type: string
       make_targets:
         description: Make targets to run for validation
@@ -43,20 +43,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        if: ${{ inputs.mode == 'build-test' && inputs.node_version != '' }}
-        with:
-          node-version: ${{ inputs.node_version }}
-          cache: ${{ inputs.node_cache }}
-
       - uses: actions/setup-go@v5
-        if: ${{ inputs.go_version != '' }}
         with:
-          go-version: ${{ inputs.go_version }}
+          go-version-file: go.mod
           cache: true
 
       - name: Setup validation tools
-        if: ${{ inputs.mode == 'validation' }}
+        if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' || inputs.mode == 'validation' }}
         run: |
           go install github.com/rhysd/actionlint/cmd/actionlint@latest
           mkdir -p "$HOME/.local/bin"
@@ -64,8 +57,14 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Validate
-        if: ${{ inputs.mode == 'validation' }}
-        run: make ${{ inputs.make_targets }}
+        if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' || inputs.mode == 'validation' }}
+        run: make ${{ inputs.make_targets || 'validate' }}
+
+      - uses: actions/setup-node@v4
+        if: ${{ inputs.mode == 'build-test' && inputs.node_version != '' }}
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: ${{ inputs.node_cache }}
 
       - name: Install frontend dependencies
         if: ${{ inputs.mode == 'build-test' && inputs.node_version != '' }}
