@@ -13,42 +13,17 @@ on:
         default: main
         type: string
       go_version:
-        description: Go version for running tool
-        required: false
-        default: "1.25"
-        type: string
-      node_version:
-        description: Node version for projects that need frontend build metadata
-        required: false
-        default: "22"
-        type: string
-      setup_node:
-        description: Set to false for repositories that do not need Node.js in release jobs
-        required: false
-        default: "true"
-        type: string
-      project_name:
-        description: Project name for goreleaser config generation (defaults to repo name)
+        description: Go version for running tool (leave empty to auto-detect from go.mod)
         required: false
         default: ""
-        type: string
-      binary_name:
-        description: Binary name for goreleaser config generation (defaults to project name)
-        required: false
-        default: ""
-        type: string
-      project_description:
-        description: Project description for goreleaser config
-        required: false
-        default: "Application built with Go"
         type: string
     secrets:
       DOCKERHUB_USERNAME:
-        required: true
+        required: false
       DOCKERHUB_TOKEN:
-        required: true
+        required: false
       HOMEBREW_TAP_GITHUB_TOKEN:
-        required: true
+        required: false
 
 permissions:
   contents: write
@@ -57,20 +32,19 @@ jobs:
   rerelease:
     runs-on: ubuntu-latest
     outputs:
-      should_publish: ${{ steps.plan.outputs.should_publish }}
+      dryrun: ${{ steps.plan.outputs.dryrun }}
       release_tag: ${{ steps.plan.outputs.release_tag }}
-      goreleaser_handles_docker: ${{ steps.check_docker.outputs.goreleaser_handles_docker }}
+      goreleaser_docker: ${{ steps.plan.outputs.goreleaser_docker }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
+      - uses: actions/setup-go@v5
         with:
           go-version: ${{ inputs.go_version }}
+          go-version-file: ${{ inputs.go_version == '' && 'go.mod' || '' }}
           cache: true
 
       - name: Plan re-release
@@ -81,29 +55,28 @@ jobs:
           -resolve-latest-tag=true
           -image=${{ inputs.image }}
           -sha=${{ github.sha }}
+          -owner=${{ github.repository_owner }}
+          -repo=${{ github.event.repository.name }}
+          -run-id=${{ github.run_id }}
         env:
-          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
 
-      - name: Summary
-        run: printf '%s\n' "${{ steps.plan.outputs.summary_message }}"
-
-      - name: Check if GoReleaser handles Docker
-        id: check_docker
-        run: |
-          if [ -f "Containerfile.goreleaser" ] || [ -f "Dockerfile.goreleaser" ]; then
-            echo "goreleaser_handles_docker=true" >> "$GITHUB_OUTPUT"
-            echo "GoReleaser will handle Docker builds"
-          else
-            echo "goreleaser_handles_docker=false" >> "$GITHUB_OUTPUT"
-            echo "Docker workflow will handle Docker builds"
-          fi
+      - uses: goreleaser/goreleaser-action@v6
+        if: ${{ steps.plan.outputs.dryrun != 'true' }}
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean ${{ steps.plan.outputs.goreleaser_yml_current != 'true' && format('--config={0}', steps.plan.outputs.goreleaser_yml_new) || '' }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
 
   docker:
     needs: rerelease
-    if: ${{ needs.rerelease.outputs.should_publish == 'true' && needs.rerelease.outputs.goreleaser_handles_docker != 'true' }}
+    if: ${{ needs.rerelease.outputs.dryrun != 'true' && needs.rerelease.outputs.goreleaser_docker != 'true' }}
     uses: ./.github/workflows/docker.yml
     with:
       image: ${{ inputs.image }}
@@ -111,25 +84,6 @@ jobs:
       tag: ${{ needs.rerelease.outputs.release_tag }}
       tool_ref: ${{ inputs.tool_ref }}
       go_version: ${{ inputs.go_version }}
-      node_version: ${{ inputs.node_version }}
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-
-  goreleaser:
-    needs: rerelease
-    if: ${{ needs.rerelease.outputs.should_publish == 'true' }}
-    uses: ./.github/workflows/goreleaser.yml
-    with:
-      event_name: push
-      tag: ${{ needs.rerelease.outputs.release_tag }}
-      publish: true
-      tool_ref: ${{ inputs.tool_ref }}
-      go_version: ${{ inputs.go_version }}
-      node_version: ${{ inputs.node_version }}
-      setup_node: ${{ inputs.setup_node }}
-      project_name: ${{ inputs.project_name }}
-      binary_name: ${{ inputs.binary_name }}
-      project_description: ${{ inputs.project_description }}
-    secrets:
-      HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}

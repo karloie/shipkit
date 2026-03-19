@@ -14,7 +14,7 @@ func runAssetsDelete(args []string) error {
 	owner := fs.String("owner", "", "GitHub repository owner (required)")
 	repo := fs.String("repo", "", "GitHub repository name (required)")
 	tag := fs.String("tag", "", "Release tag (required)")
-	token := fs.String("token", os.Getenv(EnvGitHubToken), "GitHub token (or set GH_TOKEN env)")
+	token := fs.String("token", os.Getenv(EnvGitHubToken), "GitHub token (or set GITHUB_TOKEN env)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}

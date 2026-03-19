@@ -2,7 +2,7 @@ package main
 
 // Environment variable names
 const (
-	EnvGitHubToken       = "GH_TOKEN"
+	EnvGitHubToken       = "GITHUB_TOKEN"
 	EnvGitHubOutput      = "GITHUB_OUTPUT"
 	EnvGitHubEventName   = "GITHUB_EVENT_NAME"
 	EnvDockerHubUsername = "DOCKERHUB_USERNAME"
@@ -54,39 +54,35 @@ const (
 
 // File names
 const (
-	FilePackageJSON             = "package.json"
+	FileNode                    = "package.json"
 	FileChangelog               = "CHANGELOG.md"
 	FileReadme                  = "README.md"
 	FileContainerfile           = "Containerfile"
 	FileDockerfile              = "Dockerfile"
-	FileContainerfileGoreleaser = "Containerfile.goreleaser"
-	FileDockerfileGoreleaser    = "Dockerfile.goreleaser"
+	FileGoreleaserContainerfile = "Containerfile.goreleaser"
+	FileGoreleaserDockerfile    = "Dockerfile.goreleaser"
 	FileGoReleaser              = ".goreleaser.yml"
 	FileGo                      = "go.mod"
 	FileMaven                   = "pom.xml"
 	FileGradle                  = "build.gradle"
 	FileGradleKts               = "build.gradle.kts"
-	FileCargo                   = "Cargo.toml"
-	FilePython                  = "pyproject.toml"
-	FilePythonPy                = "setup.py"
-	FilePythonReq               = "requirements.txt"
-	FileRuby                    = "Gemfile"
-	FilePHP                     = "composer.json"
-	FileApplicationProps        = "application.properties"
-	FileApplicationYml          = "application.yml"
-	FileApplicationYaml         = "application.yaml"
+	FileSpringProps             = "application.properties"
+	FileSpringYml               = "application.yml"
+	FileSpringYaml              = "application.yaml"
 )
 
 // Output keys
 const (
-	OutputLatestTag        = "latest_tag"
-	OutputNextTag          = "next_tag"
-	OutputPublish          = "publish"
-	OutputShouldPublish    = "should_publish"
-	OutputPublishMode      = "publish_mode"
-	OutputDockerVersion    = "docker_version"
-	OutputDockerMajorMinor = "docker_major_minor"
-	OutputDockerfile       = "dockerfile"
-	OutputReleaseTag       = "release_tag"
-	OutputSummaryMessage   = "summary_message"
+	OutputTagLatest            = "latest_tag"
+	OutputTagNext              = "next_tag"
+	OutputPublish              = "publish"
+	OutputDryRun               = "dryrun"
+	OutputVersion              = "version"
+	OutputVersionMajorMinor    = "version_major_minor"
+	OutputDockerfile           = "dockerfile"
+	OutputReleaseTag           = "release_tag"
+	OutputSummaryMessage       = "summary_message"
+	OutputGoreleaserYmlCurrent = "goreleaser_yml_current"
+	OutputGoreleaserYmlNew     = "goreleaser_yml_new"
+	OutputGoreleaserDocker     = "goreleaser_docker"
 )

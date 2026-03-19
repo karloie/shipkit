@@ -11,13 +11,12 @@ import (
 )
 
 type ReleasePolicy struct {
-	ShouldPublish    bool
-	DockerVersion    string
-	DockerMajorMinor string
-	Dockerfile       string
-	ReleaseTag       string
-	PublishMode      string
-	Message          string
+	Version           string
+	VersionMajorMinor string
+	Dockerfile        string
+	ReleaseTag        string
+	DryRun            string
+	Message           string
 }
 
 type PolicyInput struct {
@@ -43,8 +42,34 @@ func runPolicy(args []string) error {
 	sha := fs.String("sha", "", "git sha used for summary output")
 	requiredSecrets := fs.String("required-secrets", EnvDockerHubUsername+","+EnvDockerHubToken, "comma-separated required secret names")
 	resolveLatestTag := fs.Bool("resolve-latest-tag", false, "resolve latest tag from git (used by rerelease mode)")
+
+	// GoReleaser config generation flags
+	projectName := fs.String("project", "", "Project name for goreleaser config generation")
+	binaryName := fs.String("binary", "", "Binary name for goreleaser config generation")
+	repoOwner := fs.String("owner", "", "Repository owner for goreleaser config generation")
+	repoName := fs.String("repo", "", "Repository name for goreleaser config generation")
+	description := fs.String("description", "Application built with Go", "Project description for goreleaser config")
+	runID := fs.String("run-id", "", "GitHub run ID for temp file naming")
+
 	if err := fs.Parse(args); err != nil {
 		return err
+	}
+
+	// Auto-detect project name from go.mod if not provided
+	if *projectName == "" {
+		*projectName = detectProjectName()
+	}
+
+	// Auto-detect binary name (defaults to project name)
+	if *binaryName == "" {
+		*binaryName = *projectName
+	}
+
+	// Auto-detect project description if using default value
+	if *description == "Application built with Go" {
+		if det := detectProjectDescription(); det != "" {
+			*description = det
+		}
 	}
 
 	input := PolicyInput{
@@ -66,19 +91,14 @@ func runPolicy(args []string) error {
 	}
 
 	githubOutput := os.Getenv(EnvGitHubOutput)
-	if policy.ShouldPublish {
-		writeOutput(githubOutput, OutputShouldPublish, PublishTrue)
-	} else {
-		writeOutput(githubOutput, OutputShouldPublish, PublishFalse)
+	if policy.DryRun != "" {
+		writeOutput(githubOutput, OutputDryRun, policy.DryRun)
 	}
-	if policy.PublishMode != "" {
-		writeOutput(githubOutput, OutputPublishMode, policy.PublishMode)
+	if policy.Version != "" {
+		writeOutput(githubOutput, OutputVersion, policy.Version)
 	}
-	if policy.DockerVersion != "" {
-		writeOutput(githubOutput, OutputDockerVersion, policy.DockerVersion)
-	}
-	if policy.DockerMajorMinor != "" {
-		writeOutput(githubOutput, OutputDockerMajorMinor, policy.DockerMajorMinor)
+	if policy.VersionMajorMinor != "" {
+		writeOutput(githubOutput, OutputVersionMajorMinor, policy.VersionMajorMinor)
 	}
 	if policy.Dockerfile != "" {
 		writeOutput(githubOutput, OutputDockerfile, policy.Dockerfile)
@@ -87,6 +107,90 @@ func runPolicy(args []string) error {
 		writeOutput(githubOutput, OutputReleaseTag, policy.ReleaseTag)
 	}
 	writeOutput(githubOutput, OutputSummaryMessage, policy.Message)
+
+	// Handle Docker login for docker mode
+	if input.Mode == ModeDocker && policy.DryRun != PublishTrue {
+		username := os.Getenv(EnvDockerHubUsername)
+		token := os.Getenv(EnvDockerHubToken)
+
+		if username != "" && token != "" {
+			if err := dockerLogin(username, token); err != nil {
+				fmt.Fprintf(os.Stderr, "⚠️  Warning: Docker login failed: %v\n", err)
+				writeOutput(githubOutput, "push", PublishFalse)
+			} else {
+				writeOutput(githubOutput, "push", PublishTrue)
+			}
+		} else {
+			fmt.Fprintln(os.Stderr, "⚠️  Warning: Missing DockerHub credentials - will build locally without pushing")
+			writeOutput(githubOutput, "push", PublishFalse)
+		}
+	}
+
+	if input.Mode == ModeGoreleaser {
+		hasCustomConfig := fileExists(FileGoReleaser) || fileExists(".goreleaser.yaml")
+		if hasCustomConfig {
+			writeOutput(githubOutput, OutputGoreleaserYmlCurrent, PublishTrue)
+			fmt.Fprintln(os.Stderr, "🚀 Using custom .goreleaser.yml config")
+		} else {
+			writeOutput(githubOutput, OutputGoreleaserYmlCurrent, PublishFalse)
+			fmt.Fprintln(os.Stderr, "  Generating GoReleaser config...")
+
+			if *projectName != "" && *repoOwner != "" {
+				configPath := fmt.Sprintf("/tmp/goreleaser-generated-%s.yml", *runID)
+
+				// Repo name defaults to project name if not specified
+				if *repoName == "" {
+					*repoName = *projectName
+				}
+
+				mainPath := fmt.Sprintf("./cmd/%s", *projectName)
+				dockerImage := fmt.Sprintf("%s/%s", *repoOwner, *projectName)
+
+				detected := detectProjectTypes()
+				hasNodeJS := hasProjectType(detected, "Node")
+				hasChangelog := fileExists(FileChangelog)
+				hasGoreleaserDocker := hasProjectType(detected, "GoReleaser Docker")
+
+				// Get specific Docker file if GoReleaser Docker is detected
+				dockerFile := ""
+				if hasGoreleaserDocker {
+					if fileExists(FileGoreleaserContainerfile) {
+						dockerFile = FileGoreleaserContainerfile
+					} else {
+						dockerFile = FileGoreleaserDockerfile
+					}
+				}
+
+				config := GoReleaserConfig{
+					ProjectName:  *projectName,
+					BinaryName:   *binaryName,
+					MainPath:     mainPath,
+					RepoOwner:    *repoOwner,
+					RepoName:     *repoName,
+					Description:  *description,
+					License:      DefaultLicense,
+					DockerImage:  dockerImage,
+					HasNodeJS:    hasNodeJS,
+					HasChangelog: hasChangelog,
+					HasDocker:    hasGoreleaserDocker,
+					DockerFile:   dockerFile,
+				}
+
+				if err := generateGoReleaserConfig(config, configPath); err != nil {
+					return fmt.Errorf("failed to generate goreleaser config: %w", err)
+				}
+
+				writeOutput(githubOutput, OutputGoreleaserYmlNew, configPath)
+				fmt.Fprintf(os.Stderr, "📝 Generated GoReleaser config at: %s\n", configPath)
+			}
+		}
+	}
+
+	// Print summary
+	if policy.Message != "" {
+		fmt.Println(policy.Message)
+	}
+
 	return nil
 }
 
@@ -101,8 +205,8 @@ func computeReleasePolicy(input PolicyInput, env EnvProvider, git GitProvider) (
 
 	if input.Publish != PublishTrue {
 		return ReleasePolicy{
-			ShouldPublish: false,
-			Message:       "Info: No release markers found. Skipping tag creation and publish.",
+			DryRun:  PublishTrue,
+			Message: "Info: No release markers found. Skipping tag creation and publish.",
 		}, nil
 	}
 
@@ -142,13 +246,12 @@ func computeReleasePolicy(input PolicyInput, env EnvProvider, git GitProvider) (
 	summary := buildSummary(input.Mode, input.LatestTag, resolvedTag, input.Image, version, shortSHA)
 
 	return ReleasePolicy{
-		ShouldPublish:    true,
-		DockerVersion:    version,
-		DockerMajorMinor: majorMinor,
-		Dockerfile:       dockerfile,
-		ReleaseTag:       resolvedTag,
-		PublishMode:      "true",
-		Message:          summary,
+		Version:           version,
+		VersionMajorMinor: majorMinor,
+		Dockerfile:        dockerfile,
+		ReleaseTag:        resolvedTag,
+		DryRun:            PublishFalse,
+		Message:           summary,
 	}, nil
 }
 
@@ -196,30 +299,45 @@ func computeTagBasedPolicy(input PolicyInput, env EnvProvider, git GitProvider) 
 		dockerfile = detectDockerfileForWorkflow()
 	}
 
-	msg := buildTagModeSummary(input.Mode, resolvedTag, publishMode)
+	shortSHA := shortenSHA(input.SHA)
+	msg := buildTagModeSummary(input.Mode, resolvedTag, version, majorMinor, input.Image, shortSHA, publishMode)
+
+	// Invert publishMode to dryrun (true -> false, false/skip -> true)
+	dryRun := PublishTrue
+	if publishMode == PublishTrue {
+		dryRun = PublishFalse
+	}
 
 	return ReleasePolicy{
-		ShouldPublish:    publishMode == PublishTrue,
-		DockerVersion:    version,
-		DockerMajorMinor: majorMinor,
-		Dockerfile:       dockerfile,
-		ReleaseTag:       resolvedTag,
-		PublishMode:      publishMode,
-		Message:          msg,
+		Version:           version,
+		VersionMajorMinor: majorMinor,
+		Dockerfile:        dockerfile,
+		ReleaseTag:        resolvedTag,
+		DryRun:            dryRun,
+		Message:           msg,
 	}, nil
 }
 
-func buildTagModeSummary(mode, tag, publishMode string) string {
+func buildTagModeSummary(mode, tag, version, majorMinor, image, shortSHA, publishMode string) string {
 	if mode == ModeGoreleaser {
 		return fmt.Sprintf("Tag: %s\nMode: %s", tag, publishMode)
 	}
 	if mode == ModeDocker {
-		return fmt.Sprintf("Source ref: %s", tag)
+		lines := []string{fmt.Sprintf("Source ref: %s", tag)}
+		if publishMode == PublishTrue {
+			lines = append(lines, "Image tags:")
+			lines = append(lines, fmt.Sprintf("  - %s:%s", image, version))
+			lines = append(lines, fmt.Sprintf("  - %s:%s", image, majorMinor))
+			if shortSHA != "" {
+				lines = append(lines, fmt.Sprintf("  - %s:sha-%s", image, shortSHA))
+			}
+		}
+		return strings.Join(lines, "\n")
 	}
 	return ""
 }
 
-func buildSummary(mode, latestTag, nextTag, image, dockerVersion, shortSHA string) string {
+func buildSummary(mode, latestTag, nextTag, image, version, shortSHA string) string {
 	if mode == ModeRerelease {
 		lines := []string{
 			fmt.Sprintf("Re-released tag: %s", nextTag),
@@ -227,7 +345,7 @@ func buildSummary(mode, latestTag, nextTag, image, dockerVersion, shortSHA strin
 			"GoReleaser artifacts published.",
 			"",
 			"Image tags:",
-			fmt.Sprintf("  - %s:%s", image, dockerVersion),
+			fmt.Sprintf("  - %s:%s", image, version),
 			fmt.Sprintf("  - %s:latest", image),
 		}
 		if shortSHA != "" {
@@ -248,7 +366,7 @@ func buildSummary(mode, latestTag, nextTag, image, dockerVersion, shortSHA strin
 		"GoReleaser workflow will run from tag push.",
 		"",
 		"Image tags:",
-		fmt.Sprintf("  - %s:%s", image, dockerVersion),
+		fmt.Sprintf("  - %s:%s", image, version),
 		fmt.Sprintf("  - %s:latest", image),
 	}
 	if shortSHA != "" {
@@ -270,7 +388,10 @@ func validateRequiredSecrets(required []string, env EnvProvider) error {
 	}
 
 	sort.Strings(missing)
-	return fmt.Errorf("missing required secret(s): %s", strings.Join(missing, ", "))
+	// Issue warning instead of error - let individual operations fail if secrets are truly needed
+	fmt.Fprintf(os.Stderr, "⚠️  Warning: Missing secret(s): %s\n", strings.Join(missing, ", "))
+	fmt.Fprintf(os.Stderr, "   Operations requiring these secrets may fail or be skipped.\n")
+	return nil
 }
 
 func parseMajorMinor(version string) (string, error) {

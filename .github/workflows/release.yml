@@ -21,37 +21,17 @@ on:
         default: main
         type: string
       go_version:
-        description: Go version for running tool
-        required: false
-        default: "1.25"
-        type: string
-      node_version:
-        description: Node version for projects that need frontend build
+        description: Go version for running tool (leave empty to auto-detect from go.mod)
         required: false
         default: ""
-        type: string
-      node_version_file:
-        description: Path to node version file
-        required: false
-        default: ""
-        type: string
-      frontend_install_cmd:
-        description: Command to install frontend dependencies
-        required: false
-        default: npm ci
-        type: string
-      frontend_build_cmd:
-        description: Command to build frontend assets
-        required: false
-        default: npm run build
         type: string
     secrets:
       DOCKERHUB_USERNAME:
-        required: true
+        required: false
       DOCKERHUB_TOKEN:
-        required: true
+        required: false
       HOMEBREW_TAP_GITHUB_TOKEN:
-        required: true
+        required: false
 
 permissions:
   contents: write
@@ -61,20 +41,19 @@ jobs:
   release:
     runs-on: ubuntu-latest
     outputs:
-      should_publish: ${{ steps.plan.outputs.should_publish }}
+      dryrun: ${{ steps.plan.outputs.dryrun }}
       next_tag: ${{ steps.plan.outputs.next_tag }}
-      goreleaser_handles_docker: ${{ steps.check_docker.outputs.goreleaser_handles_docker }}
+      goreleaser_docker: ${{ steps.plan.outputs.goreleaser_docker }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
+      - uses: actions/setup-go@v5
         with:
           go-version: ${{ inputs.go_version }}
+          go-version-file: ${{ inputs.go_version == '' && 'go.mod' || '' }}
           cache: true
 
       - name: Plan release
@@ -85,43 +64,35 @@ jobs:
           -bump=${{ inputs.bump }}
           -image=${{ inputs.image }}
           -sha=${{ github.sha }}
+          -owner=${{ github.repository_owner }}
+          -repo=${{ github.event.repository.name }}
+          -run-id=${{ github.run_id }}
         env:
           GITHUB_EVENT_NAME: ${{ inputs.event_name }}
-          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
 
-      - name: Configure Git
-        if: ${{ steps.plan.outputs.should_publish == 'true' }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+      - uses: goreleaser/goreleaser-action@v6
+        if: ${{ steps.plan.outputs.dryrun != 'true' }}
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean ${{ steps.plan.outputs.goreleaser_yml_current != 'true' && format('--config={0}', steps.plan.outputs.goreleaser_yml_new) || '' }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
 
-      - name: Create and push tag
-        if: ${{ steps.plan.outputs.should_publish == 'true' }}
-        run: |
-          set -euo pipefail
-          next_tag='${{ steps.plan.outputs.next_tag }}'
-          git tag -a "$next_tag" -m "Release $next_tag"
-          git push origin "$next_tag"
-
-      - name: Check if GoReleaser handles Docker
-        id: check_docker
-        run: |
-          if [ -f "Containerfile.goreleaser" ] || [ -f "Dockerfile.goreleaser" ]; then
-            echo "goreleaser_handles_docker=true" >> "$GITHUB_OUTPUT"
-            echo "GoReleaser will handle Docker builds"
-          else
-            echo "goreleaser_handles_docker=false" >> "$GITHUB_OUTPUT"
-            echo "Docker workflow will handle Docker builds"
-          fi
-
-      - name: Summary
-        run: printf '%s\n' "${{ steps.plan.outputs.summary_message }}"
+      - name: Cleanup on failure
+        if: ${{ failure() && steps.plan.outputs.next_tag != '' && steps.plan.outputs.dryrun != 'true' }}
+        run: >-
+          go run github.com/karloie/shipkit/cmd/shipkit@${{ inputs.tool_ref }} git-cleanup-tag
+          -tag=${{ steps.plan.outputs.next_tag }}
 
   docker:
     needs: release
-    if: ${{ needs.release.outputs.should_publish == 'true' && needs.release.outputs.goreleaser_handles_docker != 'true' }}
+    if: ${{ needs.release.outputs.dryrun != 'true' && needs.release.outputs.goreleaser_docker != 'true' }}
     uses: ./.github/workflows/docker.yml
     with:
       image: ${{ inputs.image }}
@@ -129,23 +100,6 @@ jobs:
       tag: ${{ needs.release.outputs.next_tag }}
       tool_ref: ${{ inputs.tool_ref }}
       go_version: ${{ inputs.go_version }}
-      node_version: ${{ inputs.node_version }}
-      node_version_file: ${{ inputs.node_version_file }}
-      frontend_install_cmd: ${{ inputs.frontend_install_cmd }}
-      frontend_build_cmd: ${{ inputs.frontend_build_cmd }}
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-
-  goreleaser:
-    needs: release
-    if: ${{ needs.release.outputs.should_publish == 'true' }}
-    uses: ./.github/workflows/goreleaser.yml
-    with:
-      event_name: push
-      tag: ${{ needs.release.outputs.next_tag }}
-      publish: true
-      tool_ref: ${{ inputs.tool_ref }}
-      go_version: ${{ inputs.go_version }}
-    secrets:
-      HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}

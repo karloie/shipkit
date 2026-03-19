@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
+	"strings"
 )
 
 type dockerHubLoginRequest struct {
@@ -56,7 +58,6 @@ func runDockerReadme(args []string) error {
 		return err
 	}
 
-	// Read README
 	readmeContent, err := os.ReadFile(*readmePath)
 	if err != nil {
 		return fmt.Errorf("failed to read README file: %w", err)
@@ -64,7 +65,6 @@ func runDockerReadme(args []string) error {
 
 	fmt.Fprintf(os.Stderr, "🐳 Uploading %s to Docker Hub repository %s...\n", *readmePath, *repo)
 
-	// Login and update
 	token, err := dockerHubLogin(*username, *password)
 	if err != nil {
 		return fmt.Errorf("failed to login to Docker Hub: %w", err)
@@ -75,6 +75,19 @@ func runDockerReadme(args []string) error {
 	}
 
 	fmt.Fprintf(os.Stderr, "✅ Successfully updated Docker Hub README for %s\n", *repo)
+	return nil
+}
+
+func dockerLogin(username, token string) error {
+	cmd := exec.Command("docker", "login", "-u", username, "--password-stdin")
+	cmd.Stdin = strings.NewReader(token)
+	cmd.Stdout = os.Stderr
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("docker login failed: %w", err)
+	}
+
 	return nil
 }
 

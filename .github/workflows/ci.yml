@@ -22,18 +22,8 @@ on:
         required: false
         default: ""
         type: string
-      go_version_file:
-        description: Path to go version file used by setup-go
-        required: false
-        default: go.mod
-        type: string
       node_version:
         description: Explicit Node version override (for example 22)
-        required: false
-        default: ""
-        type: string
-      node_version_file:
-        description: Path to node version file used by setup-node
         required: false
         default: ""
         type: string
@@ -41,31 +31,6 @@ on:
         description: setup-node cache mode
         required: false
         default: npm
-        type: string
-      frontend_install_cmd:
-        description: Command to install frontend dependencies
-        required: false
-        default: npm ci
-        type: string
-      frontend_build_cmd:
-        description: Command to build frontend assets
-        required: false
-        default: npm run build
-        type: string
-      go_mod_download_cmd:
-        description: Command to download Go dependencies
-        required: false
-        default: go mod download
-        type: string
-      build_cmd:
-        description: Command to build the project
-        required: false
-        default: make build
-        type: string
-      test_cmd:
-        description: Command to run tests
-        required: false
-        default: go test ./...
         type: string
 
 permissions:
@@ -76,30 +41,24 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Go (explicit version)
+      - uses: actions/setup-node@v4
+        if: ${{ inputs.mode == 'build-test' && inputs.node_version != '' }}
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: ${{ inputs.node_cache }}
+
+      - uses: actions/setup-go@v5
         if: ${{ inputs.go_version != '' }}
-        uses: actions/setup-go@v5
         with:
           go-version: ${{ inputs.go_version }}
           cache: true
 
-      - name: Setup Go (version file)
-        if: ${{ inputs.go_version == '' && inputs.go_version_file != '' }}
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: ${{ inputs.go_version_file }}
-          cache: true
-
-      - name: Install actionlint
-        if: ${{ inputs.mode == 'validation' }}
-        run: go install github.com/rhysd/actionlint/cmd/actionlint@latest
-
-      - name: Setup act
+      - name: Setup validation tools
         if: ${{ inputs.mode == 'validation' }}
         run: |
+          go install github.com/rhysd/actionlint/cmd/actionlint@latest
           mkdir -p "$HOME/.local/bin"
           curl -fsSL https://raw.githubusercontent.com/nektos/act/master/install.sh | bash -s -- -b "$HOME/.local/bin"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
@@ -108,36 +67,22 @@ jobs:
         if: ${{ inputs.mode == 'validation' }}
         run: make ${{ inputs.make_targets }}
 
-      - name: Setup Node.js (explicit version)
-        if: ${{ inputs.mode == 'build-test' && inputs.node_version != '' }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ inputs.node_version }}
-          cache: ${{ inputs.node_cache }}
-
-      - name: Setup Node.js (version file)
-        if: ${{ inputs.mode == 'build-test' && inputs.node_version == '' && inputs.node_version_file != '' }}
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: ${{ inputs.node_version_file }}
-          cache: ${{ inputs.node_cache }}
-
       - name: Install frontend dependencies
-        if: ${{ inputs.mode == 'build-test' && (inputs.node_version != '' || inputs.node_version_file != '') && inputs.frontend_install_cmd != '' }}
-        run: ${{ inputs.frontend_install_cmd }}
+        if: ${{ inputs.mode == 'build-test' && inputs.node_version != '' }}
+        run: npm ci
 
       - name: Build frontend
-        if: ${{ inputs.mode == 'build-test' && (inputs.node_version != '' || inputs.node_version_file != '') && inputs.frontend_build_cmd != '' }}
-        run: ${{ inputs.frontend_build_cmd }}
+        if: ${{ inputs.mode == 'build-test' && inputs.node_version != '' }}
+        run: npm run build
 
       - name: Download Go dependencies
-        if: ${{ inputs.mode == 'build-test' && (inputs.go_version != '' || inputs.go_version_file != '') && inputs.go_mod_download_cmd != '' }}
-        run: ${{ inputs.go_mod_download_cmd }}
+        if: ${{ inputs.mode == 'build-test' && inputs.go_version != '' }}
+        run: go mod download
 
       - name: Build
-        if: ${{ inputs.mode == 'build-test' && inputs.build_cmd != '' }}
-        run: ${{ inputs.build_cmd }}
+        if: ${{ inputs.mode == 'build-test' }}
+        run: make build
 
       - name: Test
-        if: ${{ inputs.mode == 'build-test' && inputs.test_cmd != '' }}
-        run: ${{ inputs.test_cmd }}
+        if: ${{ inputs.mode == 'build-test' }}
+        run: go test ./...

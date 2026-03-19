@@ -1,4 +1,4 @@
-.PHONY: test validate lint plan-release plan-rerelease plan-docker plan-goreleaser plan-rerelease-no-node plan-goreleaser-no-node plan-no-node plan-all
+.PHONY: test validate lint plan-release plan-rerelease plan-docker plan-all
 
 ACT ?= act
 ACT_IMAGE ?= ghcr.io/catthehacker/ubuntu:full-latest
@@ -24,9 +24,9 @@ coverage:
 	@go tool cover -func=coverage.out | grep 'total:' | awk '{printf "│ %-55s │ %7s  │ %7s  │\n", "TOTAL", "-", $$3}'
 	@echo "└─────────────────────────────────────────────────────────┴──────────┴──────────┘"
 
-validate: test lint plan-all plan-no-node
+validate: test lint plan-all
 
-plan-all: plan-release plan-rerelease plan-docker plan-goreleaser
+plan-all: plan-release plan-rerelease plan-docker
 
 lint:
 	@command -v actionlint >/dev/null 2>&1 || { \
@@ -36,7 +36,7 @@ lint:
 	actionlint .github/workflows/*.yml
 
 plan-release:
-	$(ACT) -n workflow_call -W .github/workflows/release.yml -j release \
+	@$(ACT) -n workflow_call -W .github/workflows/release.yml -j release \
 		--input image=example/image \
 		--input event_name=workflow_dispatch \
 		--input bump=patch \
@@ -44,41 +44,15 @@ plan-release:
 		-P ubuntu-latest=$(ACT_IMAGE)
 
 plan-rerelease:
-	$(ACT) -n workflow_call -W .github/workflows/re-release.yml -j rerelease \
+	@$(ACT) -n workflow_call -W .github/workflows/re-release.yml -j rerelease \
 		--input image=example/image \
 		--input tool_ref=main \
 		-P ubuntu-latest=$(ACT_IMAGE)
 
 plan-docker:
-	$(ACT) -n workflow_call -W .github/workflows/docker.yml -j docker \
+	@$(ACT) -n workflow_call -W .github/workflows/docker.yml -j docker \
 		--input image=example/image \
 		--input event_name=workflow_dispatch \
 		--input tag=v0.1.0 \
 		--input tool_ref=main \
 		-P ubuntu-latest=$(ACT_IMAGE)
-
-plan-goreleaser:
-	$(ACT) -n workflow_call -W .github/workflows/goreleaser.yml -j goreleaser \
-		--input event_name=workflow_dispatch \
-		--input tag=v0.1.0 \
-		--input publish=false \
-		--input tool_ref=main \
-		-P ubuntu-latest=$(ACT_IMAGE)
-
-plan-rerelease-no-node:
-	$(ACT) -n workflow_call -W .github/workflows/re-release.yml -j rerelease \
-		--input image=example/image \
-		--input setup_node=false \
-		--input tool_ref=main \
-		-P ubuntu-latest=$(ACT_IMAGE)
-
-plan-goreleaser-no-node:
-	$(ACT) -n workflow_call -W .github/workflows/goreleaser.yml -j goreleaser \
-		--input event_name=workflow_dispatch \
-		--input tag=v0.1.0 \
-		--input publish=false \
-		--input setup_node=false \
-		--input tool_ref=main \
-		-P ubuntu-latest=$(ACT_IMAGE)
-
-plan-no-node: plan-rerelease-no-node plan-goreleaser-no-node

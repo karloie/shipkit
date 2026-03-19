@@ -35,8 +35,8 @@ func runVersion(args []string) error {
 
 	fmt.Printf("🔄 Bumped from: %s\n", latest)
 	fmt.Printf("🎉 Released new: %s\n", next)
-	writeOutput(githubOutput, OutputLatestTag, latest)
-	writeOutput(githubOutput, OutputNextTag, next)
+	writeOutput(githubOutput, OutputTagLatest, latest)
+	writeOutput(githubOutput, OutputTagNext, next)
 	writeOutput(githubOutput, OutputPublish, PublishTrue)
 	return nil
 }

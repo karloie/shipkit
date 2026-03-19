@@ -9,7 +9,7 @@ import (
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Fprintln(os.Stderr, "Usage: shipkit <subcommand> [options]")
-		fmt.Fprintln(os.Stderr, "Subcommands: version, policy, plan, assets-delete, goreleaser, docker-readme")
+		fmt.Fprintln(os.Stderr, "Subcommands: version, policy, plan, assets-delete, goreleaser, docker-readme, git-config, git-tag, git-cleanup-tag, check-docker")
 		os.Exit(1)
 	}
 	var err error
@@ -26,11 +26,19 @@ func main() {
 		err = runGoReleaserGenerate(os.Args[2:])
 	case "docker-readme":
 		err = runDockerReadme(os.Args[2:])
+	case "git-config":
+		err = runGitConfig(os.Args[2:])
+	case "git-tag":
+		err = runGitTag(os.Args[2:])
+	case "git-cleanup-tag":
+		err = runGitCleanupTag(os.Args[2:])
+	case "check-docker":
+		err = runCheckDocker(os.Args[2:])
 	default:
 		err = fmt.Errorf("unknown subcommand: %s", os.Args[1])
 	}
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		fmt.Fprintf(os.Stderr, "❌ Error: %v\n", err)
 		os.Exit(1)
 	}
 }
@@ -42,7 +50,7 @@ func writeOutput(outputFile, key, value string) {
 	}
 	f, err := os.OpenFile(outputFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: could not write to GITHUB_OUTPUT: %v\n", err)
+		fmt.Fprintf(os.Stderr, "⚠️  Warning: could not write to GITHUB_OUTPUT: %v\n", err)
 		return
 	}
 	defer f.Close()

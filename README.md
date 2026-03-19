@@ -84,7 +84,7 @@ Secrets are auto-detected by mode, or specify with `-required-secrets`.
     HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
 ```
 
-**Outputs:** `latest_tag`, `next_tag`, `publish`, `should_publish`, `publish_mode`, `release_tag`, `docker_version`, `docker_major_minor`, `dockerfile`, `summary_message`
+**Outputs:** `latest_tag`, `next_tag`, `publish`, `dryrun`, `release_tag`, `version`, `version_major_minor`, `dockerfile`, `summary_message`
 
 ### Other Commands
 

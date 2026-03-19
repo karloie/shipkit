@@ -1,0 +1,231 @@
+package main
+
+import (
+	"strings"
+	"testing"
+)
+
+func TestComputeReleasePolicyReleaseSuccess(t *testing.T) {
+	env := &EnvProviderMock{values: map[string]string{"DOCKERHUB_USERNAME": "u", "DOCKERHUB_TOKEN": "t"}}
+	p, err := computeReleasePolicy(PolicyInput{
+		Mode:            "release",
+		Publish:         "true",
+		LatestTag:       "v1.2.2",
+		NextTag:         "v1.2.3",
+		Image:           "karloie/kompass",
+		SHA:             "abcdef1234",
+		RequiredSecrets: []string{"DOCKERHUB_USERNAME", "DOCKERHUB_TOKEN"},
+	}, env, &GitProviderMock{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if p.DryRun != "false" || p.Version != "1.2.3" || p.ReleaseTag != "v1.2.3" {
+		t.Fatalf("unexpected policy: %+v", p)
+	}
+}
+
+func TestComputeReleasePolicyRereleaseResolveLatest(t *testing.T) {
+	env := &EnvProviderMock{values: map[string]string{
+		"DOCKERHUB_USERNAME":        "u",
+		"DOCKERHUB_TOKEN":           "t",
+		"HOMEBREW_TAP_GITHUB_TOKEN": "h",
+	}}
+	p, err := computeReleasePolicy(PolicyInput{
+		Mode:            "rerelease",
+		Publish:         "true",
+		ResolveLatest:   true,
+		Image:           "karloie/kompass",
+		RequiredSecrets: []string{"DOCKERHUB_USERNAME", "DOCKERHUB_TOKEN", "HOMEBREW_TAP_GITHUB_TOKEN"},
+	}, env, &GitProviderMock{LatestTag: "v9.8.7"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if p.ReleaseTag != "v9.8.7" || p.Version != "9.8.7" {
+		t.Fatalf("unexpected policy: %+v", p)
+	}
+}
+
+func TestComputeReleasePolicyDockerMode(t *testing.T) {
+	env := &EnvProviderMock{values: map[string]string{"DOCKERHUB_USERNAME": "u", "DOCKERHUB_TOKEN": "t"}}
+	p, err := computeReleasePolicy(PolicyInput{
+		Mode:            "docker",
+		EventName:       "workflow_dispatch",
+		NextTag:         "v1.2.3",
+		RequiredSecrets: []string{"DOCKERHUB_USERNAME", "DOCKERHUB_TOKEN"},
+	}, env, &GitProviderMock{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if p.DryRun != "false" || p.VersionMajorMinor != "1.2" {
+		t.Fatalf("unexpected policy: %+v", p)
+	}
+}
+
+func TestComputeReleasePolicyGoReleaserModes(t *testing.T) {
+	p, err := computeReleasePolicy(PolicyInput{Mode: "goreleaser", EventName: "workflow_dispatch", Publish: "false", NextTag: "v1.2.3"}, &EnvProviderMock{}, &GitProviderMock{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if p.DryRun != "true" {
+		t.Fatalf("unexpected dry-run policy: %+v", p)
+	}
+
+	env := &EnvProviderMock{values: map[string]string{"HOMEBREW_TAP_GITHUB_TOKEN": "h"}}
+	p, err = computeReleasePolicy(PolicyInput{Mode: "goreleaser", EventName: "push", Publish: "false", NextTag: "v1.2.3", RequiredSecrets: []string{"HOMEBREW_TAP_GITHUB_TOKEN"}}, env, &GitProviderMock{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if p.DryRun != "false" {
+		t.Fatalf("unexpected push policy: %+v", p)
+	}
+}
+
+func TestComputeReleasePolicyInvalidMode(t *testing.T) {
+	_, err := computeReleasePolicy(PolicyInput{
+		Mode: "invalid-mode",
+	}, &EnvProviderMock{}, &GitProviderMock{})
+	if err == nil {
+		t.Fatal("expected error for invalid mode")
+	}
+	if !strings.Contains(err.Error(), "invalid mode") {
+		t.Errorf("error = %v, want 'invalid mode'", err)
+	}
+}
+
+func TestComputeReleasePolicyMissingNextTag(t *testing.T) {
+	_, err := computeReleasePolicy(PolicyInput{
+		Mode:            ModeRelease,
+		Publish:         PublishTrue,
+		RequiredSecrets: []string{},
+	}, &EnvProviderMock{}, &GitProviderMock{})
+	if err == nil {
+		t.Fatal("expected error for missing next-tag")
+	}
+	if !strings.Contains(err.Error(), "next-tag is required") {
+		t.Errorf("error = %v, want 'next-tag is required'", err)
+	}
+}
+
+func TestComputeReleasePolicyMissingSecrets(t *testing.T) {
+	// Warns not errors
+	policy, err := computeReleasePolicy(PolicyInput{
+		Mode:            ModeRelease,
+		Publish:         PublishTrue,
+		NextTag:         "v1.0.0",
+		RequiredSecrets: []string{"MISSING_SECRET"},
+	}, &EnvProviderMock{}, &GitProviderMock{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v (missing secrets should only warn, not error)", err)
+	}
+	if policy.Version != "1.0.0" {
+		t.Errorf("expected version 1.0.0, got %s", policy.Version)
+	}
+}
+
+func TestComputeTagBasedPolicyResolveLatest(t *testing.T) {
+	env := &EnvProviderMock{values: map[string]string{"DOCKERHUB_USERNAME": "u", "DOCKERHUB_TOKEN": "t"}}
+	git := &GitProviderMock{LatestTag: "v5.4.3"}
+
+	p, err := computeTagBasedPolicy(PolicyInput{
+		Mode:            ModeDocker,
+		EventName:       "workflow_dispatch",
+		Publish:         PublishTrue,
+		ResolveLatest:   true,
+		RequiredSecrets: []string{"DOCKERHUB_USERNAME", "DOCKERHUB_TOKEN"},
+	}, env, git)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if p.Version != "5.4.3" || p.ReleaseTag != "v5.4.3" {
+		t.Errorf("unexpected policy: %+v", p)
+	}
+}
+
+func TestValidateRequiredSecrets(t *testing.T) {
+	tests := []struct {
+		name     string
+		required []string
+		env      map[string]string
+	}{
+		{
+			name:     "all secrets present",
+			required: []string{"SECRET1", "SECRET2"},
+			env:      map[string]string{"SECRET1": "val1", "SECRET2": "val2"},
+		},
+		{
+			name:     "missing one secret",
+			required: []string{"SECRET1", "SECRET2"},
+			env:      map[string]string{"SECRET1": "val1"},
+		},
+		{
+			name:     "missing multiple secrets",
+			required: []string{"SECRET1", "SECRET2", "SECRET3"},
+			env:      map[string]string{},
+		},
+		{
+			name:     "no secrets required",
+			required: []string{},
+			env:      map[string]string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			env := &EnvProviderMock{values: tt.env}
+			err := validateRequiredSecrets(tt.required, env)
+			// Only warns
+			if err != nil {
+				t.Errorf("validateRequiredSecrets() should not error, got: %v", err)
+			}
+		})
+	}
+}
+
+func TestResolvePublishMode(t *testing.T) {
+	tests := []struct {
+		name         string
+		eventName    string
+		publishInput string
+		mode         string
+		want         string
+		wantErr      bool
+	}{
+		{"push event always true", "push", "", "release", PublishTrue, false},
+		{"push overrides false input", "push", "false", "goreleaser", PublishTrue, false},
+		{"workflow_dispatch with true", "workflow_dispatch", "true", "release", PublishTrue, false},
+		{"workflow_dispatch with false", "workflow_dispatch", "false", "release", PublishFalse, false},
+		{"workflow_dispatch empty docker mode", "workflow_dispatch", "", ModeDocker, PublishTrue, false},
+		{"workflow_dispatch empty goreleaser mode", "workflow_dispatch", "", ModeGoreleaser, PublishFalse, false},
+		{"invalid publish value", "workflow_dispatch", "maybe", "release", "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := resolvePublishMode(tt.eventName, tt.publishInput, tt.mode)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("resolvePublishMode() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("resolvePublishMode() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBuildSummaryRelease(t *testing.T) {
+	summary := buildSummary(ModeRelease, "v1.0.0", "v1.0.1", "owner/repo", "1.0.1", "abc1234")
+	if !strings.Contains(summary, "Bumped from: v1.0.0") {
+		t.Error("summary should contain bumped from")
+	}
+	if !strings.Contains(summary, "Released new: v1.0.1") {
+		t.Error("summary should contain released new")
+	}
+	if !strings.Contains(summary, "owner/repo:1.0.1") {
+		t.Error("summary should contain image tag")
+	}
+	if !strings.Contains(summary, "sha-abc1234") {
+		t.Error("summary should contain sha tag")
+	}
+}

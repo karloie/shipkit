@@ -19,13 +19,47 @@ func runPlan(args []string) error {
 	requiredSecrets := fs.String("required-secrets", "", "comma-separated required secret names (auto-detected by mode if empty)")
 	resolveLatestTag := fs.Bool("resolve-latest-tag", false, "resolve latest tag from git (used by rerelease mode)")
 
+	// GoReleaser config generation flags
+	projectName := fs.String("project", "", "Project name for goreleaser config generation")
+	binaryName := fs.String("binary", "", "Binary name for goreleaser config generation")
+	repoOwner := fs.String("owner", "", "Repository owner for goreleaser config generation")
+	repoName := fs.String("repo", "", "Repository name for goreleaser config generation")
+	description := fs.String("description", "Application built with Go", "Project description for goreleaser config")
+	runID := fs.String("run-id", "", "GitHub run ID for temp file naming")
+
 	if err := fs.Parse(args); err != nil {
 		return err
+	}
+
+	// Auto-detect project name from go.mod if not provided
+	if *projectName == "" {
+		*projectName = detectProjectName()
+	}
+
+	// Auto-detect binary name (defaults to project name)
+	if *binaryName == "" {
+		*binaryName = *projectName
+	}
+
+	// Auto-detect project description if using default value
+	if *description == "Application built with Go" {
+		if det := detectProjectDescription(); det != "" {
+			*description = det
+		}
 	}
 
 	// Detect project types
 	detectedProjects := detectProjectTypes()
 	_ = detectedProjects // Will be used to steer plan logic
+
+	// Check if custom .goreleaser.yml exists
+	hasCustomGoreleaserConfig := fileExists(FileGoReleaser) || fileExists(".goreleaser.yaml")
+	if hasCustomGoreleaserConfig {
+		fmt.Fprintln(os.Stderr, "🚀 Using custom .goreleaser.yml config")
+	}
+
+	// Check if GoReleaser will handle Docker builds
+	hasGoreleaserDocker := fileExists(FileGoreleaserContainerfile) || fileExists(FileGoreleaserDockerfile)
 
 	// Set default required secrets based on mode if not provided
 	secrets := strings.TrimSpace(*requiredSecrets)
@@ -56,15 +90,15 @@ func runPlan(args []string) error {
 	}
 
 	// Write version outputs
-	writeOutput(githubOutput, OutputLatestTag, latest)
+	writeOutput(githubOutput, OutputTagLatest, latest)
 	if next != "" {
-		writeOutput(githubOutput, OutputNextTag, next)
+		writeOutput(githubOutput, OutputTagNext, next)
 	}
 	writeOutput(githubOutput, OutputPublish, publish)
 
 	// If we're skipping, output that and stop
 	if publish == PublishSkip {
-		writeOutput(githubOutput, OutputShouldPublish, PublishFalse)
+		writeOutput(githubOutput, OutputDryRun, PublishTrue)
 		writeOutput(githubOutput, OutputSummaryMessage, "Info: No release markers found. Skipping tag creation and publish.")
 		fmt.Println("Info: No release markers found. Skipping release.")
 		return nil
@@ -89,29 +123,109 @@ func runPlan(args []string) error {
 	}
 
 	// Write policy outputs
-	if policy.ShouldPublish {
-		writeOutput(githubOutput, OutputShouldPublish, PublishTrue)
-	} else {
-		writeOutput(githubOutput, OutputShouldPublish, PublishFalse)
+	if policy.DryRun != "" {
+		writeOutput(githubOutput, OutputDryRun, policy.DryRun)
 	}
-	if policy.PublishMode != "" {
-		writeOutput(githubOutput, OutputPublishMode, policy.PublishMode)
+	if policy.Version != "" {
+		writeOutput(githubOutput, OutputVersion, policy.Version)
 	}
-	if policy.DockerVersion != "" {
-		writeOutput(githubOutput, OutputDockerVersion, policy.DockerVersion)
-	}
-	if policy.DockerMajorMinor != "" {
-		writeOutput(githubOutput, OutputDockerMajorMinor, policy.DockerMajorMinor)
+	if policy.VersionMajorMinor != "" {
+		writeOutput(githubOutput, OutputVersionMajorMinor, policy.VersionMajorMinor)
 	}
 	if policy.ReleaseTag != "" {
 		writeOutput(githubOutput, OutputReleaseTag, policy.ReleaseTag)
 	}
 	writeOutput(githubOutput, OutputSummaryMessage, policy.Message)
 
+	// Output custom goreleaser config status
+	if hasCustomGoreleaserConfig {
+		writeOutput(githubOutput, OutputGoreleaserYmlCurrent, PublishTrue)
+	} else {
+		writeOutput(githubOutput, OutputGoreleaserYmlCurrent, PublishFalse)
+	}
+
+	// Output goreleaser docker status
+	if hasGoreleaserDocker {
+		writeOutput(githubOutput, OutputGoreleaserDocker, PublishTrue)
+	} else {
+		writeOutput(githubOutput, OutputGoreleaserDocker, PublishFalse)
+	}
+
+	// Create tag for release mode when not in dryrun
+	if strings.TrimSpace(*mode) == ModeRelease && policy.DryRun != PublishTrue && next != "" {
+		if err := createGitTag(next); err != nil {
+			return fmt.Errorf("failed to create tag: %w", err)
+		}
+	}
+
+	// Generate GoReleaser config for release/rerelease modes when not in dryrun
+	if (strings.TrimSpace(*mode) == ModeRelease || strings.TrimSpace(*mode) == ModeRerelease) && policy.DryRun != PublishTrue {
+		hasCustomConfig := fileExists(FileGoReleaser) || fileExists(".goreleaser.yaml")
+		if hasCustomConfig {
+			writeOutput(githubOutput, OutputGoreleaserYmlCurrent, PublishTrue)
+			fmt.Fprintln(os.Stderr, "🚀 Using custom .goreleaser.yml config")
+		} else {
+			writeOutput(githubOutput, OutputGoreleaserYmlCurrent, PublishFalse)
+			fmt.Fprintln(os.Stderr, "  Generating GoReleaser config...")
+
+			if *projectName != "" && *repoOwner != "" {
+				configPath := fmt.Sprintf("/tmp/goreleaser-generated-%s.yml", *runID)
+
+				// Repo name defaults to project name if not specified
+				if *repoName == "" {
+					*repoName = *projectName
+				}
+
+				mainPath := fmt.Sprintf("./cmd/%s", *projectName)
+				dockerImage := fmt.Sprintf("%s/%s", *repoOwner, *projectName)
+
+				detected := detectProjectTypes()
+				hasNodeJS := hasProjectType(detected, "Node")
+				hasChangelog := fileExists(FileChangelog)
+				hasGoreleaserDocker := hasProjectType(detected, "GoReleaser Docker")
+
+				// Get specific Docker file if GoReleaser Docker is detected
+				dockerFile := ""
+				if hasGoreleaserDocker {
+					if fileExists(FileGoreleaserContainerfile) {
+						dockerFile = FileGoreleaserContainerfile
+					} else {
+						dockerFile = FileGoreleaserDockerfile
+					}
+				}
+
+				config := GoReleaserConfig{
+					ProjectName:  *projectName,
+					BinaryName:   *binaryName,
+					MainPath:     mainPath,
+					RepoOwner:    *repoOwner,
+					RepoName:     *repoName,
+					Description:  *description,
+					License:      DefaultLicense,
+					DockerImage:  dockerImage,
+					HasNodeJS:    hasNodeJS,
+					HasChangelog: hasChangelog,
+					HasDocker:    hasGoreleaserDocker,
+					DockerFile:   dockerFile,
+				}
+
+				if err := generateGoReleaserConfig(config, configPath); err != nil {
+					return fmt.Errorf("failed to generate goreleaser config: %w", err)
+				}
+
+				writeOutput(githubOutput, OutputGoreleaserYmlNew, configPath)
+				fmt.Fprintf(os.Stderr, "📝 Generated GoReleaser config at: %s\n", configPath)
+			}
+		}
+	}
+
 	// Print summary
 	fmt.Printf("🔄 Bumped from: %s\n", latest)
 	fmt.Printf("🎉 Released new: %s\n", next)
-	fmt.Printf("🚀 Should publish: %v\n", policy.ShouldPublish)
+	fmt.Printf("🚀 Dry-run: %v\n", policy.DryRun == PublishTrue)
+	if policy.Message != "" {
+		fmt.Printf("\n%s\n", policy.Message)
+	}
 
 	return nil
 }

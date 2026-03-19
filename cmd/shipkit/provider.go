@@ -121,7 +121,7 @@ func (p *PRProviderReal) GetMergedPRLabels() (string, error) {
 	}
 
 	cmd := exec.Command("gh", "pr", "list", "--state", "merged", "--head", "main", "--limit", "1", "--json", "labels", "--jq", ".[0].labels[].name")
-	cmd.Env = append(os.Environ(), "GH_TOKEN="+p.token)
+	cmd.Env = append(os.Environ(), "GITHUB_TOKEN="+p.token)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", nil
