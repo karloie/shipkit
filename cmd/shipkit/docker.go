@@ -25,7 +25,7 @@ type dockerHubRepoUpdate struct {
 }
 
 func runDockerHubReadme(args []string) error {
-	fs := newFlagSet("docker-readme")
+	fs := newFlagSet("docker-hub-readme")
 
 	repo := fs.String("repo", "", "Docker Hub repository (owner/name) (required)")
 	username := fs.String("username", os.Getenv(EnvDockerHubUsername), "Docker Hub username (or set DOCKERHUB_USERNAME env)")

@@ -11,6 +11,8 @@ func runPlan(args []string) error {
 
 	// Version flags
 	bump := fs.String("bump", "", "patch|minor|major (optional, auto-detect from commits if empty)")
+	nextTag := fs.String("next-tag", "", "next release tag (optional, skip version computation if provided)")
+	latestTag := fs.String("latest-tag", "", "latest release tag (optional, used with -next-tag)")
 
 	// Policy flags
 	mode := fs.String("mode", DefaultMode, "policy mode: release|rerelease|docker|goreleaser")
@@ -83,10 +85,26 @@ func runPlan(args []string) error {
 	git := &GitProviderReal{}
 	pr := &PRProviderReal{token: token}
 
-	// Step 1: Compute version
-	latest, next, publish, err := computeVersion(eventName, *bump, git, pr)
-	if err != nil {
-		return err
+	var latest, next, publish string
+	var err error
+
+	// Step 1: Compute or use provided version
+	if strings.TrimSpace(*nextTag) != "" {
+		// Use provided version (docker mode when called from release workflow)
+		next = strings.TrimSpace(*nextTag)
+		latest = strings.TrimSpace(*latestTag)
+		if latest == "" {
+			// Try to get latest from git if not provided
+			latest, _ = git.GetLatestTag()
+		}
+		publish = PublishTrue
+		fmt.Fprintf(os.Stderr, "📌 Using provided tag: %s\n", next)
+	} else {
+		// Compute version from git/commits
+		latest, next, publish, err = computeVersion(eventName, *bump, git, pr)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Write version outputs
@@ -149,6 +167,24 @@ func runPlan(args []string) error {
 		writeOutput(githubOutput, OutputGoreleaserDocker, PublishTrue)
 	} else {
 		writeOutput(githubOutput, OutputGoreleaserDocker, PublishFalse)
+	}
+
+	// Handle Docker login for docker mode
+	if strings.TrimSpace(*mode) == ModeDocker && policy.DryRun != PublishTrue {
+		username := os.Getenv(EnvDockerHubUsername)
+		dockerToken := os.Getenv(EnvDockerHubToken)
+
+		if username != "" && dockerToken != "" {
+			if err := dockerLogin(username, dockerToken); err != nil {
+				fmt.Fprintf(os.Stderr, "⚠️  Warning: Docker login failed: %v\n", err)
+				writeOutput(githubOutput, "push", PublishFalse)
+			} else {
+				writeOutput(githubOutput, "push", PublishTrue)
+			}
+		} else {
+			fmt.Fprintln(os.Stderr, "⚠️  Warning: Missing DockerHub credentials - will build locally without pushing")
+			writeOutput(githubOutput, "push", PublishFalse)
+		}
 	}
 
 	// Create tag for release mode when not in dryrun

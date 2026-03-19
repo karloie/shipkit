@@ -48,8 +48,8 @@ func TestComputeVersionNoTagFallback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if next != "v0.0.1" {
-		t.Fatalf("expected v0.0.1, got %s", next)
+	if next != "v0.0.2" {
+		t.Errorf("expected v0.0.2, got %s", next)
 	}
 }
 

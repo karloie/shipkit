@@ -58,7 +58,7 @@ func (g *GitProviderReal) GetCommitLog(since string) (string, error) {
 	var out []byte
 	var err error
 
-	if since == "v0.0.0" {
+	if since == "v0.0.1" {
 		out, err = exec.Command("git", "log", "-n", "10", "--oneline").CombinedOutput()
 	} else {
 		out, err = exec.Command("git", "log", since+"..HEAD", "--oneline").CombinedOutput()
@@ -86,7 +86,7 @@ func (m *GitProviderMock) GetLatestTag() (string, error) {
 		return "", m.Err
 	}
 	if m.LatestTag == "" {
-		return "v0.0.0", nil
+		return "v0.0.1", nil
 	}
 	return m.LatestTag, nil
 }

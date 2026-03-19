@@ -99,8 +99,8 @@ func runGitTagCleanup(args []string) error {
 	return nil
 }
 
-func runDockerCheck(args []string) error {
-	fs := newFlagSet("docker-check")
+func runDockerHubStatus(args []string) error {
+	fs := newFlagSet("docker-hub-status")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}

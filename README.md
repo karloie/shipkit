@@ -1,6 +1,6 @@
 # 🚢 Shipkit
 
-<img src="doc/vibecoded.png" width="256" alt="Vibe Coded Badge" align="right">
+<img src="doc/vibecoded.png" width="200" alt="Vibe Coded Badge" align="right">
 
 Reusable GitHub workflow tooling for my GitHub projects.
 
@@ -10,12 +10,18 @@ This repository ships a single CLI:
 
 The tool provides subcommands:
 
-- `version` - Display version information
-- `policy` - Compute release policy for workflows
+**Primary commands:**
 - `plan` - Compute release versions and validate publishing requirements
-- `assets-delete` - Delete GitHub release assets by tag
+- `version` - Display version information
 - `goreleaser` - Generate GoReleaser configuration from template
-- `docker-readme` - Upload README.md to Docker Hub repository
+- `docker-hub-readme` - Upload README.md to Docker Hub repository
+- `assets-delete` - Delete GitHub release assets by tag
+
+**Internal commands (used by workflows):**
+- `git-config` - Configure git user
+- `git-tag` - Create annotated git tags
+- `git-tag-cleanup` - Delete git tags on failures
+- `docker-hub-status` - Check Docker login status  
 
 ## Use In Another Repository
 
@@ -65,10 +71,14 @@ Secrets are auto-detected by mode, or specify with `-required-secrets`.
     -bump=${{ inputs.bump }}
     -image=karloie/kompass
     -sha=${{ github.sha }}
+    -owner=${{ github.repository_owner }}
+    -repo=${{ github.event.repository.name }}
+    -run-id=${{ github.run_id }}
   env:
-    GH_TOKEN: ${{ github.token }}
+    GITHUB_TOKEN: ${{ github.token }}
     DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
     DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+    HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
 ```
 
 **For goreleaser mode:**
@@ -79,19 +89,37 @@ Secrets are auto-detected by mode, or specify with `-required-secrets`.
     go run github.com/karloie/shipkit/cmd/shipkit@v0.1.0 plan
     -mode=goreleaser
     -bump=${{ inputs.bump }}
+    -owner=${{ github.repository_owner }}
+    -repo=${{ github.event.repository.name }}
+    -run-id=${{ github.run_id }}
   env:
-    GH_TOKEN: ${{ github.token }}
+    GITHUB_TOKEN: ${{ github.token }}
     HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
 ```
 
-**Outputs:** `latest_tag`, `next_tag`, `publish`, `dryrun`, `release_tag`, `version`, `version_major_minor`, `dockerfile`, `summary_message`
+**Outputs:** `latest_tag`, `next_tag`, `publish`, `dryrun`, `release_tag`, `version`, `version_major_minor`, `dockerfile`, `summary_message`, `goreleaser_yml_current`, `goreleaser_yml_new`, `goreleaser_docker`
+
+**Using plan with a known tag (docker mode):**
+
+When the version is already known (e.g., from a parent workflow), pass `-next-tag` to skip version computation:
+
+```yaml
+- name: Docker publish
+  run: >-
+    go run github.com/karloie/shipkit/cmd/shipkit@v0.1.0 plan
+    -mode=docker
+    -next-tag=${{ needs.release.outputs.next_tag }}
+    -image=karloie/kompass
+    -sha=${{ github.sha }}
+  env:
+    GITHUB_EVENT_NAME: push
+    DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+    DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+```
 
 ### Other Commands
 
-The CLI provides additional commands primarily used internally by workflows:
-
 - **`version`** - Computes version bumps from commits or manual input
-- **`policy`** - Evaluates release policies (used internally by workflows)
 - **`assets-delete`** - Removes release assets (useful for re-releases)
 
 ### GoReleaser Config Generation
@@ -125,26 +153,26 @@ Features:
 
 ### Docker Hub README Upload
 
-The `docker-readme` subcommand uploads your README.md to Docker Hub:
+The `docker-hub-readme` subcommand uploads your README.md to Docker Hub:
 
 ```bash
 # Basic usage (reads README.md from current directory)
-shipkit docker-readme -repo=owner/image
+shipkit docker-hub-readme -repo=owner/image
 
 # Custom README path
-shipkit docker-readme -repo=owner/image -readme=docs/DOCKER.md
+shipkit docker-hub-readme -repo=owner/image -readme=docs/DOCKER.md
 
 # Environment variables (recommended for CI)
 export DOCKERHUB_USERNAME=myuser
 export DOCKERHUB_TOKEN=mytoken
-shipkit docker-readme -repo=owner/image
+shipkit docker-hub-readme -repo=owner/image
 ```
 
 **In GitHub Actions:**
 ```yaml
 - name: Update Docker Hub README
   run: |
-    go run github.com/karloie/shipkit/cmd/shipkit@main docker-readme \
+    go run github.com/karloie/shipkit/cmd/shipkit@main docker-hub-readme \
       -repo=${{ github.repository_owner }}/${{ github.event.repository.name }}
   env:
     DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -163,52 +191,63 @@ go test ./...
 
 This repository also provides parameterized reusable workflows for callers:
 
-- `.github/workflows/ci.yml`
-- `.github/workflows/release.yml`
-- `.github/workflows/re-release.yml`
-- `.github/workflows/docker.yml`
-- `.github/workflows/goreleaser.yml`
+- `.github/workflows/ci.yml` - CI validation and build/test
+- `.github/workflows/release.yml` - Automated releases with GoReleaser + Docker
+- `.github/workflows/re-release.yml` - Re-publish existing releases
+- `.github/workflows/docker.yml` - Docker-only publishing (called by release.yml)
 
 ### CI Workflow
 
-`ci.yml` supports `validation` (Make-based) and `build-test` modes.
+`ci.yml` supports two modes:
+- `validation` - Runs Make targets (default: `validate`)
+- `build-test` - Builds and tests with hardcoded `make build` and `go test ./...`
 
-**Example with Node.js:**
+**Inputs:**
+- `mode` - validation or build-test (default: validation)
+- `make_targets` - Make targets for validation mode (default: validate)
+- `go_version` - Go version override (default: auto-detect)
+- `node_version` - Node version for build-test mode (default: none)
+- `node_cache` - npm/yarn/pnpm cache type (default: npm)
+
+**Example validation mode:**
 ```yaml
 jobs:
-  build-and-test:
+  validate:
+    uses: karloie/shipkit/.github/workflows/ci.yml@v0.1.0
+    with:
+      mode: validation
+      make_targets: test lint
+```
+
+**Example build-test with Node.js:**
+```yaml
+jobs:
+  build:
     uses: karloie/shipkit/.github/workflows/ci.yml@v0.1.0
     with:
       mode: build-test
-      go_version_file: go.mod
+      go_version: '1.25'
       node_version: '22'
-      frontend_install_cmd: npm ci
-      frontend_build_cmd: npm run build
-      build_cmd: make build
-      test_cmd: go test ./...
 ```
 
-**Example without Node.js:**
-```yaml
-jobs:
-  build-and-test:
-    uses: karloie/shipkit/.github/workflows/ci.yml@v0.1.0
-    with:
-      mode: build-test
-      go_version_file: go.mod
-      build_cmd: make build
-      test_cmd: go test ./...
-```
+**Note:** Build-test mode hardcodes `npm ci`, `npm run build`, `make build`, and `go test ./...`. For custom commands, use validation mode or your own workflow.
 
-### Workflow Configuration Notes
+### Release Workflow
 
-- **Docker builds:** If `Containerfile.goreleaser` or `Dockerfile.goreleaser` exists, GoReleaser handles Docker publishing and the `docker.yml` workflow is automatically skipped
-- **Frontend assets:** When using `docker.yml` or `release.yml` with Node.js projects, pass `node_version` and frontend build commands to ensure npm builds run before Docker builds
-- **Docker metadata args:** Use uppercase `BUILD_VERSION`, `BUILD_COMMIT`, `BUILD_DATE`
-- **Node.js optional:** Set `setup_node: 'false'` for Go-only projects
-- **Go variables:** Use camelCase (e.g., `buildVersion`, `buildCommit`)
+`release.yml` performs automated releases using GoReleaser and optionally Docker publishing.
 
-### Release Workflow Example
+**Inputs:**
+- `image` (required) - Docker image name
+- `event_name` (required) - GitHub event name
+- `bump` (optional) - Manual version bump
+- `tool_ref` (optional) - Shipkit version (default: main)
+- `go_version` (optional) - Go version (default: auto-detect)
+
+**Secrets:**
+- `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN` - For Docker publishing
+- `HOMEBREW_TAP_GITHUB_TOKEN` - For Homebrew tap
+
+**Example:**
 
 ```yaml
 name: Release
@@ -236,21 +275,43 @@ jobs:
       HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
 ```
 
-**With Node.js frontend:**
+**Available workflow inputs:**
+- `image` (required): Docker image name (e.g., `karloie/kompass`)
+- `event_name` (required): GitHub event name (`push` or `workflow_dispatch`)
+- `bump` (optional): Manual version bump (`patch`, `minor`, `major`)
+- `tool_ref` (optional): Specific shipkit version/tag (default: `main`)
+- `go_version` (optional): Go version override (default: auto-detect from go.mod)
+
+### Re-release Workflow
+
+`re-release.yml` re-publishes the latest git tag.
+
+**Inputs:**
+- `image` (required) - Docker image name
+- `tool_ref`, `go_version` (optional)
+
+**Example:**
 ```yaml
+name: Re-release
+
+on:
+  workflow_dispatch:
+
 jobs:
-  release:
-    uses: karloie/shipkit/.github/workflows/release.yml@v0.1.0
+  rerelease:
+    uses: karloie/shipkit/.github/workflows/re-release.yml@v0.1.0
     with:
       image: owner/repo
-      event_name: ${{ github.event_name }}
-      bump: ${{ inputs.bump }}
-      node_version: '22'
-      frontend_install_cmd: npm ci
-      frontend_build_cmd: npm run build
       tool_ref: v0.1.0
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
       HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
 ```
+
+### Workflow Notes
+
+- **Docker publishing:** If `Containerfile.goreleaser` or `Dockerfile.goreleaser` exists, GoReleaser handles Docker builds and `docker.yml` is skipped. Otherwise, `release.yml` calls `docker.yml` after GoReleaser completes.
+- **Node.js projects:** If `package.json` exists, GoReleaser automatically runs `npm ci` and `npm run build` in its `before.hooks` section.
+- **Docker build args:** Use uppercase `BUILD_VERSION`, `BUILD_COMMIT`, `BUILD_DATE`
+- **Go ldflags:** Use camelCase `buildVersion`, `buildCommit`, `buildDate`

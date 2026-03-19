@@ -9,7 +9,7 @@ import (
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Fprintln(os.Stderr, "Usage: shipkit <subcommand> [options]")
-		fmt.Fprintln(os.Stderr, "Subcommands: version, policy, plan, assets-delete, goreleaser, docker-readme, git-config, git-tag, git-tag-cleanup, docker-check")
+		fmt.Fprintln(os.Stderr, "Subcommands: version, plan, assets-delete, goreleaser, docker-hub-readme, git-config, git-tag, git-tag-cleanup, docker-hub-status")
 		os.Exit(1)
 	}
 	var err error
@@ -18,9 +18,9 @@ func main() {
 		err = runPlan(os.Args[2:])
 	case "assets-delete":
 		err = runAssetsDelete(os.Args[2:])
-	case "docker-check":
-		err = runDockerCheck(os.Args[2:])
-	case "docker-readme":
+	case "docker-hub-status":
+		err = runDockerHubStatus(os.Args[2:])
+	case "docker-hub-readme":
 		err = runDockerHubReadme(os.Args[2:])
 	case "git-config":
 		err = runGitConfig(os.Args[2:])
@@ -32,8 +32,6 @@ func main() {
 		err = runGoReleaser(os.Args[2:])
 	case "version":
 		err = runVersion(os.Args[2:])
-	case "policy":
-		err = runPolicy(os.Args[2:])
 	default:
 		err = fmt.Errorf("unknown subcommand: %s", os.Args[1])
 	}
