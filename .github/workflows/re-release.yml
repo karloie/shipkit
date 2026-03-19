@@ -59,6 +59,7 @@ jobs:
     outputs:
       should_publish: ${{ steps.plan.outputs.should_publish }}
       release_tag: ${{ steps.plan.outputs.release_tag }}
+      goreleaser_handles_docker: ${{ steps.check_docker.outputs.goreleaser_handles_docker }}
 
     steps:
       - name: Checkout
@@ -89,9 +90,20 @@ jobs:
       - name: Summary
         run: printf '%s\n' "${{ steps.plan.outputs.summary_message }}"
 
+      - name: Check if GoReleaser handles Docker
+        id: check_docker
+        run: |
+          if [ -f "Containerfile.goreleaser" ] || [ -f "Dockerfile.goreleaser" ]; then
+            echo "goreleaser_handles_docker=true" >> "$GITHUB_OUTPUT"
+            echo "GoReleaser will handle Docker builds"
+          else
+            echo "goreleaser_handles_docker=false" >> "$GITHUB_OUTPUT"
+            echo "Docker workflow will handle Docker builds"
+          fi
+
   docker:
     needs: rerelease
-    if: ${{ needs.rerelease.outputs.should_publish == 'true' }}
+    if: ${{ needs.rerelease.outputs.should_publish == 'true' && needs.rerelease.outputs.goreleaser_handles_docker != 'true' }}
     uses: ./.github/workflows/docker.yml
     with:
       image: ${{ inputs.image }}
@@ -99,6 +111,7 @@ jobs:
       tag: ${{ needs.rerelease.outputs.release_tag }}
       tool_ref: ${{ inputs.tool_ref }}
       go_version: ${{ inputs.go_version }}
+      node_version: ${{ inputs.node_version }}
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}

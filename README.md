@@ -1,4 +1,4 @@
-# shipkit
+# 🚢 Shipkit
 
 <img src="doc/vibecoded.png" width="120" alt="Vibe Coded Badge" align="right">
 
@@ -39,6 +39,12 @@ shipkit plan -mode=release -image=karloie/kompass -sha=${{ github.sha }}
 # Manual bump specification
 shipkit plan -mode=release -bump=patch -image=karloie/kompass -sha=${{ github.sha }}
 ```
+
+The plan command automatically detects your project type by checking for common build files and logs what it finds:
+- **Go**: `go.mod`
+- **Node**: `package.json`
+- **Docker**: `Containerfile`, `Dockerfile`
+- **GoReleaser**: `.goreleaser.yml`, `.goreleaser.yaml`
 
 **Modes and Required Secrets:**
 
@@ -110,8 +116,8 @@ shipkit goreleaser \
 ```
 
 Features:
-- Detects `package.json` and includes npm build steps
-- Detects `Containerfile.goreleaser` or `Dockerfile.goreleaser` for Docker publishing
+- Detects `package.json` and includes npm build steps (runs before Go build for embedding)
+- Detects `Containerfile.goreleaser` or `Dockerfile.goreleaser` for Docker publishing (when present, GoReleaser handles Docker builds and `docker.yml` workflow is skipped)
 - Detects `CHANGELOG.md` to use manual changelog or auto-generate from GitHub
 - Parameterized project name, binary name, repository details, license
 - Generates config for multi-platform builds (Linux, macOS, Windows on amd64 and arm64)
@@ -196,6 +202,8 @@ jobs:
 
 ### Workflow Configuration Notes
 
+- **Docker builds:** If `Containerfile.goreleaser` or `Dockerfile.goreleaser` exists, GoReleaser handles Docker publishing and the `docker.yml` workflow is automatically skipped
+- **Frontend assets:** When using `docker.yml` or `release.yml` with Node.js projects, pass `node_version` and frontend build commands to ensure npm builds run before Docker builds
 - **Docker metadata args:** Use uppercase `BUILD_VERSION`, `BUILD_COMMIT`, `BUILD_DATE`
 - **Node.js optional:** Set `setup_node: 'false'` for Go-only projects
 - **Go variables:** Use camelCase (e.g., `buildVersion`, `buildCommit`)
@@ -221,6 +229,25 @@ jobs:
       image: owner/repo  # e.g., karloie/kompass
       event_name: ${{ github.event_name }}
       bump: ${{ inputs.bump }}
+      tool_ref: v0.1.0
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+      HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+```
+
+**With Node.js frontend:**
+```yaml
+jobs:
+  release:
+    uses: karloie/shipkit/.github/workflows/release.yml@v0.1.0
+    with:
+      image: owner/repo
+      event_name: ${{ github.event_name }}
+      bump: ${{ inputs.bump }}
+      node_version: '22'
+      frontend_install_cmd: npm ci
+      frontend_build_cmd: npm run build
       tool_ref: v0.1.0
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}

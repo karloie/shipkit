@@ -4,27 +4,11 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
+	"sync"
 )
 
-// getEnvOrDefault returns the environment variable value or a default if empty
-func getEnvOrDefault(key, defaultValue string) string {
-	if val := os.Getenv(key); val != "" {
-		return val
-	}
-	return defaultValue
-}
-
-// getRequiredEnv returns an environment variable or an error if it doesn't exist
-func getRequiredEnv(key string) (string, error) {
-	val := os.Getenv(key)
-	if val == "" {
-		return "", fmt.Errorf("%s environment variable is required", key)
-	}
-	return val, nil
-}
-
-// fileExists checks if a file exists and is not a directory
 func fileExists(path string) bool {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -33,7 +17,14 @@ func fileExists(path string) bool {
 	return !info.IsDir()
 }
 
-// getSecretWithFallbacks tries multiple environment variables for secrets
+func globExists(pattern string) bool {
+	matches, err := filepath.Glob(pattern)
+	if err != nil {
+		return false
+	}
+	return len(matches) > 0
+}
+
 func getSecretWithFallbacks(keys ...string) string {
 	for _, key := range keys {
 		if val := os.Getenv(key); val != "" {
@@ -52,14 +43,12 @@ func parseRepoFormat(repo string) (owner, name string, err error) {
 	return parts[0], parts[1], nil
 }
 
-// newFlagSet creates a FlagSet with stderr output
 func newFlagSet(name string) *flag.FlagSet {
 	fs := flag.NewFlagSet(name, flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	return fs
 }
 
-// parseCSV splits a comma-separated string and trims spaces
 func parseCSV(v string) []string {
 	v = strings.TrimSpace(v)
 	if v == "" {
@@ -85,14 +74,108 @@ func shortenSHA(sha string) string {
 	return s
 }
 
-// detectDockerfileForWorkflow detects which dockerfile to use for docker workflow.
-// Prefers Containerfile over Dockerfile.
-func detectDockerfileForWorkflow() string {
+func detectDockerFiles(fileType string) (bool, string) {
+	if fileType == "goreleaser" {
+		if fileExists(FileContainerfileGoreleaser) {
+			return true, FileContainerfileGoreleaser
+		}
+		if fileExists(FileDockerfileGoreleaser) {
+			return true, FileDockerfileGoreleaser
+		}
+		return false, ""
+	}
 	if fileExists(FileContainerfile) {
-		return FileContainerfile
+		return true, FileContainerfile
 	}
 	if fileExists(FileDockerfile) {
-		return FileDockerfile
+		return true, FileDockerfile
+	}
+	return false, ""
+}
+
+func detectDockerfileForWorkflow() string {
+	hasDocker, dockerFile := detectDockerFiles("workflow")
+	if hasDocker {
+		return dockerFile
 	}
 	return FileContainerfile // default fallback
+}
+
+type projectPattern struct {
+	Emoji    string // Emoji icon for the project type
+	Name     string // Project type name
+	Patterns string // Comma-separated patterns to check (OR logic)
+	IsGlob   bool   // Whether patterns use glob matching
+}
+
+// Cached detection results
+var (
+	detectedProjects []projectPattern
+	detectOnce       sync.Once
+)
+
+// Project detection patterns in priority order
+var projectPatterns = []projectPattern{
+	{"🐹", "Go", FileGo, false},
+	{"📦", "Node.js", FilePackageJSON, false},
+	{"☕", "Maven", FileMaven, false},
+	{"🐘", "Gradle", FileGradle, false},
+	{"🐘", "Gradle", FileGradleKts, false},
+	{"🍃", "Spring Boot", FileApplicationProps + ",src/main/resources/" + FileApplicationProps + "," + FileApplicationYml + ",src/main/resources/" + FileApplicationYml + "," + FileApplicationYaml + ",src/main/resources/" + FileApplicationYaml, false},
+	{"🐳", "Docker", FileContainerfile + "," + FileDockerfile, false},
+	{"🚀", "GoReleaser", FileGoReleaser + ",.goreleaser.yaml", false},
+}
+
+func detectProjectTypes() []projectPattern {
+	detectOnce.Do(func() {
+		detectedProjects = detectProjectTypesWithLogging(true)
+	})
+	return detectedProjects
+}
+
+func detectProjectTypesWithLogging(log bool) []projectPattern {
+	var detected []projectPattern
+	for _, p := range projectPatterns {
+		if matchesPattern(p) {
+			if log {
+				fmt.Fprintf(os.Stderr, "%s Detected %s project\n", p.Emoji, p.Name)
+			}
+			detected = append(detected, p)
+		}
+	}
+	if log && len(detected) == 0 {
+		fmt.Fprintln(os.Stderr, "  No project build files detected")
+	}
+	return detected
+}
+
+func matchesPattern(p projectPattern) bool {
+	for _, pattern := range strings.Split(p.Patterns, ",") {
+		pattern = strings.TrimSpace(pattern)
+		if p.IsGlob && globExists(pattern) {
+			return true
+		}
+		if !p.IsGlob && fileExists(pattern) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasProjectType(detected []projectPattern, name string) bool {
+	for _, p := range detected {
+		if p.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func getProjectPattern(name string) (projectPattern, bool) {
+	for _, p := range projectPatterns {
+		if p.Name == name {
+			return p, true
+		}
+	}
+	return projectPattern{}, false
 }

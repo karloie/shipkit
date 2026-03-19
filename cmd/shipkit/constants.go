@@ -61,8 +61,20 @@ const (
 	FileDockerfile              = "Dockerfile"
 	FileContainerfileGoreleaser = "Containerfile.goreleaser"
 	FileDockerfileGoreleaser    = "Dockerfile.goreleaser"
-	FileGoReleaserYAML          = ".goreleaser.yml"
-	FileGoMod                   = "go.mod"
+	FileGoReleaser              = ".goreleaser.yml"
+	FileGo                      = "go.mod"
+	FileMaven                   = "pom.xml"
+	FileGradle                  = "build.gradle"
+	FileGradleKts               = "build.gradle.kts"
+	FileCargo                   = "Cargo.toml"
+	FilePython                  = "pyproject.toml"
+	FilePythonPy                = "setup.py"
+	FilePythonReq               = "requirements.txt"
+	FileRuby                    = "Gemfile"
+	FilePHP                     = "composer.json"
+	FileApplicationProps        = "application.properties"
+	FileApplicationYml          = "application.yml"
+	FileApplicationYaml         = "application.yaml"
 )
 
 // Output keys

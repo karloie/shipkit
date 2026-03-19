@@ -33,7 +33,7 @@ func runGoReleaserGenerate(args []string) error {
 	description := fs.String("description", "", "Project description (required)")
 	license := fs.String("license", DefaultLicense, "License type")
 	dockerImage := fs.String("docker-image", "", "Docker image name (e.g. owner/project, auto-detected if not provided)")
-	outputFile := fs.String("output", FileGoReleaserYAML, "Output file path")
+	outputFile := fs.String("output", FileGoReleaser, "Output file path")
 
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -57,25 +57,27 @@ func runGoReleaserGenerate(args []string) error {
 		*dockerImage = fmt.Sprintf("%s/%s", *repoOwner, *projectName)
 	}
 
-	// Detect optional features
-	hasNodeJS := fileExists(FilePackageJSON)
-	if hasNodeJS {
-		fmt.Fprintln(os.Stderr, "✓ Detected package.json - enabling Node.js build steps")
-	} else {
+	// Detect project types and features
+	detected := detectProjectTypes()
+
+	// Check for Node.js
+	hasNodeJS := hasProjectType(detected, "Node.js")
+	if !hasNodeJS {
 		fmt.Fprintln(os.Stderr, "  No package.json found - skipping Node.js build steps")
 	}
 
+	// Check for changelog
 	hasChangelog := fileExists(FileChangelog)
 	if hasChangelog {
-		fmt.Fprintln(os.Stderr, "✓ Detected CHANGELOG.md - will use existing changelog")
+		fmt.Fprintln(os.Stderr, "📝 Detected CHANGELOG.md - will use existing changelog")
 	} else {
 		fmt.Fprintln(os.Stderr, "  No CHANGELOG.md found - will use GitHub auto-generated changelog")
 	}
 
 	// Check for Docker/Containerfile
-	hasDocker, dockerFile := detectDockerfile()
+	hasDocker, dockerFile := detectDockerFiles("goreleaser")
 	if hasDocker {
-		fmt.Fprintf(os.Stderr, "✓ Detected %s - will publish Docker image\n", dockerFile)
+		fmt.Fprintf(os.Stderr, "🐳 Detected %s - will publish Docker image\n", dockerFile)
 	} else {
 		fmt.Fprintln(os.Stderr, "  No Containerfile.goreleaser or Dockerfile.goreleaser found - skipping Docker publishing")
 	}
@@ -96,16 +98,6 @@ func runGoReleaserGenerate(args []string) error {
 	}
 
 	return generateGoReleaserConfig(config, *outputFile)
-}
-
-func detectDockerfile() (bool, string) {
-	if fileExists(FileContainerfileGoreleaser) {
-		return true, FileContainerfileGoreleaser
-	}
-	if fileExists(FileDockerfileGoreleaser) {
-		return true, FileDockerfileGoreleaser
-	}
-	return false, ""
 }
 
 func generateGoReleaserConfig(config GoReleaserConfig, outputPath string) error {

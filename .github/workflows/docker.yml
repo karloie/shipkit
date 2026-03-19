@@ -40,6 +40,31 @@ on:
         required: false
         default: unknown
         type: string
+      node_version:
+        description: Explicit Node version override (for example 22)
+        required: false
+        default: ""
+        type: string
+      node_version_file:
+        description: Path to node version file used by setup-node
+        required: false
+        default: ""
+        type: string
+      node_cache:
+        description: setup-node cache mode
+        required: false
+        default: npm
+        type: string
+      frontend_install_cmd:
+        description: Command to install frontend dependencies
+        required: false
+        default: npm ci
+        type: string
+      frontend_build_cmd:
+        description: Command to build frontend assets
+        required: false
+        default: npm run build
+        type: string
     secrets:
       DOCKERHUB_USERNAME:
         required: true
@@ -72,6 +97,28 @@ jobs:
           -next-tag=${{ inputs.event_name == 'push' && github.ref_name || inputs.tag }}
           -image=${{ inputs.image }}
           -sha=${{ github.sha }}
+
+      - name: Setup Node.js (explicit version)
+        if: ${{ inputs.node_version != '' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: ${{ inputs.node_cache }}
+
+      - name: Setup Node.js (version file)
+        if: ${{ inputs.node_version == '' && inputs.node_version_file != '' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ${{ inputs.node_version_file }}
+          cache: ${{ inputs.node_cache }}
+
+      - name: Install frontend dependencies
+        if: ${{ (inputs.node_version != '' || inputs.node_version_file != '') && inputs.frontend_install_cmd != '' }}
+        run: ${{ inputs.frontend_install_cmd }}
+
+      - name: Build frontend
+        if: ${{ (inputs.node_version != '' || inputs.node_version_file != '') && inputs.frontend_build_cmd != '' }}
+        run: ${{ inputs.frontend_build_cmd }}
 
       - name: Set up Docker Buildx
         if: ${{ steps.plan.outputs.should_publish == 'true' }}

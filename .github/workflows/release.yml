@@ -25,6 +25,26 @@ on:
         required: false
         default: "1.25"
         type: string
+      node_version:
+        description: Node version for projects that need frontend build
+        required: false
+        default: ""
+        type: string
+      node_version_file:
+        description: Path to node version file
+        required: false
+        default: ""
+        type: string
+      frontend_install_cmd:
+        description: Command to install frontend dependencies
+        required: false
+        default: npm ci
+        type: string
+      frontend_build_cmd:
+        description: Command to build frontend assets
+        required: false
+        default: npm run build
+        type: string
     secrets:
       DOCKERHUB_USERNAME:
         required: true
@@ -43,6 +63,7 @@ jobs:
     outputs:
       should_publish: ${{ steps.plan.outputs.should_publish }}
       next_tag: ${{ steps.plan.outputs.next_tag }}
+      goreleaser_handles_docker: ${{ steps.check_docker.outputs.goreleaser_handles_docker }}
 
     steps:
       - name: Checkout
@@ -84,12 +105,23 @@ jobs:
           git tag -a "$next_tag" -m "Release $next_tag"
           git push origin "$next_tag"
 
+      - name: Check if GoReleaser handles Docker
+        id: check_docker
+        run: |
+          if [ -f "Containerfile.goreleaser" ] || [ -f "Dockerfile.goreleaser" ]; then
+            echo "goreleaser_handles_docker=true" >> "$GITHUB_OUTPUT"
+            echo "GoReleaser will handle Docker builds"
+          else
+            echo "goreleaser_handles_docker=false" >> "$GITHUB_OUTPUT"
+            echo "Docker workflow will handle Docker builds"
+          fi
+
       - name: Summary
         run: printf '%s\n' "${{ steps.plan.outputs.summary_message }}"
 
   docker:
     needs: release
-    if: ${{ needs.release.outputs.should_publish == 'true' }}
+    if: ${{ needs.release.outputs.should_publish == 'true' && needs.release.outputs.goreleaser_handles_docker != 'true' }}
     uses: ./.github/workflows/docker.yml
     with:
       image: ${{ inputs.image }}
@@ -97,6 +129,10 @@ jobs:
       tag: ${{ needs.release.outputs.next_tag }}
       tool_ref: ${{ inputs.tool_ref }}
       go_version: ${{ inputs.go_version }}
+      node_version: ${{ inputs.node_version }}
+      node_version_file: ${{ inputs.node_version_file }}
+      frontend_install_cmd: ${{ inputs.frontend_install_cmd }}
+      frontend_build_cmd: ${{ inputs.frontend_build_cmd }}
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}

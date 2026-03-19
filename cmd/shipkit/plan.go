@@ -23,6 +23,10 @@ func runPlan(args []string) error {
 		return err
 	}
 
+	// Detect project types
+	detectedProjects := detectProjectTypes()
+	_ = detectedProjects // Will be used to steer plan logic
+
 	// Set default required secrets based on mode if not provided
 	secrets := strings.TrimSpace(*requiredSecrets)
 	if secrets == "" {
