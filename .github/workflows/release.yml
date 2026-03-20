@@ -106,13 +106,13 @@ jobs:
           go run github.com/karloie/shipkit/cmd/shipkit@${{ inputs.tool_ref }} goreleaser
           -owner=${{ github.repository_owner }}
           -repo=${{ github.event.repository.name }}
-          -output=.goreleaser-generated.yml
+          -output=/tmp/goreleaser-generated.yml
 
       - uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
           version: "~> v2"
-          args: release --clean ${{ needs.plan.outputs.goreleaser_yml_current != 'true' && '--config=.goreleaser-generated.yml' || '' }}
+          args: release --clean ${{ needs.plan.outputs.goreleaser_yml_current != 'true' && '--config=/tmp/goreleaser-generated.yml' || '' }}
         env:
           GITHUB_TOKEN: ${{ github.token }}
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
