@@ -76,7 +76,6 @@ jobs:
           -sha=${{ github.sha }}
           -owner=${{ github.repository_owner }}
           -repo=${{ github.event.repository.name }}
-          -run-id=${{ github.run_id }}
         env:
           GITHUB_EVENT_NAME: ${{ inputs.event_name }}
           GITHUB_TOKEN: ${{ github.token }}
@@ -110,7 +109,6 @@ jobs:
           -image=${{ inputs.image }}
           -owner=${{ github.repository_owner }}
           -repo=${{ github.event.repository.name }}
-          -run-id=${{ github.run_id }}
         env:
           GITHUB_TOKEN: ${{ github.token }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}

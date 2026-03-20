@@ -49,7 +49,6 @@ func runPolicy(args []string) error {
 	repoOwner := fs.String("owner", "", "Repository owner for goreleaser config generation")
 	repoName := fs.String("repo", "", "Repository name for goreleaser config generation")
 	description := fs.String("description", "Application built with Go", "Project description for goreleaser config")
-	runID := fs.String("run-id", "", "GitHub run ID for temp file naming")
 
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -136,7 +135,7 @@ func runPolicy(args []string) error {
 			fmt.Fprintln(os.Stderr, "  Generating GoReleaser config...")
 
 			if *projectName != "" && *repoOwner != "" {
-				configPath := fmt.Sprintf("/tmp/goreleaser-generated-%s.yml", *runID)
+				configPath := ".goreleaser-generated.yml"
 
 				// Repo name defaults to project name if not specified
 				if *repoName == "" {
