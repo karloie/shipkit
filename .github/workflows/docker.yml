@@ -70,7 +70,7 @@ jobs:
           images: ${{ inputs.image }}
           tags: |
             type=raw,value=${{ steps.plan.outputs.version }}
-            type=raw,value=${{ steps.plan.outputs.version_major_minor }}
+            ${{ steps.plan.outputs.version_major_minor != '' && format('type=raw,value={0}', steps.plan.outputs.version_major_minor) || '' }}
             type=sha,prefix=sha-
 
       - uses: docker/build-push-action@v6

@@ -1,5 +1,10 @@
 # 🚢 Shipkit
 
+[![CI](https://github.com/karloie/shipkit/actions/workflows/ci.yml/badge.svg)](https://github.com/karloie/shipkit/actions/workflows/ci.yml)
+[![Release](https://github.com/karloie/shipkit/actions/workflows/release.yml/badge.svg)](https://github.com/karloie/shipkit/actions/workflows/release.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/karloie/shipkit.svg)](https://pkg.go.dev/github.com/karloie/shipkit)
+[![Go Report Card](https://goreportcard.com/badge/github.com/karloie/shipkit)](https://goreportcard.com/report/github.com/karloie/shipkit)
+
 <img src="https://raw.githubusercontent.com/karloie/shipkit/main/doc/vibecoded.png" width="200" alt="Vibe Coded Badge" align="right">
 
 Reusable GitHub workflow tooling for my GitHub projects.

@@ -398,6 +398,10 @@ func parseMajorMinor(version string) (string, error) {
 	if len(parts) != 3 {
 		return "", fmt.Errorf("invalid version format: %s", version)
 	}
+	// Only return major.minor when major >= 1 — for 0.x.y it's not a useful tag
+	if parts[0] == "0" {
+		return "", nil
+	}
 	return parts[0] + "." + parts[1], nil
 }
 

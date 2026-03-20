@@ -273,7 +273,7 @@ sboms:
   - artifacts: archive
 {{if .HasChangelog}}
 changelog:
-  skip: true
+  disable: true
 {{else}}
 changelog:
   use: github
