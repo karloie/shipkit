@@ -117,8 +117,16 @@ func runGoReleaser(args []string) error {
 
 	fmt.Println("::endgroup::")
 	fmt.Println("::group::Generate config")
-	defer fmt.Println("::endgroup::")
-	return generateGoReleaserConfig(config, *outputFile)
+	if err := generateGoReleaserConfig(config, *outputFile); err != nil {
+		fmt.Println("::endgroup::")
+		return err
+	}
+	content, err := os.ReadFile(*outputFile)
+	if err == nil {
+		fmt.Fprintln(os.Stderr, string(content))
+	}
+	fmt.Println("::endgroup::")
+	return nil
 }
 
 func generateGoReleaserConfig(config GoReleaserConfig, outputPath string) error {

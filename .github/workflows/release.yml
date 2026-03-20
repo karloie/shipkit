@@ -144,6 +144,7 @@ jobs:
       tag: ${{ needs.plan.outputs.tag }}
       tool_ref: ${{ inputs.tool_ref }}
       go_version: ${{ inputs.go_version }}
+      tag_latest: ${{ inputs.mode != 'rerelease' }}
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}

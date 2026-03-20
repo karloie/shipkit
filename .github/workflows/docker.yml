@@ -25,6 +25,11 @@ on:
         required: false
         default: ""
         type: string
+      tag_latest:
+        description: Whether to also tag as latest
+        required: false
+        default: false
+        type: boolean
     secrets:
       DOCKERHUB_USERNAME:
         required: false
@@ -71,6 +76,7 @@ jobs:
           tags: |
             type=raw,value=${{ steps.plan.outputs.version }}
             ${{ steps.plan.outputs.version_major_minor != '' && format('type=raw,value={0}', steps.plan.outputs.version_major_minor) || '' }}
+            ${{ inputs.tag_latest && 'type=raw,value=latest' || '' }}
             type=sha,prefix=sha-
 
       - uses: docker/build-push-action@v6
