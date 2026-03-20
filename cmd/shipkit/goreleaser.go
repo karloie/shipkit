@@ -39,8 +39,25 @@ func runGoReleaser(args []string) error {
 		return err
 	}
 
-	if *projectName == "" || *repoOwner == "" || *description == "" {
-		return fmt.Errorf("project, owner, and description are required")
+	if *repoOwner == "" {
+		return fmt.Errorf("owner is required")
+	}
+
+	// Auto-detect project name from go.mod if not provided
+	if *projectName == "" {
+		*projectName = detectProjectName()
+	}
+	if *projectName == "" {
+		return fmt.Errorf("project is required (could not auto-detect from go.mod)")
+	}
+
+	// Auto-detect description from package.json if not provided
+	if *description == "" {
+		if det := detectProjectDescription(); det != "" {
+			*description = det
+		} else {
+			*description = "Application built with Go"
+		}
 	}
 
 	// Set defaults
