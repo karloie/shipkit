@@ -197,7 +197,7 @@ nfpms:
     description: {{.Description}}
     license: {{.License}}
 
-brews:
+homebrew_casks:
   - repository:
       owner: {{.RepoOwner}}
       name: homebrew-tap

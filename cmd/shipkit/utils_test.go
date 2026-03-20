@@ -32,7 +32,8 @@ func TestParseMajorMinor(t *testing.T) {
 		wantErr bool
 	}{
 		{"1.2.3", "1.2", false},
-		{"0.0.1", "0.0", false},
+		{"0.0.1", "", false},
+		{"0.1.2", "", false},
 		{"10.20.30", "10.20", false},
 		{"1.2", "", true},
 		{"1", "", true},
