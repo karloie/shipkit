@@ -4,7 +4,7 @@ ACT ?= act
 ACT_IMAGE ?= ghcr.io/catthehacker/ubuntu:full-latest
 
 test:
-	go test ./... -v
+	@go test ./...
 
 coverage:
 	@go test -count=1 ./... -coverpkg=./... -coverprofile=coverage.out -covermode=atomic >/dev/null 2>&1 || true
