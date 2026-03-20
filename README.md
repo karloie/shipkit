@@ -78,7 +78,6 @@ Secrets are auto-detected by mode, or specify with `-required-secrets`.
     -sha=${{ github.sha }}
     -owner=${{ github.repository_owner }}
     -repo=${{ github.event.repository.name }}
-    -run-id=${{ github.run_id }}
   env:
     GITHUB_TOKEN: ${{ github.token }}
     DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -96,7 +95,6 @@ Secrets are auto-detected by mode, or specify with `-required-secrets`.
     -bump=${{ inputs.bump }}
     -owner=${{ github.repository_owner }}
     -repo=${{ github.event.repository.name }}
-    -run-id=${{ github.run_id }}
   env:
     GITHUB_TOKEN: ${{ github.token }}
     HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
@@ -154,7 +152,7 @@ Features:
 - Detects `CHANGELOG.md` to use manual changelog or auto-generate from GitHub
 - Parameterized project name, binary name, repository details, license
 - Generates config for multi-platform builds (Linux, macOS, Windows on amd64 and arm64)
-- Includes Homebrew tap, deb/rpm/apk packages, Docker images, SBOM generation, and changelog formatting
+- Includes Homebrew tap, deb/rpm/apk packages, Docker images, and changelog formatting
 
 ### Docker Hub README Upload
 
@@ -187,9 +185,9 @@ shipkit docker-hub-readme -repo=owner/image
 ## Local Development
 
 ```bash
-make test lint
-make plan-all  # validates all workflow modes
-go test ./...
+make ci-validate  # runs tests, lint, and plan dry-runs
+make test
+make lint
 ```
 
 ## Reusable Workflows
@@ -233,12 +231,12 @@ ci-test:
 ### CI Workflow
 
 `ci.yml` supports two modes:
-- `validation` - Runs Make targets (default: `validate`)
-- `build-test` - Builds and tests with hardcoded `make build` and `go test ./...`
+- `validation` - Runs Make targets (default: `ci-validate`)
+- `build-test` - Builds and tests with `make ci-build` and `make ci-test`
 
 **Inputs:**
-- `mode` - validation or build-test (default: validation)
-- `make_targets` - Make targets for validation mode (default: validate)
+- `mode` - `validation` or `build-test` (default: validation on push/PR)
+- `make_targets` - Make targets for validation mode (default: `ci-validate`)
 - `go_version` - Go version override (default: auto-detect)
 - `node_version` - Node version for build-test mode (default: none)
 - `node_cache` - npm/yarn/pnpm cache type (default: npm)
@@ -264,7 +262,7 @@ jobs:
       node_version: '22'
 ```
 
-**Note:** Build-test mode hardcodes `npm ci`, `npm run build`, `make build`, and `go test ./...`. For custom commands, use validation mode or your own workflow.
+**Note:** Build-test mode runs `npm ci` + `npm run build` when `node_version` is set, then `make ci-build` and `make ci-test`. Consumer projects must expose these targets — see [Consumer Project Contract](#consumer-project-contract) below.
 
 ### Release Workflow
 
@@ -276,8 +274,7 @@ jobs:
 - `event_name` (optional) - GitHub event name (required for release mode)
 - `bump` (optional) - Manual version bump for release mode
 - `tool_ref` (optional) - Shipkit version (default: main)
-- `go_version` (optional) - Go version (default: auto-detect)
-
+- `go_version` (optional) - Go version (default: auto-detect)- `node_version` (optional) - Node version for frontend build in goreleaser job (default: none)
 **Secrets:**
 - `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN` - For Docker publishing
 - `HOMEBREW_TAP_GITHUB_TOKEN` - For Homebrew tap
@@ -339,6 +336,7 @@ jobs:
 - `bump` (optional, release mode only): Manual version bump (`patch`, `minor`, `major`)
 - `tool_ref` (optional): Specific shipkit version/tag (default: `main`)
 - `go_version` (optional): Go version override (default: auto-detect from go.mod)
+- `node_version` (optional): Node version for frontend build in goreleaser job (e.g. `22`)
 
 ### Workflow Notes
 

@@ -7,8 +7,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
-	"strings"
 )
 
 type dockerHubLoginRequest struct {
@@ -81,15 +79,9 @@ func runDockerHubReadme(args []string) error {
 }
 
 func dockerLogin(username, token string) error {
-	cmd := exec.Command("docker", "login", "-u", username, "--password-stdin")
-	cmd.Stdin = strings.NewReader(token)
-	cmd.Stdout = os.Stderr
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
+	if err := defaultRunner.RunWithStdin(token, "docker", "login", "-u", username, "--password-stdin"); err != nil {
 		return fmt.Errorf("docker login failed: %w", err)
 	}
-
 	return nil
 }
 

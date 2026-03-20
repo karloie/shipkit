@@ -140,3 +140,21 @@ func (m *PRProviderMock) GetMergedPRLabels() (string, error) {
 	}
 	return m.Labels, nil
 }
+
+// ExecRunnerMock records calls and returns a configurable error.
+type ExecRunnerMock struct {
+	// Calls records every (name, args...) invocation.
+	Calls [][]string
+	// Err is returned by every call when non-nil.
+	Err error
+}
+
+func (m *ExecRunnerMock) Run(name string, args ...string) error {
+	m.Calls = append(m.Calls, append([]string{name}, args...))
+	return m.Err
+}
+
+func (m *ExecRunnerMock) RunWithStdin(stdin, name string, args ...string) error {
+	m.Calls = append(m.Calls, append([]string{name}, args...))
+	return m.Err
+}

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"regexp"
 	"sort"
 	"strings"
@@ -214,7 +213,7 @@ func computeReleasePolicy(input PolicyInput, env EnvProvider, git GitProvider) (
 		if git == nil {
 			return ReleasePolicy{}, errors.New("git provider is required when resolve-latest-tag=true")
 		}
-		_ = exec.Command("git", "fetch", "--tags", "--force").Run()
+		_ = defaultRunner.Run("git", "fetch", "--tags", "--force")
 		tag, err := git.GetLatestTag()
 		if err != nil {
 			return ReleasePolicy{}, err

@@ -12,7 +12,7 @@ const (
 )
 
 // Docker Hub API constants
-const (
+var (
 	DockerHubAPIURL = "https://hub.docker.com/v2"
 )
 

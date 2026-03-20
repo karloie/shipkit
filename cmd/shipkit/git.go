@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
 )
 
 func runGitConfig(args []string) error {
@@ -15,11 +14,11 @@ func runGitConfig(args []string) error {
 		return err
 	}
 
-	if err := exec.Command("git", "config", "user.name", *userName).Run(); err != nil {
+	if err := defaultRunner.Run("git", "config", "user.name", *userName); err != nil {
 		return fmt.Errorf("failed to set git user.name: %w", err)
 	}
 
-	if err := exec.Command("git", "config", "user.email", *userEmail).Run(); err != nil {
+	if err := defaultRunner.Run("git", "config", "user.email", *userEmail); err != nil {
 		return fmt.Errorf("failed to set git user.email: %w", err)
 	}
 
@@ -47,22 +46,22 @@ func createGitTag(tag string) error {
 	userEmail := "github-actions[bot]@users.noreply.github.com"
 
 	// Config user
-	if err := exec.Command("git", "config", "user.name", userName).Run(); err != nil {
+	if err := defaultRunner.Run("git", "config", "user.name", userName); err != nil {
 		return fmt.Errorf("failed to set git user.name: %w", err)
 	}
-	if err := exec.Command("git", "config", "user.email", userEmail).Run(); err != nil {
+	if err := defaultRunner.Run("git", "config", "user.email", userEmail); err != nil {
 		return fmt.Errorf("failed to set git user.email: %w", err)
 	}
 
 	// Create tag
 	msg := fmt.Sprintf("Release %s", tag)
-	if err := exec.Command("git", "tag", "-a", tag, "-m", msg).Run(); err != nil {
+	if err := defaultRunner.Run("git", "tag", "-a", tag, "-m", msg); err != nil {
 		return fmt.Errorf("failed to create tag: %w", err)
 	}
 	fmt.Printf("✓ Created tag: %s\n", tag)
 
 	// Push
-	if err := exec.Command("git", "push", "origin", tag).Run(); err != nil {
+	if err := defaultRunner.Run("git", "push", "origin", tag); err != nil {
 		return fmt.Errorf("failed to push tag: %w", err)
 	}
 	fmt.Printf("✓ Pushed tag to origin: %s\n", tag)
@@ -83,14 +82,14 @@ func runGitTagCleanup(args []string) error {
 	}
 
 	// Delete remote
-	if err := exec.Command("git", "push", "--delete", "origin", *tag).Run(); err != nil {
+	if err := defaultRunner.Run("git", "push", "--delete", "origin", *tag); err != nil {
 		fmt.Fprintf(os.Stderr, "⚠️ Warning: Could not delete remote tag %s: %v\n", *tag, err)
 	} else {
 		fmt.Printf("🧹 Deleted remote tag: %s\n", *tag)
 	}
 
 	// Delete local
-	if err := exec.Command("git", "tag", "-d", *tag).Run(); err != nil {
+	if err := defaultRunner.Run("git", "tag", "-d", *tag); err != nil {
 		fmt.Fprintf(os.Stderr, "⚠️ Warning: Could not delete local tag %s: %v\n", *tag, err)
 	} else {
 		fmt.Printf("🧹 Deleted local tag: %s\n", *tag)
