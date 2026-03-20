@@ -30,6 +30,11 @@ on:
         required: false
         default: ""
         type: string
+      node_version:
+        description: Node version for frontend build in goreleaser job (leave empty to skip)
+        required: false
+        default: ""
+        type: string
     secrets:
       DOCKERHUB_USERNAME:
         required: false
@@ -99,6 +104,12 @@ jobs:
           go-version: ${{ inputs.go_version }}
           go-version-file: ${{ inputs.go_version == '' && 'go.mod' || '' }}
           cache: true
+
+      - uses: actions/setup-node@v4
+        if: ${{ inputs.node_version != '' }}
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: npm
 
       - name: Generate GoReleaser config
         if: ${{ needs.plan.outputs.goreleaser_yml_current != 'true' }}
