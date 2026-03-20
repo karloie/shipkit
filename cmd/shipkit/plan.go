@@ -211,7 +211,7 @@ func runPlan(args []string) error {
 			fmt.Fprintln(os.Stderr, "  Generating GoReleaser config...")
 
 			if *projectName != "" && *repoOwner != "" {
-				configPath := fmt.Sprintf("/tmp/goreleaser-generated-%s.yml", *runID)
+				configPath := ".goreleaser-generated.yml"
 
 				// Repo name defaults to project name if not specified
 				if *repoName == "" {
