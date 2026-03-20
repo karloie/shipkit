@@ -18,10 +18,10 @@ The tool provides subcommands:
 - `assets-delete` - Delete GitHub release assets by tag
 
 **Internal commands (used by workflows):**
+- `docker-hub-status` - Check Docker login status  
 - `git-config` - Configure git user
 - `git-tag` - Create annotated git tags
 - `git-tag-cleanup` - Delete git tags on failures
-- `docker-hub-status` - Check Docker login status  
 
 ## Use In Another Repository
 
