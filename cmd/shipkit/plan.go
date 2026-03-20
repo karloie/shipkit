@@ -153,6 +153,9 @@ func runPlan(args []string) error {
 	if policy.VersionMajorMinor != "" {
 		writeOutput(githubOutput, OutputVersionMajorMinor, policy.VersionMajorMinor)
 	}
+	if policy.Dockerfile != "" {
+		writeOutput(githubOutput, OutputDockerfile, policy.Dockerfile)
+	}
 	if policy.ReleaseTag != "" {
 		writeOutput(githubOutput, OutputReleaseTag, policy.ReleaseTag)
 	}
