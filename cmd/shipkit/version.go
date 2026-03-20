@@ -132,10 +132,10 @@ func analyzeCommits(latestTag string, git GitProvider) (string, error) {
 	if regexp.MustCompile(`BREAKING CHANGE|feat!`).MatchString(log) {
 		return BumpMajor, nil
 	}
-	if regexp.MustCompile(`^[a-f0-9]+ feat`).MatchString(log) {
+	if regexp.MustCompile(`^[a-f0-9]+ feat(\([^)]*\))?!?:`).MatchString(log) {
 		return BumpMinor, nil
 	}
-	if regexp.MustCompile(`^[a-f0-9]+ fix`).MatchString(log) {
+	if regexp.MustCompile(`^[a-f0-9]+ fix(\([^)]*\))?:`).MatchString(log) {
 		return BumpPatch, nil
 	}
 	return "", nil

@@ -100,8 +100,12 @@ func TestComputeVersionWithCommitAnalysis(t *testing.T) {
 		{"breaking change", "abc123 feat!: new api", "v2.0.0"},
 		{"BREAKING CHANGE footer", "abc123 feat: thing\n\nBREAKING CHANGE: removed api", "v2.0.0"},
 		{"feat commit", "abc123 feat: new feature", "v1.1.0"},
+		{"feat with scope", "abc123 feat(api): new endpoint", "v1.1.0"},
 		{"fix commit", "abc123 fix: bug fix", "v1.0.1"},
+		{"fix with scope", "abc123 fix(auth): wrong token", "v1.0.1"},
 		{"no release commit", "abc123 chore: refactor", ""},
+		{"fixing word does not trigger", "abc123 fixing badge for homebrew", ""},
+		{"featuring word does not trigger", "abc123 featuring new design", ""},
 	}
 
 	for _, tt := range tests {
