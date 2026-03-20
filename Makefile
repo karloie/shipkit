@@ -32,7 +32,7 @@ lint:
 	actionlint .github/workflows/*.yml
 
 plan-release:
-	@$(ACT) -n workflow_call -W .github/workflows/release.yml -j release \
+	@$(ACT) -n workflow_call -W .github/workflows/release.yml -j plan \
 		--input image=example/image \
 		--input event_name=workflow_dispatch \
 		--input bump=patch \
