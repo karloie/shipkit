@@ -173,9 +173,9 @@ func TestGoReleaserTemplateNoInvalidFields(t *testing.T) {
 	tmpl := defaultGoReleaserTemplate()
 
 	invalidFields := []string{
-		"skip:",       // replaced by disable: in v2
-		"ignore:",     // was accidentally added as top-level key
-		"\nbrews:",    // deprecated in goreleaser v2, replaced by homebrew_casks
+		"skip:",    // replaced by disable: in v2
+		"ignore:",  // was accidentally added as top-level key
+		"\nbrews:", // deprecated in goreleaser v2, replaced by homebrew_casks
 	}
 	for _, bad := range invalidFields {
 		if strings.Contains(tmpl, bad) {

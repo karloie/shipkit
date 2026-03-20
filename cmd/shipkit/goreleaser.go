@@ -186,8 +186,6 @@ archives:
       - LICENSE*
       - README*
       - CHANGELOG*
-      - completions/*
-      - manpages/*
 
 nfpms:
   - id: packages

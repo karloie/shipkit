@@ -1,9 +1,15 @@
-.PHONY: test validate lint plan-release plan-rerelease plan-docker plan-all
+.PHONY: test ci-validate lint plan-release plan-rerelease plan-docker plan-all ci-build ci-test
 
 ACT ?= act
 ACT_IMAGE ?= ghcr.io/catthehacker/ubuntu:full-latest
 
 test:
+	@go test ./...
+
+ci-build:
+	@go build ./...
+
+ci-test:
 	@go test ./...
 
 coverage:
@@ -54,4 +60,4 @@ plan-docker:
 		--input tool_ref=main \
 		-P ubuntu-latest=$(ACT_IMAGE)
 
-validate: test lint plan-release plan-rerelease plan-docker
+ci-validate: test lint plan-release plan-rerelease plan-docker

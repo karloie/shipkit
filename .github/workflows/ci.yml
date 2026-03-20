@@ -80,8 +80,8 @@ jobs:
 
       - name: Build
         if: ${{ inputs.mode == 'build-test' }}
-        run: make build
+        run: make ci-build
 
       - name: Test
         if: ${{ inputs.mode == 'build-test' }}
-        run: go test ./...
+        run: make ci-test

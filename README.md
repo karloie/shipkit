@@ -198,6 +198,36 @@ This repository also provides parameterized reusable workflows for callers:
 
 - `.github/workflows/ci.yml` - CI validation and build/test
 - `.github/workflows/release.yml` - Automated releases with GoReleaser + Docker (supports release and rerelease modes)
+
+### Consumer Project Contract
+
+Projects using shipkit's CI workflow must expose two Makefile targets:
+
+| Target | Purpose |
+|---|---|
+| `make ci-build` | Build the project for CI (may differ from local `make build`) |
+| `make ci-test` | Run tests for CI |
+
+These are kept separate from `make build` / `make test` intentionally — local dev workflows often have different flags, side-effects, or assumptions (e.g. requiring a running database). `ci-build` and `ci-test` are the clean, repeatable CI contract.
+
+**Minimal example:**
+```makefile
+ci-build:
+	go build -o myapp ./cmd/myapp
+
+ci-test:
+	go test ./...
+```
+
+**Example with Node frontend (like kompass):**
+```makefile
+ci-build:
+	npm run build
+	go build -tags release -o myapp ./cmd/myapp
+
+ci-test:
+	go test -count=1 ./...
+```
 - `.github/workflows/docker.yml` - Docker-only publishing (called by release.yml)
 
 ### CI Workflow
