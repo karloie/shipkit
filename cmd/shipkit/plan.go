@@ -27,7 +27,6 @@ func runPlan(args []string) error {
 	repoOwner := fs.String("owner", "", "Repository owner for goreleaser config generation")
 	repoName := fs.String("repo", "", "Repository name for goreleaser config generation")
 	description := fs.String("description", "Application built with Go", "Project description for goreleaser config")
-	runID := fs.String("run-id", "", "GitHub run ID for temp file naming")
 
 	if err := fs.Parse(args); err != nil {
 		return err
