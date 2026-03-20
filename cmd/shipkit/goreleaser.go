@@ -269,8 +269,6 @@ source: {}
 checksum:
   name_template: 'checksums.txt'
 
-sboms:
-  - artifacts: archive
 {{if .HasChangelog}}
 changelog:
   disable: true
