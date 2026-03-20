@@ -7,12 +7,17 @@ on:
         description: Docker image repository name
         required: true
         type: string
+      mode:
+        description: Release mode (release or rerelease)
+        required: false
+        default: release
+        type: string
       event_name:
-        description: Original caller event name (push or workflow_dispatch)
-        required: true
+        description: Original caller event name (push or workflow_dispatch, only for release mode)
+        required: false
         type: string
       bump:
-        description: Manual bump input (patch, minor, major)
+        description: Manual bump input (patch, minor, major, only for release mode)
         required: false
         type: string
       tool_ref:
@@ -38,12 +43,16 @@ permissions:
   pull-requests: read
 
 jobs:
-  release:
+  plan:
     runs-on: ubuntu-latest
     outputs:
       dryrun: ${{ steps.plan.outputs.dryrun }}
       next_tag: ${{ steps.plan.outputs.next_tag }}
+      release_tag: ${{ steps.plan.outputs.release_tag }}
+      tag: ${{ steps.plan.outputs.next_tag || steps.plan.outputs.release_tag }}
       goreleaser_docker: ${{ steps.plan.outputs.goreleaser_docker }}
+      goreleaser_yml_current: ${{ steps.plan.outputs.goreleaser_yml_current }}
+      goreleaser_yml_new: ${{ steps.plan.outputs.goreleaser_yml_new }}
 
     steps:
       - uses: actions/checkout@v4
@@ -60,8 +69,9 @@ jobs:
         id: plan
         run: >-
           go run github.com/karloie/shipkit/cmd/shipkit@${{ inputs.tool_ref }} plan
-          -mode=release
-          -bump=${{ inputs.bump }}
+          -mode=${{ inputs.mode }}
+          ${{ inputs.mode == 'release' && format('-bump={0}', inputs.bump) || '' }}
+          ${{ inputs.mode == 'rerelease' && '-resolve-latest-tag=true' || '' }}
           -image=${{ inputs.image }}
           -sha=${{ github.sha }}
           -owner=${{ github.repository_owner }}
@@ -74,30 +84,45 @@ jobs:
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
 
+  goreleaser:
+    needs: plan
+    if: ${{ needs.plan.outputs.dryrun != 'true' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go_version }}
+          go-version-file: ${{ inputs.go_version == '' && 'go.mod' || '' }}
+          cache: true
+
       - uses: goreleaser/goreleaser-action@v6
-        if: ${{ steps.plan.outputs.dryrun != 'true' }}
         with:
           distribution: goreleaser
           version: "~> v2"
-          args: release --clean ${{ steps.plan.outputs.goreleaser_yml_current != 'true' && format('--config={0}', steps.plan.outputs.goreleaser_yml_new) || '' }}
+          args: release --clean ${{ needs.plan.outputs.goreleaser_yml_current != 'true' && format('--config={0}', needs.plan.outputs.goreleaser_yml_new) || '' }}
         env:
           GITHUB_TOKEN: ${{ github.token }}
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
 
       - name: Cleanup on failure
-        if: ${{ failure() && steps.plan.outputs.next_tag != '' && steps.plan.outputs.dryrun != 'true' }}
+        if: ${{ failure() && needs.plan.outputs.tag != '' && inputs.mode == 'release' }}
         run: >-
           go run github.com/karloie/shipkit/cmd/shipkit@${{ inputs.tool_ref }} git-tag-cleanup
-          -tag=${{ steps.plan.outputs.next_tag }}
+          -tag=${{ needs.plan.outputs.tag }}
 
   docker:
-    needs: release
-    if: ${{ needs.release.outputs.dryrun != 'true' && needs.release.outputs.goreleaser_docker != 'true' }}
+    needs: plan
+    if: ${{ needs.plan.outputs.dryrun != 'true' && needs.plan.outputs.goreleaser_docker != 'true' }}
     uses: ./.github/workflows/docker.yml
     with:
       image: ${{ inputs.image }}
       event_name: push
-      tag: ${{ needs.release.outputs.next_tag }}
+      tag: ${{ needs.plan.outputs.tag }}
       tool_ref: ${{ inputs.tool_ref }}
       go_version: ${{ inputs.go_version }}
     secrets:

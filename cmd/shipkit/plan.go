@@ -255,10 +255,9 @@ func runPlan(args []string) error {
 		}
 	}
 
-	// Print summary
-	fmt.Printf("🔄 Bumped from: %s\n", latest)
-	fmt.Printf("🎉 Released new: %s\n", next)
-	fmt.Printf("🚀 Dry-run: %v\n", policy.DryRun == PublishTrue)
+	// Print summary with visual diagram
+	printReleaseDiagram(strings.TrimSpace(*mode), latest, next, policy.DryRun == PublishTrue, hasGoreleaserDocker, hasCustomGoreleaserConfig)
+
 	if policy.Message != "" {
 		fmt.Printf("\n%s\n", policy.Message)
 	}

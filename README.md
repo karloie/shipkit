@@ -192,8 +192,7 @@ go test ./...
 This repository also provides parameterized reusable workflows for callers:
 
 - `.github/workflows/ci.yml` - CI validation and build/test
-- `.github/workflows/release.yml` - Automated releases with GoReleaser + Docker
-- `.github/workflows/re-release.yml` - Re-publish existing releases
+- `.github/workflows/release.yml` - Automated releases with GoReleaser + Docker (supports release and rerelease modes)
 - `.github/workflows/docker.yml` - Docker-only publishing (called by release.yml)
 
 ### CI Workflow
@@ -234,12 +233,13 @@ jobs:
 
 ### Release Workflow
 
-`release.yml` performs automated releases using GoReleaser and optionally Docker publishing.
+`release.yml` performs automated releases using GoReleaser and optionally Docker publishing. Supports both new releases and re-releases via the `mode` parameter.
 
 **Inputs:**
 - `image` (required) - Docker image name
-- `event_name` (required) - GitHub event name
-- `bump` (optional) - Manual version bump
+- `mode` (optional) - `release` (default) or `rerelease`
+- `event_name` (optional) - GitHub event name (required for release mode)
+- `bump` (optional) - Manual version bump for release mode
 - `tool_ref` (optional) - Shipkit version (default: main)
 - `go_version` (optional) - Go version (default: auto-detect)
 
@@ -247,7 +247,7 @@ jobs:
 - `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN` - For Docker publishing
 - `HOMEBREW_TAP_GITHUB_TOKEN` - For Homebrew tap
 
-**Example:**
+**Release mode example:**
 
 ```yaml
 name: Release
@@ -265,7 +265,8 @@ jobs:
   release:
     uses: karloie/shipkit/.github/workflows/release.yml@v0.1.0
     with:
-      image: owner/repo  # e.g., karloie/kompass
+      image: karloie/kompass
+      mode: release  # default, can be omitted
       event_name: ${{ github.event_name }}
       bump: ${{ inputs.bump }}
       tool_ref: v0.1.0
@@ -275,22 +276,8 @@ jobs:
       HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
 ```
 
-**Available workflow inputs:**
-- `image` (required): Docker image name (e.g., `karloie/kompass`)
-- `event_name` (required): GitHub event name (`push` or `workflow_dispatch`)
-- `bump` (optional): Manual version bump (`patch`, `minor`, `major`)
-- `tool_ref` (optional): Specific shipkit version/tag (default: `main`)
-- `go_version` (optional): Go version override (default: auto-detect from go.mod)
+**Re-release mode example:**
 
-### Re-release Workflow
-
-`re-release.yml` re-publishes the latest git tag.
-
-**Inputs:**
-- `image` (required) - Docker image name
-- `tool_ref`, `go_version` (optional)
-
-**Example:**
 ```yaml
 name: Re-release
 
@@ -299,15 +286,24 @@ on:
 
 jobs:
   rerelease:
-    uses: karloie/shipkit/.github/workflows/re-release.yml@v0.1.0
+    uses: karloie/shipkit/.github/workflows/release.yml@v0.1.0
     with:
-      image: owner/repo
+      image: karloie/bastille
+      mode: rerelease
       tool_ref: v0.1.0
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
       HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
 ```
+
+**Available workflow inputs:**
+- `image` (required): Docker image name (e.g., `karloie/kompass` or `karloie/bastille`)
+- `mode` (optional): `release` (default) or `rerelease`
+- `event_name` (required for release mode): GitHub event name (`push` or `workflow_dispatch`)
+- `bump` (optional, release mode only): Manual version bump (`patch`, `minor`, `major`)
+- `tool_ref` (optional): Specific shipkit version/tag (default: `main`)
+- `go_version` (optional): Go version override (default: auto-detect from go.mod)
 
 ### Workflow Notes
 

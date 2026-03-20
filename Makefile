@@ -40,8 +40,9 @@ plan-release:
 		-P ubuntu-latest=$(ACT_IMAGE)
 
 plan-rerelease:
-	@$(ACT) -n workflow_call -W .github/workflows/re-release.yml -j rerelease \
+	@$(ACT) -n workflow_call -W .github/workflows/release.yml -j plan \
 		--input image=example/image \
+		--input mode=rerelease \
 		--input tool_ref=main \
 		-P ubuntu-latest=$(ACT_IMAGE)
 
