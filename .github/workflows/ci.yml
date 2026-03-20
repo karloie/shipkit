@@ -15,7 +15,7 @@ on:
       make_targets:
         description: Make targets to run for validation
         required: false
-        default: validate
+        default: ci-validate
         type: string
       go_version:
         description: Explicit Go version override (for example 1.25)
@@ -58,7 +58,7 @@ jobs:
 
       - name: Validate
         if: ${{ (github.event_name == 'push' || github.event_name == 'pull_request' || inputs.mode == 'validation') && inputs.mode != 'build-test' }}
-        run: make ${{ inputs.make_targets || 'validate' }}
+        run: make ${{ inputs.make_targets || 'ci-validate' }}
 
       - uses: actions/setup-node@v4
         if: ${{ inputs.mode == 'build-test' && inputs.node_version != '' }}
