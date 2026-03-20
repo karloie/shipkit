@@ -78,7 +78,7 @@ func runGoReleaser(args []string) error {
 	detected := detectProjectTypes()
 
 	// Check for Node.js
-	hasNodeJS := hasProjectType(detected, "Node.js")
+	hasNodeJS := hasProjectType(detected, "Node")
 	if !hasNodeJS {
 		fmt.Fprintln(os.Stderr, "  No package.json found - skipping Node.js build steps")
 	}
