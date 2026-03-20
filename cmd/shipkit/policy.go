@@ -113,11 +113,9 @@ func runPolicy(args []string) error {
 
 		if username != "" && token != "" {
 			if err := dockerLogin(username, token); err != nil {
-				fmt.Fprintf(os.Stderr, "⚠️  Warning: Docker login failed: %v\n", err)
-				writeOutput(githubOutput, "push", PublishFalse)
-			} else {
-				writeOutput(githubOutput, "push", PublishTrue)
+				return fmt.Errorf("docker login failed: %w", err)
 			}
+			writeOutput(githubOutput, "push", PublishTrue)
 		} else {
 			fmt.Fprintln(os.Stderr, "⚠️  Warning: Missing DockerHub credentials - will build locally without pushing")
 			writeOutput(githubOutput, "push", PublishFalse)
@@ -386,10 +384,7 @@ func validateRequiredSecrets(required []string, env EnvProvider) error {
 	}
 
 	sort.Strings(missing)
-	// Issue warning instead of error - let individual operations fail if secrets are truly needed
-	fmt.Fprintf(os.Stderr, "⚠️  Warning: Missing secret(s): %s\n", strings.Join(missing, ", "))
-	fmt.Fprintf(os.Stderr, "   Operations requiring these secrets may fail or be skipped.\n")
-	return nil
+	return fmt.Errorf("missing required secret(s): %s", strings.Join(missing, ", "))
 }
 
 func parseMajorMinor(version string) (string, error) {

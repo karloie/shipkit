@@ -200,11 +200,9 @@ func runPlan(args []string) error {
 
 		if username != "" && dockerToken != "" {
 			if err := dockerLogin(username, dockerToken); err != nil {
-				fmt.Fprintf(os.Stderr, "⚠️  Warning: Docker login failed: %v\n", err)
-				writeOutput(githubOutput, "push", PublishFalse)
-			} else {
-				writeOutput(githubOutput, "push", PublishTrue)
+				return fmt.Errorf("docker login failed: %w", err)
 			}
+			writeOutput(githubOutput, "push", PublishTrue)
 		} else {
 			fmt.Fprintln(os.Stderr, "⚠️  Warning: Missing DockerHub credentials - will build locally without pushing")
 			writeOutput(githubOutput, "push", PublishFalse)

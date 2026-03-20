@@ -107,18 +107,17 @@ func TestComputeReleasePolicyMissingNextTag(t *testing.T) {
 }
 
 func TestComputeReleasePolicyMissingSecrets(t *testing.T) {
-	// Warns not errors
-	policy, err := computeReleasePolicy(PolicyInput{
+	_, err := computeReleasePolicy(PolicyInput{
 		Mode:            ModeRelease,
 		Publish:         PublishTrue,
 		NextTag:         "v1.0.0",
 		RequiredSecrets: []string{"MISSING_SECRET"},
 	}, &EnvProviderMock{}, &GitProviderMock{})
-	if err != nil {
-		t.Fatalf("unexpected error: %v (missing secrets should only warn, not error)", err)
+	if err == nil {
+		t.Fatal("expected error for missing secret")
 	}
-	if policy.Version != "1.0.0" {
-		t.Errorf("expected version 1.0.0, got %s", policy.Version)
+	if !strings.Contains(err.Error(), "missing required secret(s)") {
+		t.Errorf("error = %v, want 'missing required secret(s)'", err)
 	}
 }
 
@@ -147,6 +146,7 @@ func TestValidateRequiredSecrets(t *testing.T) {
 		name     string
 		required []string
 		env      map[string]string
+		wantErr  bool
 	}{
 		{
 			name:     "all secrets present",
@@ -157,11 +157,13 @@ func TestValidateRequiredSecrets(t *testing.T) {
 			name:     "missing one secret",
 			required: []string{"SECRET1", "SECRET2"},
 			env:      map[string]string{"SECRET1": "val1"},
+			wantErr:  true,
 		},
 		{
 			name:     "missing multiple secrets",
 			required: []string{"SECRET1", "SECRET2", "SECRET3"},
 			env:      map[string]string{},
+			wantErr:  true,
 		},
 		{
 			name:     "no secrets required",
@@ -174,9 +176,10 @@ func TestValidateRequiredSecrets(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			env := &EnvProviderMock{values: tt.env}
 			err := validateRequiredSecrets(tt.required, env)
-			// Only warns
-			if err != nil {
-				t.Errorf("validateRequiredSecrets() should not error, got: %v", err)
+			if tt.wantErr && err == nil {
+				t.Errorf("validateRequiredSecrets() expected error, got nil")
+			} else if !tt.wantErr && err != nil {
+				t.Errorf("validateRequiredSecrets() unexpected error: %v", err)
 			}
 		})
 	}
