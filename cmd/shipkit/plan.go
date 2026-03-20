@@ -99,6 +99,9 @@ func runPlan(args []string) error {
 		}
 		publish = PublishTrue
 		fmt.Fprintf(os.Stderr, "📌 Using provided tag: %s\n", next)
+	} else if strings.TrimSpace(*mode) == ModeRerelease {
+		// Rerelease resolves the tag itself — skip commit-based version computation
+		publish = PublishTrue
 	} else {
 		// Compute version from git/commits
 		latest, next, publish, err = computeVersion(eventName, *bump, git, pr)
