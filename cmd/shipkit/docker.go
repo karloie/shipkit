@@ -63,11 +63,15 @@ func runDockerHubReadme(args []string) error {
 
 	fmt.Fprintf(os.Stderr, "🐳 Uploading %s to Docker Hub repository %s...\n", *readmePath, *repo)
 
+	fmt.Println("::group::Login")
 	token, err := dockerHubLogin(*username, *password)
 	if err != nil {
 		return fmt.Errorf("failed to login to Docker Hub: %w", err)
 	}
+	fmt.Println("::endgroup::")
 
+	fmt.Println("::group::Upload README")
+	defer fmt.Println("::endgroup::")
 	if err := dockerHubUpdateReadme(token, owner, name, string(readmeContent)); err != nil {
 		return fmt.Errorf("failed to update README: %w", err)
 	}

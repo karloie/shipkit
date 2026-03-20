@@ -32,6 +32,8 @@ func runPlan(args []string) error {
 		return err
 	}
 
+	fmt.Println("::group::Detect")
+
 	// Auto-detect project name from go.mod if not provided
 	if *projectName == "" {
 		*projectName = detectProjectName()
@@ -62,6 +64,9 @@ func runPlan(args []string) error {
 	// Check if GoReleaser will handle Docker builds
 	hasGoreleaserDocker := fileExists(FileGoreleaserContainerfile) || fileExists(FileGoreleaserDockerfile)
 
+	fmt.Fprintf(os.Stderr, "  project=%s  mode=%s\n", *projectName, strings.TrimSpace(*mode))
+	fmt.Println("::endgroup::")
+
 	// Set default required secrets based on mode if not provided
 	secrets := strings.TrimSpace(*requiredSecrets)
 	if secrets == "" {
@@ -87,6 +92,8 @@ func runPlan(args []string) error {
 	var latest, next, publish string
 	var err error
 
+	fmt.Println("::group::Version")
+
 	// Step 1: Compute or use provided version
 	if strings.TrimSpace(*nextTag) != "" {
 		// Use provided version (docker mode when called from release workflow)
@@ -101,13 +108,21 @@ func runPlan(args []string) error {
 	} else if strings.TrimSpace(*mode) == ModeRerelease {
 		// Rerelease resolves the tag itself — skip commit-based version computation
 		publish = PublishTrue
+		fmt.Fprintln(os.Stderr, "  Tag will be resolved from latest git tag")
 	} else {
 		// Compute version from git/commits
 		latest, next, publish, err = computeVersion(eventName, *bump, git, pr)
 		if err != nil {
 			return err
 		}
+		if publish == PublishSkip {
+			fmt.Fprintln(os.Stderr, "  No release markers found — will skip")
+		} else {
+			fmt.Fprintf(os.Stderr, "  %s → %s\n", latest, next)
+		}
 	}
+
+	fmt.Println("::endgroup::")
 
 	// Write version outputs
 	writeOutput(githubOutput, OutputTagLatest, latest)
@@ -123,6 +138,8 @@ func runPlan(args []string) error {
 		fmt.Println("Info: No release markers found. Skipping release.")
 		return nil
 	}
+
+	fmt.Println("::group::Policy")
 
 	// Step 2: Compute release policy
 	input := PolicyInput{
@@ -174,6 +191,8 @@ func runPlan(args []string) error {
 		writeOutput(githubOutput, OutputGoreleaserDocker, PublishFalse)
 	}
 
+	fmt.Println("::endgroup::")
+
 	// Handle Docker login for docker mode
 	if strings.TrimSpace(*mode) == ModeDocker && policy.DryRun != PublishTrue {
 		username := os.Getenv(EnvDockerHubUsername)
@@ -201,6 +220,7 @@ func runPlan(args []string) error {
 
 	// Generate GoReleaser config for release/rerelease modes when not in dryrun
 	if (strings.TrimSpace(*mode) == ModeRelease || strings.TrimSpace(*mode) == ModeRerelease) && policy.DryRun != PublishTrue {
+		fmt.Println("::group::GoReleaser config")
 		hasCustomConfig := fileExists(FileGoReleaser) || fileExists(".goreleaser.yaml")
 		if hasCustomConfig {
 			writeOutput(githubOutput, OutputGoreleaserYmlCurrent, PublishTrue)
@@ -258,10 +278,15 @@ func runPlan(args []string) error {
 				fmt.Fprintf(os.Stderr, "📝 Generated GoReleaser config at: %s\n", configPath)
 			}
 		}
+		fmt.Println("::endgroup::")
 	}
 
 	// Print summary with visual diagram
-	printReleaseDiagram(strings.TrimSpace(*mode), latest, next, policy.DryRun == PublishTrue, hasGoreleaserDocker, hasCustomGoreleaserConfig)
+	tag := next
+	if tag == "" {
+		tag = policy.ReleaseTag
+	}
+	printReleaseDiagram(strings.TrimSpace(*mode), latest, tag, policy.DryRun == PublishTrue, hasGoreleaserDocker, hasCustomGoreleaserConfig)
 
 	if policy.Message != "" {
 		fmt.Printf("\n%s\n", policy.Message)

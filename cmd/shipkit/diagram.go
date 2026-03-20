@@ -6,23 +6,30 @@ import (
 )
 
 func printReleaseDiagram(mode, latest, next string, dryRun, hasGoreleaserDocker, hasCustomConfig bool) {
-	fmt.Fprintf(os.Stderr, "\n🔄 Version: %s → %s\n", latest, next)
+	fmt.Fprintln(os.Stderr, "")
 	if dryRun {
-		fmt.Fprintln(os.Stderr, "⏭️  Status: Skipping (no release markers)")
-	} else {
-		fmt.Fprintf(os.Stderr, "✓ Mode: %s\n", mode)
-		if mode == ModeRelease || mode == ModeRerelease {
-			if hasGoreleaserDocker {
-				fmt.Fprintln(os.Stderr, "🐳 Docker: Included in GoReleaser")
-			} else {
-				fmt.Fprintln(os.Stderr, "🐳 Docker: Standalone (runs in parallel)")
-			}
-			if hasCustomConfig {
-				fmt.Fprintln(os.Stderr, "📝 Config: Custom .goreleaser.yml")
-			} else {
-				fmt.Fprintln(os.Stderr, "🤖 Config: Auto-generated")
-			}
+		fmt.Fprintln(os.Stderr, "⏭️  Dry run — downstream jobs skipped")
+		fmt.Fprintln(os.Stderr, "")
+		return
+	}
+	if latest != "" && next != "" {
+		fmt.Fprintf(os.Stderr, "  %s → %s\n", latest, next)
+	} else if next != "" {
+		fmt.Fprintf(os.Stderr, "  Tag: %s\n", next)
+	}
+	fmt.Fprintln(os.Stderr, "  Jobs:")
+	switch mode {
+	case ModeRelease, ModeRerelease:
+		fmt.Fprintln(os.Stderr, "    goreleaser")
+		if hasGoreleaserDocker {
+			fmt.Fprintln(os.Stderr, "    docker (via goreleaser)")
+		} else {
+			fmt.Fprintln(os.Stderr, "    docker (standalone)")
 		}
+	case ModeDocker:
+		fmt.Fprintln(os.Stderr, "    docker")
+	case ModeGoreleaser:
+		fmt.Fprintln(os.Stderr, "    goreleaser")
 	}
 	fmt.Fprintln(os.Stderr, "")
 }

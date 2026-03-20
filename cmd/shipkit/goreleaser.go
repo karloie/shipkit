@@ -75,6 +75,7 @@ func runGoReleaser(args []string) error {
 	}
 
 	// Detect project types and features
+	fmt.Println("::group::Detect")
 	detected := detectProjectTypes()
 
 	// Check for Node.js
@@ -114,6 +115,9 @@ func runGoReleaser(args []string) error {
 		DockerFile:   dockerFile,
 	}
 
+	fmt.Println("::endgroup::")
+	fmt.Println("::group::Generate config")
+	defer fmt.Println("::endgroup::")
 	return generateGoReleaserConfig(config, *outputFile)
 }
 
@@ -262,6 +266,9 @@ docker_manifests:
       - "{{.DockerImage}}:latest"
       - "{{.DockerImage}}:latest-arm64"
 {{end}}
+release:
+  replace_existing_artifacts: true
+
 source: {}
 
 checksum:
