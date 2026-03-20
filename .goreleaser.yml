@@ -1,0 +1,76 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: shipkit
+    main: ./cmd/shipkit
+    binary: shipkit
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -tags=release
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.buildCommit={{.Commit}}
+      - -X main.buildDate={{.Date}}
+      - -X main.buildVersion={{.Version}}
+
+universal_binaries:
+  - ids:
+      - shipkit
+    replace: true
+
+archives:
+  - name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE*
+      - README*
+      - CHANGELOG*
+
+nfpms:
+  - id: packages
+    package_name: shipkit
+    homepage: https://github.com/karloie/shipkit
+    maintainer: karloie
+    description: GitHub workflow automation and release tooling
+    license: MIT
+
+homebrew_casks:
+  - repository:
+      owner: karloie
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    homepage: https://github.com/karloie/shipkit
+    description: GitHub workflow automation and release tooling
+    license: MIT
+
+release:
+  replace_existing_artifacts: true
+
+source: {}
+
+checksum:
+  name_template: 'checksums.txt'
+
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - '^docs'
+      - '^test'
+      - '^chore'
+      - Merge pull request
+      - Merge branch
+
