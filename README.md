@@ -346,3 +346,4 @@ jobs:
 - **Node.js projects:** If `package.json` exists, GoReleaser automatically runs `npm ci` and `npm run build` in its `before.hooks` section.
 - **Docker build args:** Use uppercase `BUILD_VERSION`, `BUILD_COMMIT`, `BUILD_DATE`
 - **Go ldflags:** Use camelCase `buildVersion`, `buildCommit`, `buildDate`
+
