@@ -35,6 +35,11 @@ on:
         required: false
         default: ""
         type: string
+      main_path:
+        description: Main package path override (leave empty to use ./cmd/{project})
+        required: false
+        default: ""
+        type: string
     secrets:
       DOCKERHUB_USERNAME:
         required: false
@@ -117,6 +122,7 @@ jobs:
           go run github.com/karloie/shipkit/cmd/shipkit@${{ inputs.tool_ref }} goreleaser
           -owner=${{ github.repository_owner }}
           -repo=${{ github.event.repository.name }}
+          ${{ inputs.main_path != '' && format('-main={0}', inputs.main_path) || '' }}
           -output=/tmp/goreleaser-generated.yml
 
       - uses: goreleaser/goreleaser-action@v6
