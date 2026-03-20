@@ -100,6 +100,22 @@ jobs:
           go-version-file: ${{ inputs.go_version == '' && 'go.mod' || '' }}
           cache: true
 
+      - name: Generate GoReleaser config
+        if: ${{ needs.plan.outputs.goreleaser_yml_current != 'true' }}
+        run: >-
+          go run github.com/karloie/shipkit/cmd/shipkit@${{ inputs.tool_ref }} plan
+          -mode=rerelease
+          -next-tag=${{ needs.plan.outputs.tag }}
+          -image=${{ inputs.image }}
+          -owner=${{ github.repository_owner }}
+          -repo=${{ github.event.repository.name }}
+          -run-id=${{ github.run_id }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+
       - uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser

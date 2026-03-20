@@ -52,7 +52,7 @@ jobs:
         run: >-
           go run github.com/karloie/shipkit/cmd/shipkit@${{ inputs.tool_ref }} plan
           -mode=docker
-          -next-tag=${{ inputs.event_name == 'push' && github.ref_name || inputs.tag }}
+          -next-tag=${{ inputs.tag || github.ref_name }}
           -image=${{ inputs.image }}
           -sha=${{ github.sha }}
         env:
