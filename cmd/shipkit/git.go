@@ -24,6 +24,11 @@ func runGitConfig(args []string) error {
 		return err
 	}
 
+	logInputs(map[string]string{
+		"user-name":  *userName,
+		"user-email": *userEmail,
+	})
+
 	if err := configureGitUser(*userName, *userEmail); err != nil {
 		return err
 	}
@@ -43,6 +48,10 @@ func runGitTag(args []string) error {
 	if *tag == "" {
 		return fmt.Errorf("tag is required")
 	}
+
+	logInputs(map[string]string{
+		"tag": *tag,
+	})
 
 	return createGitTag(*tag)
 }

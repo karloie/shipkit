@@ -76,6 +76,19 @@ func runGoReleaser(args []string) error {
 		*dockerImage = fmt.Sprintf("%s/%s", *repoOwner, *projectName)
 	}
 
+	// Log all inputs
+	logInputs(map[string]string{
+		"project":      *projectName,
+		"binary":       *binaryName,
+		"main":         *mainPath,
+		"owner":        *repoOwner,
+		"repo":         *repoName,
+		"description":  *description,
+		"license":      *license,
+		"docker-image": *dockerImage,
+		"output":       *outputFile,
+	})
+
 	// Detect project types and features
 	fmt.Println("::group::Detect")
 	detected := detectProjectTypes()

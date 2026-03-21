@@ -36,6 +36,14 @@ func runVerifyVersion(args []string) error {
 		return fmt.Errorf("either -version or -tag must be provided")
 	}
 
+	// Log all inputs
+	logInputs(map[string]string{
+		"type":    *fileType,
+		"version": expectedVersion,
+		"tag":     *tag,
+		"fix":     fmt.Sprintf("%v", *fix),
+	})
+
 	var currentVersion string
 	var err error
 

@@ -46,6 +46,19 @@ func runPlan(args []string) error {
 	latestTagVal := strings.TrimSpace(*latestTag)
 	secretsVal := strings.TrimSpace(*requiredSecrets)
 
+	// Log all inputs
+	logInputs(map[string]string{
+		"mode":             modeVal,
+		"bump":             strings.TrimSpace(*bump),
+		"next-tag":         nextTagVal,
+		"latest-tag":       latestTagVal,
+		"image":            imageVal,
+		"owner":            ownerVal,
+		"repo":             repoVal,
+		"sha":              shaVal,
+		"required-secrets": secretsVal,
+	})
+
 	// Auto-enable resolve-latest-tag for rerelease mode
 	if modeVal == ModeRerelease && !*resolveLatestTag {
 		*resolveLatestTag = true
