@@ -104,42 +104,10 @@ permissions:
   pull-requests: read
 
 jobs:
-  # Build the shipkit tool at exact tool_ref commit to avoid Go module caching issues
-  build-tool:
-    name: 🚢 shipkit
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout shipkit at tool_ref
-        uses: actions/checkout@v4
-        with:
-          repository: karloie/shipkit
-          ref: ${{ inputs.tool_ref }}
-          path: shipkit-tool
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: shipkit-tool/go.mod
-          cache: false
-
-      - name: Build shipkit binary
-        run: |
-          cd shipkit-tool
-          go build -o ../shipkit ./cmd/shipkit
-          cd ..
-          chmod +x shipkit
-          ./shipkit --version || echo "Version command not available"
-
-      - name: Upload shipkit binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: shipkit-binary
-          path: shipkit
-          retention-days: 1
-
+  # Plan: Build shipkit tool and run plan
   plan:
-    name: 📝 plan
+    name: 🚢 plan
     runs-on: ubuntu-latest
-    needs: build-tool
     outputs:
       docker_image: ${{ steps.plan.outputs.docker_image }}
       goreleaser_docker: ${{ steps.plan.outputs.goreleaser_docker }}
@@ -158,28 +126,37 @@ jobs:
       version_clean: ${{ steps.plan.outputs.version_clean }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout shipkit at tool_ref
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          repository: karloie/shipkit
+          ref: ${{ inputs.tool_ref }}
+          path: shipkit-tool
 
-      - name: Download shipkit binary
-        uses: actions/download-artifact@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: shipkit-tool/go.mod
+          cache: false
+
+      - name: Build shipkit binary
+        run: |
+          cd shipkit-tool
+          go build -o shipkit ./cmd/shipkit
+          chmod +x shipkit
+          ./shipkit --version || echo "Version command not available"
+          mv shipkit ../
+
+      - name: Upload shipkit binary
+        uses: actions/upload-artifact@v4
         with:
           name: shipkit-binary
-          path: .
+          path: shipkit
+          retention-days: 1
 
-      - name: Make binary executable
-        run: chmod +x shipkit
-
-      - name: 🐛 Debug tool
-        run: |
-          echo "::group::🐛 Debug tool"
-          echo "tool_ref: ${{ inputs.tool_ref }}"
-          echo "Binary info:"
-          ls -lh shipkit
-          file shipkit
-          ./shipkit --version || echo "Version command not available"
-          echo "::endgroup::"
+      - name: Checkout project
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Plan release
         id: plan
@@ -232,7 +209,7 @@ jobs:
       tool_ref: ${{ inputs.tool_ref }}
       go_version: ${{ inputs.go_version }}
 
-  # Setup group: creates tag and updates version files (only if ALL builds pass)
+  # Tag and update version files (only if ALL builds pass)
   tag:
     name: 🏷️ tag
     needs: [plan, npm-build, go-build, maven-build, docker-build]
@@ -252,19 +229,19 @@ jobs:
       tag: ${{ needs.plan.outputs.tag }}
       tool_ref: ${{ inputs.tool_ref }}
 
-  version-files:
-    name: 📝 update-versions
+  update-versions:
+    name: "  📝 update"
     needs: [plan, npm-build, go-build, maven-build, docker-build, tag]
     if: |
       always() &&
       needs.plan.outputs.skip != 'true' &&
       inputs.dry_run != true &&
-      (needs.tag.result == 'success' || needs.tag.result == 'skipped') &&
+      needs.tag.result == 'success' &&
       (needs.npm-build.result == 'success' || needs.npm-build.result == 'skipped') &&
       (needs.go-build.result == 'success' || needs.go-build.result == 'skipped') &&
       (needs.maven-build.result == 'success' || needs.maven-build.result == 'skipped') &&
       (needs.docker-build.result == 'success' || needs.docker-build.result == 'skipped')
-    uses: ./.github/workflows/git-version-files.yml
+    uses: ./.github/workflows/git-update-versions.yml
     with:
       mode: ${{ inputs.mode }}
       tag: ${{ needs.plan.outputs.tag }}
@@ -275,7 +252,7 @@ jobs:
   # Publish group: publishes artifacts (runs in parallel after setup)
   npm-publish:
     name: 🚀 publish
-    needs: [plan, npm-build, go-build, maven-build, docker-build, tag, version-files]
+    needs: [plan, npm-build, go-build, maven-build, docker-build, tag, update-versions]
     if: |
       always() &&
       needs.plan.outputs.skip != 'true' &&
@@ -283,7 +260,7 @@ jobs:
       inputs.use_npm == true &&
       inputs.dry_run != true &&
       (needs.tag.result == 'success' || needs.tag.result == 'skipped') &&
-      (needs.version-files.result == 'success' || needs.version-files.result == 'skipped') &&
+      (needs.update-versions.result == 'success' || needs.update-versions.result == 'skipped') &&
       (needs.npm-build.result == 'success' || needs.npm-build.result == 'skipped') &&
       (needs.go-build.result == 'success' || needs.go-build.result == 'skipped') &&
       (needs.maven-build.result == 'success' || needs.maven-build.result == 'skipped') &&
@@ -298,7 +275,7 @@ jobs:
 
   maven-publish:
     name: 🚀 publish
-    needs: [plan, npm-build, go-build, maven-build, docker-build, tag, version-files]
+    needs: [plan, npm-build, go-build, maven-build, docker-build, tag, update-versions]
     if: |
       always() &&
       needs.plan.outputs.skip != 'true' &&
@@ -306,7 +283,7 @@ jobs:
       inputs.use_maven == true &&
       inputs.dry_run != true &&
       (needs.tag.result == 'success' || needs.tag.result == 'skipped') &&
-      (needs.version-files.result == 'success' || needs.version-files.result == 'skipped') &&
+      (needs.update-versions.result == 'success' || needs.update-versions.result == 'skipped') &&
       (needs.npm-build.result == 'success' || needs.npm-build.result == 'skipped') &&
       (needs.go-build.result == 'success' || needs.go-build.result == 'skipped') &&
       (needs.maven-build.result == 'success' || needs.maven-build.result == 'skipped') &&
@@ -324,7 +301,7 @@ jobs:
 
   docker-publish:
     name: 🚀 publish
-    needs: [plan, npm-build, go-build, maven-build, docker-build, tag, version-files]
+    needs: [plan, npm-build, go-build, maven-build, docker-build, tag, update-versions]
     if: |
       always() &&
       needs.plan.outputs.skip != 'true' &&
@@ -334,7 +311,7 @@ jobs:
       inputs.use_docker == true &&
       inputs.dry_run != true &&
       (needs.tag.result == 'success' || needs.tag.result == 'skipped') &&
-      (needs.version-files.result == 'success' || needs.version-files.result == 'skipped') &&
+      (needs.update-versions.result == 'success' || needs.update-versions.result == 'skipped') &&
       (needs.npm-build.result == 'success' || needs.npm-build.result == 'skipped') &&
       (needs.go-build.result == 'success' || needs.go-build.result == 'skipped') &&
       (needs.maven-build.result == 'success' || needs.maven-build.result == 'skipped') &&
@@ -353,14 +330,14 @@ jobs:
 
   go-publish:
     name: 🚀 publish
-    needs: [plan, npm-build, go-build, maven-build, docker-build, tag, version-files]
+    needs: [plan, npm-build, go-build, maven-build, docker-build, tag, update-versions]
     if: |
       always() &&
       needs.plan.outputs.skip != 'true' &&
       inputs.use_goreleaser == true &&
       inputs.dry_run != true &&
       (needs.tag.result == 'success' || needs.tag.result == 'skipped') &&
-      (needs.version-files.result == 'success' || needs.version-files.result == 'skipped') &&
+      (needs.update-versions.result == 'success' || needs.update-versions.result == 'skipped') &&
       (needs.npm-build.result == 'success' || needs.npm-build.result == 'skipped') &&
       (needs.go-build.result == 'success' || needs.go-build.result == 'skipped') &&
       (needs.maven-build.result == 'success' || needs.maven-build.result == 'skipped') &&
@@ -381,7 +358,7 @@ jobs:
     name: 📊 summary
     runs-on: ubuntu-latest
     if: always()
-    needs: [build-tool, plan, npm-build, go-build, maven-build, docker-build, tag, version-files, npm-publish, maven-publish, docker-publish, go-publish]
+    needs: [plan, npm-build, go-build, maven-build, docker-build, tag, update-versions, npm-publish, maven-publish, docker-publish, go-publish]
     steps:
       - name: Generate release summary
         run: |
@@ -418,14 +395,13 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| 🔧 Build Tool | ${{ needs.build-tool.result == 'success' && '✅ Success' || needs.build-tool.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 📋 Plan | ${{ needs.plan.result == 'success' && '✅ Success' || needs.plan.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| � Plan | ${{ needs.plan.result == 'success' && '✅ Success' || needs.plan.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🏗️ npm Build | ${{ needs.npm-build.result == 'success' && '✅ Success' || needs.npm-build.result == 'skipped' && '⏭️ Skipped' || needs.npm-build.result == 'failure' && '❌ Failed' || '⚪ N/A' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🏗️ Go Build | ${{ needs.go-build.result == 'success' && '✅ Success' || needs.go-build.result == 'skipped' && '⏭️ Skipped' || needs.go-build.result == 'failure' && '❌ Failed' || '⚪ N/A' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🏗️ Maven Build | ${{ needs.maven-build.result == 'success' && '✅ Success' || needs.maven-build.result == 'skipped' && '⏭️ Skipped' || needs.maven-build.result == 'failure' && '❌ Failed' || '⚪ N/A' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🏗️ Docker Build | ${{ needs.docker-build.result == 'success' && '✅ Success' || needs.docker-build.result == 'skipped' && '⏭️ Skipped' || needs.docker-build.result == 'failure' && '❌ Failed' || '⚪ N/A' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🏷️ Tag | ${{ needs.tag.result == 'success' && '✅ Success' || needs.tag.result == 'skipped' && '⏭️ Skipped' || needs.tag.result == 'failure' && '❌ Failed' || '⚪ N/A' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 📝 Version Files | ${{ needs.version-files.result == 'success' && '✅ Success' || needs.version-files.result == 'skipped' && '⏭️ Skipped' || needs.version-files.result == 'failure' && '❌ Failed' || '⚪ N/A' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📝 Update Versions | ${{ needs.update-versions.result == 'success' && '✅ Success' || needs.update-versions.result == 'skipped' && '⏭️ Skipped' || needs.update-versions.result == 'failure' && '❌ Failed' || '⚪ N/A' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🚀 npm Publish | ${{ needs.npm-publish.result == 'success' && '✅ Success' || needs.npm-publish.result == 'skipped' && '⏭️ Skipped' || needs.npm-publish.result == 'failure' && '❌ Failed' || '⚪ N/A' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🚀 Maven Publish | ${{ needs.maven-publish.result == 'success' && '✅ Success' || needs.maven-publish.result == 'skipped' && '⏭️ Skipped' || needs.maven-publish.result == 'failure' && '❌ Failed' || '⚪ N/A' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🚀 Docker Publish | ${{ needs.docker-publish.result == 'success' && '✅ Success' || needs.docker-publish.result == 'skipped' && '⏭️ Skipped' || needs.docker-publish.result == 'failure' && '❌ Failed' || '⚪ N/A' }} |" >> $GITHUB_STEP_SUMMARY
@@ -441,10 +417,10 @@ jobs:
             echo "## ✅ Overall Status: **SUCCESS**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Release \`${{ needs.plan.outputs.tag }}\` completed successfully!" >> $GITHUB_STEP_SUMMARY
-          elif [ "${{ needs.build-tool.result }}" == "failure" ] || [ "${{ needs.plan.result }}" == "failure" ]; then
+          elif [ "${{ needs.plan.result }}" == "failure" ]; then
             echo "## ❌ Overall Status: **FAILED**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Release failed during planning or tool build phase." >> $GITHUB_STEP_SUMMARY
+            echo "Release failed during planning phase." >> $GITHUB_STEP_SUMMARY
           elif [ "${{ needs.tag.result }}" == "failure" ]; then
             echo "## ❌ Overall Status: **FAILED**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
