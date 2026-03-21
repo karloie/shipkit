@@ -208,6 +208,7 @@ jobs:
     with:
       mode: ${{ inputs.mode }}
       tag: ${{ needs.plan.outputs.tag }}
+      tool_ref: ${{ inputs.tool_ref }}
 
   version-files:
     name: 📝 update-versions

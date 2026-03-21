@@ -21,6 +21,11 @@ on:
         required: false
         default: ""
         type: string
+      tool_ref:
+        description: Shipkit ref for go run module@ref
+        required: false
+        default: main
+        type: string
 
 permissions:
   contents: write
@@ -37,7 +42,7 @@ jobs:
           token: ${{ github.token }}
 
       - name: Configure Git
-        run: go run github.com/karloie/shipkit/cmd/shipkit@main git-config
+        run: go run github.com/karloie/shipkit/cmd/shipkit@${{ inputs.tool_ref }} git-config
 
       - name: Commit and tag
         run: |
@@ -56,4 +61,4 @@ jobs:
           fi
           
           # Create and push tag using shipkit (handles force update if exists)
-          go run github.com/karloie/shipkit/cmd/shipkit@main git-tag -tag="${{ inputs.tag }}"
+          go run github.com/karloie/shipkit/cmd/shipkit@${{ inputs.tool_ref }} git-tag -tag="${{ inputs.tag }}"
