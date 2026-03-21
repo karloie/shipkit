@@ -106,7 +106,7 @@ permissions:
 jobs:
   # Plan: Build shipkit tool and run plan
   plan:
-    name: 🚢 plan
+    name: 📋 plan
     runs-on: ubuntu-latest
     outputs:
       docker_image: ${{ steps.plan.outputs.docker_image }}
