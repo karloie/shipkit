@@ -232,7 +232,7 @@ jobs:
       tag: ${{ needs.plan.outputs.tag }}
       tool_ref: ${{ inputs.tool_ref }}
 
-  git-update-versions:
+  update-versions:
     name: "  📝 update"
     needs: [plan, npm-build, go-build, maven-build, docker-build, tag]
     if: |
