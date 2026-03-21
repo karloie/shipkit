@@ -1,6 +1,6 @@
 module github.com/karloie/shipkit
 
-go 1.25
+go 1.23
 
 require (
 	github.com/google/go-github/v50 v50.2.0
