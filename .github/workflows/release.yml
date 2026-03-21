@@ -144,19 +144,22 @@ jobs:
           go build -o shipkit ./cmd/shipkit
           chmod +x shipkit
           ./shipkit --version || echo "Version command not available"
-          mv shipkit ../
+          mv shipkit /tmp/shipkit
 
       - name: Upload shipkit binary
         uses: actions/upload-artifact@v4
         with:
           name: shipkit-binary
-          path: shipkit
+          path: /tmp/shipkit
           retention-days: 1
 
       - name: Checkout project
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Copy shipkit binary to project
+        run: cp /tmp/shipkit ./shipkit
 
       - name: Plan release
         id: plan
