@@ -63,3 +63,13 @@ plan-docker:
 #ci-validate: test lint plan-release plan-rerelease plan-docker
 ci-validate:
 	echo "Skipping ci-validate for now, as it takes too long to run. Please run individual targets instead."
+
+# Update workflow to use current HEAD commit SHA everywhere
+update-workflow-ref:
+	@HASH=$$(git rev-parse HEAD); \
+	echo "Updating workflow references to: $$HASH"; \
+	sed -i "s|uses: karloie/shipkit/.github/workflows/release.yml@[a-f0-9]*|uses: karloie/shipkit/.github/workflows/release.yml@$$HASH|g" .github/workflows/release-shipkit.yml; \
+	sed -i "s|default: [a-f0-9]\{40\}|default: $$HASH|g" .github/workflows/release-shipkit.yml; \
+	sed -i "s|- [a-f0-9]\{40\}|- $$HASH|g" .github/workflows/release-shipkit.yml; \
+	sed -i "s||| '[a-f0-9]\{40\}'||| '$$HASH'|g" .github/workflows/release-shipkit.yml; \
+	echo "✓ Updated all references to $$HASH"

@@ -19,9 +19,6 @@ on:
         default: 2d6db8e78dfea10fffd9458962cdca2a8a9ebece
         type: choice
         options:
-          - main
-          - v0.0.23
-          - 0df7708bc64fa7704d32ed2922e8d5b4362b5bb9
           - 2d6db8e78dfea10fffd9458962cdca2a8a9ebece
       bump:
         description: "Version bump (patch, minor, major)"
@@ -111,7 +108,7 @@ jobs:
       go_main: ${{ inputs.go_main }}
       mode: ${{ inputs.mode || 'release' }}
       node_version: ${{ inputs.node_version }}
-      tool_ref: ${{ inputs.tool_ref_override != '' && inputs.tool_ref_override || inputs.tool_ref || 'v0.0.21' }}
+      tool_ref: ${{ inputs.tool_ref_override != '' && inputs.tool_ref_override || inputs.tool_ref || '2d6db8e78dfea10fffd9458962cdca2a8a9ebece' }}
       use_docker: ${{ inputs.use_docker }}
       use_go: ${{ inputs.use_go }}
       use_goreleaser: ${{ inputs.use_goreleaser }}

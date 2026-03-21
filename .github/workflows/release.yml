@@ -135,6 +135,16 @@ jobs:
           go-version-file: ${{ inputs.go_version == '' && 'go.mod' || '' }}
           cache: true
 
+      - name: 🐛 Debug tool_ref
+        run: |
+          echo "::group::🐛 Debug tool_ref"
+          echo "tool_ref input: ${{ inputs.tool_ref }}"
+          echo "Command will be: go run github.com/karloie/shipkit/cmd/shipkit@${{ inputs.tool_ref }} plan"
+          git fetch --tags
+          echo "Tags at this ref:"
+          git tag --points-at ${{ inputs.tool_ref }} || echo "Not a commit, might be a tag"
+          echo "::endgroup::"
+
       - name: Plan release
         id: plan
         run: >-
