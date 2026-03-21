@@ -106,7 +106,7 @@ permissions:
 jobs:
   # Build the shipkit tool at exact tool_ref commit to avoid Go module caching issues
   build-tool:
-    name: 🔧 build tool
+    name: 🚢 shipkit
     runs-on: ubuntu-latest
     steps:
       - name: Checkout shipkit at tool_ref
