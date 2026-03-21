@@ -16,12 +16,13 @@ on:
       tool_ref:
         description: "Shipkit version"
         required: false
-        default: 0df7708bc64fa7704d32ed2922e8d5b4362b5bb9
+        default: 2d6db8e78dfea10fffd9458962cdca2a8a9ebece
         type: choice
         options:
           - main
           - v0.0.23
           - 0df7708bc64fa7704d32ed2922e8d5b4362b5bb9
+          - 2d6db8e78dfea10fffd9458962cdca2a8a9ebece
       bump:
         description: "Version bump (patch, minor, major)"
         required: false
