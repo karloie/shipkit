@@ -56,15 +56,27 @@ func createGitTag(tag string) error {
 		return err
 	}
 
-	// Create tag
+	// Fetch remote tags to check if tag already exists
+	if err := defaultRunner.Run("git", "fetch", "--tags"); err != nil {
+		fmt.Fprintf(os.Stderr, "⚠️  Warning: failed to fetch tags: %v\n", err)
+	}
+
+	// Check if tag already exists
+	git := &GitProviderReal{}
+	exists, _ := git.TagExists(tag)
+	if exists {
+		fmt.Printf("⚠️  Tag %s already exists, using -f to force update\n", tag)
+	}
+
+	// Create tag (force if exists)
 	msg := fmt.Sprintf("Release %s", tag)
-	if err := defaultRunner.Run("git", "tag", "-a", tag, "-m", msg); err != nil {
+	if err := defaultRunner.Run("git", "tag", "-f", "-a", tag, "-m", msg); err != nil {
 		return fmt.Errorf("failed to create tag: %w", err)
 	}
 	fmt.Printf("✓ Created tag: %s\n", tag)
 
-	// Push
-	if err := defaultRunner.Run("git", "push", "origin", tag); err != nil {
+	// Push (force to overwrite remote if exists)
+	if err := defaultRunner.Run("git", "push", "-f", "origin", tag); err != nil {
 		return fmt.Errorf("failed to push tag: %w", err)
 	}
 	fmt.Printf("✓ Pushed tag to origin: %s\n", tag)

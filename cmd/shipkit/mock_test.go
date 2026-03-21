@@ -266,9 +266,9 @@ func TestCreateGitTagSuccess(t *testing.T) {
 	if err := createGitTag("v1.2.3"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	// git config x2, git tag, git push = 4 calls
-	if len(mock.Calls) != 4 {
-		t.Fatalf("expected 4 calls, got %d: %v", len(mock.Calls), mock.Calls)
+	// git config x2, git fetch --tags, git tag, git push = 5 calls
+	if len(mock.Calls) != 5 {
+		t.Fatalf("expected 5 calls, got %d: %v", len(mock.Calls), mock.Calls)
 	}
 }
 
@@ -279,10 +279,10 @@ func TestCreateGitTagFailsOnTag(t *testing.T) {
 	defaultRunner = mock
 	defer func() { defaultRunner = old }()
 
-	// Fail on the 3rd call (git tag)
+	// Fail on the 4th call (git tag, after fetch)
 	origErr := mock.Err
 	_ = origErr
-	mock2 := &execRunnerFailAt{failAt: 3}
+	mock2 := &execRunnerFailAt{failAt: 4}
 	defaultRunner = mock2
 	defer func() { defaultRunner = old }()
 	_ = callCount
