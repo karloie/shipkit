@@ -376,3 +376,81 @@ jobs:
       goreleaser_config_current: ${{ needs.plan.outputs.goreleaser_config_current }}
     secrets:
       HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+
+  summary:
+    name: 📊 summary
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [build-tool, plan, npm-build, go-build, maven-build, docker-build, tag, version-files, npm-publish, maven-publish, docker-publish, go-publish]
+    steps:
+      - name: Generate release summary
+        run: |
+          echo "# 🚀 Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Plan section
+          echo "## 📋 Plan" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Mode | \`${{ inputs.mode }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Tool Ref | \`${{ inputs.tool_ref }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Skip | ${{ needs.plan.outputs.skip || 'false' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Tag | \`${{ needs.plan.outputs.tag }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Tag Exists | ${{ needs.plan.outputs.tag_exists || 'false' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Version | \`${{ needs.plan.outputs.version_clean }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker Image | \`${{ needs.plan.outputs.docker_image }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Detection section
+          echo "## 🔍 Detected Projects" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Project Type | Detected | GoReleaser Handles |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------------|----------|-------------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Go | ${{ needs.plan.outputs.has_go == 'true' && '✅' || '❌' }} | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker | ${{ needs.plan.outputs.has_docker == 'true' && '✅' || '❌' }} | ${{ needs.plan.outputs.goreleaser_docker == 'true' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Maven | ${{ needs.plan.outputs.has_maven == 'true' && '✅' || '❌' }} | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| npm | ${{ needs.plan.outputs.has_npm == 'true' && '✅' || '❌' }} | - |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Execution section
+          echo "## ⚙️ Execution Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔧 Build Tool | ${{ needs.build-tool.result == 'success' && '✅ Success' || needs.build-tool.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📋 Plan | ${{ needs.plan.result == 'success' && '✅ Success' || needs.plan.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🏗️ npm Build | ${{ needs.npm-build.result == 'success' && '✅ Success' || needs.npm-build.result == 'skipped' && '⏭️ Skipped' || needs.npm-build.result == 'failure' && '❌ Failed' || '⚪ N/A' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🏗️ Go Build | ${{ needs.go-build.result == 'success' && '✅ Success' || needs.go-build.result == 'skipped' && '⏭️ Skipped' || needs.go-build.result == 'failure' && '❌ Failed' || '⚪ N/A' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🏗️ Maven Build | ${{ needs.maven-build.result == 'success' && '✅ Success' || needs.maven-build.result == 'skipped' && '⏭️ Skipped' || needs.maven-build.result == 'failure' && '❌ Failed' || '⚪ N/A' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🏗️ Docker Build | ${{ needs.docker-build.result == 'success' && '✅ Success' || needs.docker-build.result == 'skipped' && '⏭️ Skipped' || needs.docker-build.result == 'failure' && '❌ Failed' || '⚪ N/A' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🏷️ Tag | ${{ needs.tag.result == 'success' && '✅ Success' || needs.tag.result == 'skipped' && '⏭️ Skipped' || needs.tag.result == 'failure' && '❌ Failed' || '⚪ N/A' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📝 Version Files | ${{ needs.version-files.result == 'success' && '✅ Success' || needs.version-files.result == 'skipped' && '⏭️ Skipped' || needs.version-files.result == 'failure' && '❌ Failed' || '⚪ N/A' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🚀 npm Publish | ${{ needs.npm-publish.result == 'success' && '✅ Success' || needs.npm-publish.result == 'skipped' && '⏭️ Skipped' || needs.npm-publish.result == 'failure' && '❌ Failed' || '⚪ N/A' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🚀 Maven Publish | ${{ needs.maven-publish.result == 'success' && '✅ Success' || needs.maven-publish.result == 'skipped' && '⏭️ Skipped' || needs.maven-publish.result == 'failure' && '❌ Failed' || '⚪ N/A' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🚀 Docker Publish | ${{ needs.docker-publish.result == 'success' && '✅ Success' || needs.docker-publish.result == 'skipped' && '⏭️ Skipped' || needs.docker-publish.result == 'failure' && '❌ Failed' || '⚪ N/A' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🚀 Go Publish | ${{ needs.go-publish.result == 'success' && '✅ Success' || needs.go-publish.result == 'skipped' && '⏭️ Skipped' || needs.go-publish.result == 'failure' && '❌ Failed' || '⚪ N/A' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Overall status
+          if [ "${{ needs.plan.outputs.skip }}" == "true" ]; then
+            echo "## ℹ️ Overall Status: **SKIPPED**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "No release markers found. Release was skipped." >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.go-publish.result }}" == "success" ] || [ "${{ needs.docker-publish.result }}" == "success" ] || [ "${{ needs.npm-publish.result }}" == "success" ] || [ "${{ needs.maven-publish.result }}" == "success" ]; then
+            echo "## ✅ Overall Status: **SUCCESS**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Release \`${{ needs.plan.outputs.tag }}\` completed successfully!" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.build-tool.result }}" == "failure" ] || [ "${{ needs.plan.result }}" == "failure" ]; then
+            echo "## ❌ Overall Status: **FAILED**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Release failed during planning or tool build phase." >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.tag.result }}" == "failure" ]; then
+            echo "## ❌ Overall Status: **FAILED**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Release failed during tag creation." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ⚠️ Overall Status: **PARTIAL**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Some jobs succeeded, but publish phase may have been skipped or failed." >> $GITHUB_STEP_SUMMARY
+          fi
