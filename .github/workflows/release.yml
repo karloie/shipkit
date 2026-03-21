@@ -393,6 +393,16 @@ jobs:
           echo "| npm | ${{ needs.plan.outputs.has_npm == 'true' && '✅' || '❌' }} | - |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
+          # GoReleaser config section
+          echo "## 🚀 GoReleaser Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.plan.outputs.goreleaser_config_current }}" == "true" ]; then
+            echo "✅ Using **custom** .goreleaser.yml config" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "🔧 Will **auto-generate** GoReleaser config (no custom .goreleaser.yml found)" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
           # Execution section
           echo "## ⚙️ Execution Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
