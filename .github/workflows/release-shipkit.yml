@@ -16,11 +16,11 @@ on:
       tool_ref:
         description: "Shipkit version"
         required: false
-        default: v0.0.15
+        default: v0.0.16
         type: choice
         options:
           - main
-          - v0.0.15
+          - v0.0.16
       bump:
         description: "Version bump (patch, minor, major)"
         required: false
