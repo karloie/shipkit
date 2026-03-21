@@ -16,11 +16,11 @@ on:
       tool_ref:
         description: "Shipkit version"
         required: false
-        default: v0.0.21
+        default: v0.0.23
         type: choice
         options:
           - main
-          - v0.0.21
+          - v0.0.23
       bump:
         description: "Version bump (patch, minor, major)"
         required: false
@@ -98,8 +98,8 @@ jobs:
       cancel-in-progress: false
     # Note: @ref must be static - GitHub Actions doesn't allow inputs context here
     # The tool_ref input controls which Go code version is used, not the workflow file version
-    # Using @v0.0.21 for workflow files to ensure exact version consistency
-    uses: karloie/shipkit/.github/workflows/release.yml@v0.0.21
+    # Using @v0.0.23 for workflow files to ensure exact version consistency
+    uses: karloie/shipkit/.github/workflows/release.yml@v0.0.23
     with:
       bump: ${{ inputs.bump }}
       dry_run: ${{ inputs.dry_run }}
