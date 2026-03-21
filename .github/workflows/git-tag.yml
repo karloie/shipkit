@@ -55,6 +55,5 @@ jobs:
             git commit -m "$COMMIT_MSG" || true
           fi
           
-          # Create and push tag
-          git tag "${{ inputs.tag }}"
-          git push origin "${{ inputs.tag }}"
+          # Create and push tag using shipkit (handles force update if exists)
+          go run github.com/karloie/shipkit/cmd/shipkit@main git-tag -tag="${{ inputs.tag }}"
