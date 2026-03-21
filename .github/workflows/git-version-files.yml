@@ -1,0 +1,88 @@
+name: Reusable Git Version Files Update
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Release tag (e.g. v1.2.3)
+        required: true
+        type: string
+      version:
+        description: Clean version without 'v' prefix (e.g. 1.2.3)
+        required: true
+        type: string
+      has_npm:
+        description: Whether package.json exists
+        required: false
+        type: string
+      has_maven:
+        description: Whether pom.xml exists
+        required: false
+        type: string
+      mode:
+        description: Release mode
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  update-versions:
+    runs-on: ubuntu-latest
+    if: inputs.mode == 'release' && (inputs.has_npm == 'true' || inputs.has_maven == 'true')
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        if: inputs.has_npm == 'true'
+        with:
+          node-version: '18'
+
+      - uses: actions/setup-java@v4
+        if: inputs.has_maven == 'true'
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Configure Git
+        run: go run github.com/karloie/shipkit/cmd/shipkit@main git-config
+
+      - name: Update package.json version
+        if: inputs.has_npm == 'true'
+        run: |
+          npm version "${{ inputs.version }}" --no-git-tag-version --allow-same-version
+
+      - name: Update pom.xml version
+        if: inputs.has_maven == 'true'
+        run: |
+          mvn versions:set -DnewVersion="${{ inputs.version }}" -DgenerateBackupPoms=false
+
+      - name: Commit and update tag
+        run: |
+          # Collect changed files
+          FILES_TO_ADD=""
+          if [ "${{ inputs.has_npm }}" == "true" ]; then
+            FILES_TO_ADD="$FILES_TO_ADD package.json package-lock.json"
+          fi
+          if [ "${{ inputs.has_maven }}" == "true" ]; then
+            FILES_TO_ADD="$FILES_TO_ADD pom.xml"
+          fi
+          
+          # Add and commit if there are changes
+          if [ -n "$FILES_TO_ADD" ]; then
+            # shellcheck disable=SC2086
+            git add $FILES_TO_ADD
+            git commit -m "chore: update version files for ${{ inputs.tag }}" || true
+            
+            # Delete existing tag (created by git-tag.yml)
+            git tag -d "${{ inputs.tag }}" 2>/dev/null || true
+            git push origin ":refs/tags/${{ inputs.tag }}" 2>/dev/null || true
+            
+            # Recreate tag with version file changes
+            git tag "${{ inputs.tag }}"
+            git push origin "${{ inputs.tag }}"
+          fi

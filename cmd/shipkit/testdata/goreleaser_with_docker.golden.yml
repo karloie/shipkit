@@ -1,0 +1,96 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+
+builds:
+  - id: docker-project
+    main: ./cmd/docker
+    binary: docker-binary
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -tags=release
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.buildCommit={{.Commit}}
+      - -X main.buildDate={{.Date}}
+      - -X main.buildVersion={{.Version}}
+
+universal_binaries:
+  - ids:
+      - docker-project
+    replace: true
+
+
+archives:
+  - name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE*
+      - README*
+      - CHANGELOG*
+
+nfpms:
+  - id: packages
+    package_name: docker-project
+    homepage: https://github.com/owner/repo
+    maintainer: owner
+    description: Dockerized application
+    license: MIT
+    formats:
+      - deb
+      - rpm
+      - apk
+
+homebrew_casks:
+  - repository:
+      owner: owner
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    homepage: https://github.com/owner/repo
+    description: Dockerized application
+    license: MIT
+
+
+dockers:
+  - image_templates:
+      - "owner/docker-project:{{ .Tag }}"
+      - "owner/docker-project:{{ .Major }}"
+      - "owner/docker-project:{{ .Major }}.{{ .Minor }}"
+      - "owner/docker-project:latest"
+    dockerfile: Dockerfile.goreleaser
+    use: buildx
+    build_flag_templates:
+      - "--pull"
+      - "--platform=linux/amd64,linux/arm64"
+      - "--label=org.opencontainers.image.title=docker-project"
+      - "--label=org.opencontainers.image.description=Dockerized application"
+      - "--label=org.opencontainers.image.url=https://github.com/owner/repo"
+      - "--label=org.opencontainers.image.source=https://github.com/owner/repo"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.created={{ .Date }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--label=org.opencontainers.image.licenses=MIT"
+
+
+release:
+  replace_existing_artifacts: true
+
+source: {}
+
+checksum:
+  name_template: 'checksums.txt'
+
+
+changelog:
+  disable: true
+
+

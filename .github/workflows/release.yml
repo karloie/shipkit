@@ -1,0 +1,336 @@
+name: Reusable Release
+
+on:
+  workflow_call:
+    inputs:
+      mode:
+        description: Release mode (release, rerelease, docker, or goreleaser)
+        required: false
+        default: release
+        type: string
+      event_name:
+        description: Original caller event name (push or workflow_dispatch, only for release mode)
+        required: false
+        type: string
+      bump:
+        description: Manual bump input (patch, minor, major, only for release mode)
+        required: false
+        type: string
+      tool_ref:
+        description: shipkit ref for go run module@ref
+        required: false
+        default: main
+        type: string
+      go_version:
+        description: Go version for running tool (leave empty to auto-detect from go.mod)
+        required: false
+        default: ""
+        type: string
+      node_version:
+        description: Node version for frontend build in go-publish job (leave empty to skip)
+        required: false
+        default: ""
+        type: string
+      go_main:
+        description: Main package path override (leave empty to use ./cmd/{project})
+        required: false
+        default: ""
+        type: string
+      dry_run:
+        description: Dry run mode (plan only, skip actual release)
+        required: false
+        default: false
+        type: boolean
+      use_docker:
+        description: Run docker job (uses Dockerfile if exists)
+        required: false
+        default: true
+        type: boolean
+      use_go:
+        description: Run go job (uses go.mod if exists)
+        required: false
+        default: true
+        type: boolean
+      use_goreleaser:
+        description: Run go-publish job (uses .goreleaser.yml if exists, otherwise auto-generates)
+        required: false
+        default: true
+        type: boolean
+      use_maven:
+        description: Run maven job (uses pom.xml if exists)
+        required: false
+        default: true
+        type: boolean
+      java_version:
+        description: Java version for Maven build (leave empty to use default)
+        required: false
+        default: ""
+        type: string
+      maven_args:
+        description: Additional Maven arguments
+        required: false
+        default: ""
+        type: string
+      use_npm:
+        description: Run npm job (uses package.json if exists)
+        required: false
+        default: true
+        type: boolean
+      npm_args:
+        description: Additional npm arguments
+        required: false
+        default: ""
+        type: string
+    secrets:
+      DOCKERHUB_USERNAME:
+        required: false
+      DOCKERHUB_TOKEN:
+        required: false
+      HOMEBREW_TAP_GITHUB_TOKEN:
+        required: false
+      MAVEN_USERNAME:
+        required: false
+      MAVEN_PASSWORD:
+        required: false
+      MAVEN_GPG_PRIVATE_KEY:
+        required: false
+      MAVEN_GPG_PASSPHRASE:
+        required: false
+      NPM_TOKEN:
+        required: false
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  plan:
+    name: plan
+    runs-on: ubuntu-latest
+    outputs:
+      docker_image: ${{ steps.plan.outputs.docker_image }}
+      goreleaser_docker: ${{ steps.plan.outputs.goreleaser_docker }}
+      goreleaser_config_current: ${{ steps.plan.outputs.goreleaser_config_current }}
+      goreleaser_config_auto: ${{ steps.plan.outputs.goreleaser_config_auto }}
+      has_docker: ${{ steps.plan.outputs.has_docker }}
+      has_go: ${{ steps.plan.outputs.has_go }}
+      has_maven: ${{ steps.plan.outputs.has_maven }}
+      has_npm: ${{ steps.plan.outputs.has_npm }}
+      next_tag: ${{ steps.plan.outputs.next_tag }}
+      release_tag: ${{ steps.plan.outputs.release_tag }}
+      skip: ${{ steps.plan.outputs.skip }}
+      tag: ${{ steps.plan.outputs.next_tag || steps.plan.outputs.release_tag }}
+      tag_exists: ${{ steps.plan.outputs.tag_exists }}
+      tag_latest: ${{ steps.plan.outputs.tag_latest }}
+      version_clean: ${{ steps.plan.outputs.version_clean }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go_version }}
+          go-version-file: ${{ inputs.go_version == '' && 'go.mod' || '' }}
+          cache: true
+
+      - name: Plan release
+        id: plan
+        run: >-
+          go run github.com/karloie/shipkit/cmd/shipkit@${{ inputs.tool_ref }} plan
+          -mode=${{ inputs.mode }}
+          -bump=${{ inputs.bump }}
+          -sha=${{ github.sha }}
+        env:
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          GITHUB_EVENT_NAME: ${{ inputs.event_name }}
+          GITHUB_TOKEN: ${{ github.token }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+
+  # Build group: test and build current code (runs in parallel, no version changes)
+  npm-build:
+    name: build
+    needs: plan
+    if: needs.plan.outputs.skip != 'true' && needs.plan.outputs.has_npm == 'true' && inputs.use_npm == true
+    uses: ./.github/workflows/npm-build.yml
+    with:
+      node_version: ${{ inputs.node_version || '18' }}
+      npm_args: ${{ inputs.npm_args }}
+
+  go-build:
+    name: build
+    needs: plan
+    if: needs.plan.outputs.skip != 'true' && needs.plan.outputs.has_go == 'true' && inputs.use_go == true
+    uses: ./.github/workflows/go-build.yml
+    with:
+      mode: ${{ inputs.mode }}
+      tag: ${{ needs.plan.outputs.tag }}
+      tool_ref: ${{ inputs.tool_ref }}
+      go_version: ${{ inputs.go_version }}
+
+  maven-build:
+    name: build
+    needs: plan
+    if: needs.plan.outputs.skip != 'true' && needs.plan.outputs.has_maven == 'true' && inputs.use_maven == true
+    uses: ./.github/workflows/maven-build.yml
+    with:
+      java_version: ${{ inputs.java_version || '17' }}
+      maven_args: ${{ inputs.maven_args }}
+
+  docker-build:
+    name: build
+    needs: plan
+    if: needs.plan.outputs.skip != 'true' && needs.plan.outputs.goreleaser_docker != 'true' && (needs.plan.outputs.has_docker == 'true' || needs.plan.outputs.has_docker == '') && inputs.use_docker == true
+    uses: ./.github/workflows/docker-build.yml
+    with:
+      image: ${{ needs.plan.outputs.docker_image }}
+      tag: ${{ needs.plan.outputs.tag }}
+      tool_ref: ${{ inputs.tool_ref }}
+      go_version: ${{ inputs.go_version }}
+
+  # Setup group: creates tag and updates version files (only if ALL builds pass)
+  tag:
+    name: tag
+    needs: [plan, npm-build, go-build, maven-build, docker-build]
+    if: |
+      always() &&
+      needs.plan.outputs.skip != 'true' &&
+      needs.plan.outputs.tag_exists != 'true' &&
+      inputs.mode == 'release' &&
+      inputs.dry_run != true &&
+      (needs.npm-build.result == 'success' || needs.npm-build.result == 'skipped') &&
+      (needs.go-build.result == 'success' || needs.go-build.result == 'skipped') &&
+      (needs.maven-build.result == 'success' || needs.maven-build.result == 'skipped') &&
+      (needs.docker-build.result == 'success' || needs.docker-build.result == 'skipped')
+    uses: ./.github/workflows/git-tag.yml
+    with:
+      mode: ${{ inputs.mode }}
+      tag: ${{ needs.plan.outputs.tag }}
+
+  version-files:
+    name: update-versions
+    needs: [plan, npm-build, go-build, maven-build, docker-build, tag]
+    if: |
+      always() &&
+      needs.plan.outputs.skip != 'true' &&
+      inputs.dry_run != true &&
+      (needs.tag.result == 'success' || needs.tag.result == 'skipped') &&
+      (needs.npm-build.result == 'success' || needs.npm-build.result == 'skipped') &&
+      (needs.go-build.result == 'success' || needs.go-build.result == 'skipped') &&
+      (needs.maven-build.result == 'success' || needs.maven-build.result == 'skipped') &&
+      (needs.docker-build.result == 'success' || needs.docker-build.result == 'skipped')
+    uses: ./.github/workflows/git-version-files.yml
+    with:
+      mode: ${{ inputs.mode }}
+      tag: ${{ needs.plan.outputs.tag }}
+      version: ${{ needs.plan.outputs.version_clean }}
+      has_npm: ${{ needs.plan.outputs.has_npm }}
+      has_maven: ${{ needs.plan.outputs.has_maven }}
+
+  # Publish group: publishes artifacts (runs in parallel after setup)
+  npm-publish:
+    name: publish
+    needs: [plan, npm-build, go-build, maven-build, docker-build, tag, version-files]
+    if: |
+      always() &&
+      needs.plan.outputs.skip != 'true' &&
+      needs.plan.outputs.has_npm == 'true' &&
+      inputs.use_npm == true &&
+      inputs.dry_run != true &&
+      (needs.tag.result == 'success' || needs.tag.result == 'skipped') &&
+      (needs.version-files.result == 'success' || needs.version-files.result == 'skipped') &&
+      (needs.npm-build.result == 'success' || needs.npm-build.result == 'skipped') &&
+      (needs.go-build.result == 'success' || needs.go-build.result == 'skipped') &&
+      (needs.maven-build.result == 'success' || needs.maven-build.result == 'skipped') &&
+      (needs.docker-build.result == 'success' || needs.docker-build.result == 'skipped')
+    uses: ./.github/workflows/npm-publish.yml
+    with:
+      tag: ${{ needs.plan.outputs.tag }}
+      node_version: ${{ inputs.node_version || '18' }}
+      npm_args: ${{ inputs.npm_args }}
+    secrets:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  maven-publish:
+    name: publish
+    needs: [plan, npm-build, go-build, maven-build, docker-build, tag, version-files]
+    if: |
+      always() &&
+      needs.plan.outputs.skip != 'true' &&
+      needs.plan.outputs.has_maven == 'true' &&
+      inputs.use_maven == true &&
+      inputs.dry_run != true &&
+      (needs.tag.result == 'success' || needs.tag.result == 'skipped') &&
+      (needs.version-files.result == 'success' || needs.version-files.result == 'skipped') &&
+      (needs.npm-build.result == 'success' || needs.npm-build.result == 'skipped') &&
+      (needs.go-build.result == 'success' || needs.go-build.result == 'skipped') &&
+      (needs.maven-build.result == 'success' || needs.maven-build.result == 'skipped') &&
+      (needs.docker-build.result == 'success' || needs.docker-build.result == 'skipped')
+    uses: ./.github/workflows/maven-publish.yml
+    with:
+      tag: ${{ needs.plan.outputs.tag }}
+      java_version: ${{ inputs.java_version || '17' }}
+      maven_args: ${{ inputs.maven_args }}
+    secrets:
+      MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+      MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
+      MAVEN_GPG_PRIVATE_KEY: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
+      MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+
+  docker-publish:
+    name: publish
+    needs: [plan, npm-build, go-build, maven-build, docker-build, tag, version-files]
+    # Backward compatible: treat missing has_docker (from old versions) as true
+    if: |
+      always() &&
+      needs.plan.outputs.skip != 'true' &&
+      needs.plan.outputs.goreleaser_docker != 'true' &&
+      (needs.plan.outputs.has_docker == 'true' || needs.plan.outputs.has_docker == '') &&
+      inputs.mode != 'goreleaser' &&
+      inputs.use_docker == true &&
+      inputs.dry_run != true &&
+      (needs.tag.result == 'success' || needs.tag.result == 'skipped') &&
+      (needs.version-files.result == 'success' || needs.version-files.result == 'skipped') &&
+      (needs.npm-build.result == 'success' || needs.npm-build.result == 'skipped') &&
+      (needs.go-build.result == 'success' || needs.go-build.result == 'skipped') &&
+      (needs.maven-build.result == 'success' || needs.maven-build.result == 'skipped') &&
+      (needs.docker-build.result == 'success' || needs.docker-build.result == 'skipped')
+    uses: ./.github/workflows/docker-publish.yml
+    with:
+      event_name: push
+      go_version: ${{ inputs.go_version }}
+      image: ${{ needs.plan.outputs.docker_image }}
+      tag_latest: ${{ needs.plan.outputs.tag_latest == 'true' }}
+      tag: ${{ needs.plan.outputs.tag }}
+      tool_ref: ${{ inputs.tool_ref }}
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+
+  go-publish:
+    name: publish
+    needs: [plan, npm-build, go-build, maven-build, docker-build, tag, version-files]
+    if: |
+      always() &&
+      needs.plan.outputs.skip != 'true' &&
+      inputs.use_goreleaser == true &&
+      inputs.dry_run != true &&
+      (needs.tag.result == 'success' || needs.tag.result == 'skipped') &&
+      (needs.version-files.result == 'success' || needs.version-files.result == 'skipped') &&
+      (needs.npm-build.result == 'success' || needs.npm-build.result == 'skipped') &&
+      (needs.go-build.result == 'success' || needs.go-build.result == 'skipped') &&
+      (needs.maven-build.result == 'success' || needs.maven-build.result == 'skipped') &&
+      (needs.docker-build.result == 'success' || needs.docker-build.result == 'skipped')
+    uses: ./.github/workflows/go-publish.yml
+    with:
+      mode: ${{ inputs.mode }}
+      tag: ${{ needs.plan.outputs.tag }}
+      tool_ref: ${{ inputs.tool_ref }}
+      go_version: ${{ inputs.go_version }}
+      node_version: ${{ inputs.node_version }}
+      go_main: ${{ inputs.go_main }}
+      goreleaser_config_current: ${{ needs.plan.outputs.goreleaser_config_current }}
+    secrets:
+      HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}

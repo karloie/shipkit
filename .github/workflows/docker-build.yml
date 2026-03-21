@@ -1,0 +1,83 @@
+name: Reusable Docker Build
+
+on:
+  workflow_call:
+    inputs:
+      image:
+        description: Docker image repository name
+        required: true
+        type: string
+      tag:
+        description: Tag to use for validation build
+        required: false
+        type: string
+      tool_ref:
+        description: Shipkit ref for go run module@ref
+        required: false
+        default: main
+        type: string
+      go_version:
+        description: Go version for running tool (leave empty to auto-detect from go.mod)
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: docker-build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go_version }}
+          go-version-file: ${{ inputs.go_version == '' && 'go.mod' || '' }}
+          cache: true
+
+      - name: Compute docker policy
+        id: plan
+        run: >-
+          go clean -modcache || true
+
+          go run github.com/karloie/shipkit/cmd/shipkit@${{ inputs.tool_ref }} plan
+          -mode=docker
+          -next-tag=${{ inputs.tag || github.ref_name }}
+          -image=${{ inputs.image }}
+          -sha=${{ github.sha }}
+        env:
+          GITHUB_EVENT_NAME: workflow_call
+
+      - name: Debug outputs
+        run: |
+          echo "skip='${{ steps.plan.outputs.skip }}'"
+          echo "dockerfile='${{ steps.plan.outputs.dockerfile }}'"
+          echo "version='${{ steps.plan.outputs.version }}'"
+
+      - uses: docker/setup-buildx-action@v3
+        if: steps.plan.outputs.skip != 'true'
+
+      - uses: docker/metadata-action@v5
+        id: meta
+        if: steps.plan.outputs.skip != 'true'
+        with:
+          images: ${{ inputs.image }}
+          tags: |
+            type=raw,value=${{ steps.plan.outputs.version }}
+            type=sha,prefix=sha-
+
+      - uses: docker/build-push-action@v6
+        if: steps.plan.outputs.skip != 'true'
+        with:
+          context: .
+          file: ./${{ steps.plan.outputs.dockerfile }}
+          push: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BUILD_VERSION=${{ steps.plan.outputs.version }}
+            BUILD_COMMIT=${{ github.sha }}

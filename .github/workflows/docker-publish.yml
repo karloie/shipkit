@@ -1,0 +1,111 @@
+name: Reusable Docker Publish
+
+on:
+  workflow_call:
+    inputs:
+      image:
+        description: Docker image repository name
+        required: true
+        type: string
+      event_name:
+        description: Original caller event name
+        required: true
+        type: string
+      tag:
+        description: Tag input for manual dispatch, e.g. v1.2.3
+        required: false
+        type: string
+      tool_ref:
+        description: Shipkit ref for go run module@ref
+        required: false
+        default: main
+        type: string
+      go_version:
+        description: Go version for running tool (leave empty to auto-detect from go.mod)
+        required: false
+        default: ""
+        type: string
+      tag_latest:
+        description: Whether to also tag as latest
+        required: false
+        default: false
+        type: boolean
+    secrets:
+      DOCKERHUB_USERNAME:
+        required: false
+      DOCKERHUB_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: docker-publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go_version }}
+          go-version-file: ${{ inputs.go_version == '' && 'go.mod' || '' }}
+          cache: true
+
+      - name: Compute docker policy
+        id: plan
+        run: >-
+          go clean -modcache || true
+
+          go run github.com/karloie/shipkit/cmd/shipkit@${{ inputs.tool_ref }} plan
+          -mode=docker
+          -next-tag=${{ inputs.tag || github.ref_name }}
+          -image=${{ inputs.image }}
+          -sha=${{ github.sha }}
+        env:
+          GITHUB_EVENT_NAME: ${{ inputs.event_name }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Debug outputs
+        run: |
+          echo "skip='${{ steps.plan.outputs.skip }}'"
+          echo "dockerfile='${{ steps.plan.outputs.dockerfile }}'"
+          echo "version='${{ steps.plan.outputs.version }}'"
+
+      - uses: docker/setup-buildx-action@v3
+        if: steps.plan.outputs.skip != 'true'
+
+      - uses: docker/metadata-action@v5
+        id: meta
+        if: steps.plan.outputs.skip != 'true'
+        with:
+          images: ${{ inputs.image }}
+          tags: |
+            type=raw,value=${{ steps.plan.outputs.version }}
+            ${{ steps.plan.outputs.version_major_minor != '' && format('type=raw,value={0}', steps.plan.outputs.version_major_minor) || '' }}
+            ${{ inputs.tag_latest && 'type=raw,value=latest' || '' }}
+            type=sha,prefix=sha-
+
+      - uses: docker/build-push-action@v6
+        if: steps.plan.outputs.skip != 'true'
+        with:
+          context: .
+          file: ./${{ steps.plan.outputs.dockerfile }}
+          push: ${{ steps.plan.outputs.push == 'true' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BUILD_VERSION=${{ steps.plan.outputs.version }}
+            BUILD_COMMIT=${{ github.sha }}
+            BUILD_DATE=${{ github.event.head_commit.timestamp || github.event.repository.updated_at }}
+
+      - name: Update DockerHub README
+        if: steps.plan.outputs.skip != 'true' && steps.plan.outputs.push == 'true'
+        run: >-
+          go run github.com/karloie/shipkit/cmd/shipkit@${{ inputs.tool_ref }} docker-hub-readme
+          -repo=${{ inputs.image }}
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}

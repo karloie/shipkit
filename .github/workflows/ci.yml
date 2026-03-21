@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      mode:
+        description: CI mode to run (validation or build-test)
+        required: false
+        default: ""
+        type: string
+      make_targets:
+        description: Make targets to run for validation
+        required: false
+        default: ci-validate
+        type: string
+      go_version:
+        description: Explicit Go version override (for example 1.25)
+        required: false
+        default: ""
+        type: string
+      node_version:
+        description: Explicit Node version override (for example 22)
+        required: false
+        default: ""
+        type: string
+      node_cache:
+        description: setup-node cache mode
+        required: false
+        default: npm
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Validate
+        if: ${{ (github.event_name == 'push' || github.event_name == 'pull_request' || inputs.mode == 'validation') && inputs.mode != 'build-test' }}
+        run: |
+          go install github.com/rhysd/actionlint/cmd/actionlint@latest
+          mkdir -p "$HOME/.local/bin"
+          curl -fsSL https://raw.githubusercontent.com/nektos/act/master/install.sh | bash -s -- -b "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          make ${{ inputs.make_targets || 'ci-validate' }}
+
+      - uses: actions/setup-node@v4
+        if: ${{ inputs.mode == 'build-test' && inputs.node_version != '' }}
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: ${{ inputs.node_cache }}
+
+      - name: Install frontend dependencies
+        if: ${{ inputs.mode == 'build-test' && inputs.node_version != '' }}
+        run: npm ci
+
+      - name: Build frontend
+        if: ${{ inputs.mode == 'build-test' && inputs.node_version != '' }}
+        run: npm run build
+
+      - name: Download Go dependencies
+        if: ${{ inputs.mode == 'build-test' && inputs.go_version != '' }}
+        run: go mod download
+
+      - name: Build
+        if: ${{ inputs.mode == 'build-test' }}
+        run: make ci-build
+
+      - name: Test
+        if: ${{ inputs.mode == 'build-test' }}
+        run: make ci-test

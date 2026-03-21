@@ -1,0 +1,106 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - npm ci
+    - npm run build
+
+
+builds:
+  - id: full-project
+    main: ./cmd/full
+    binary: full-binary
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -tags=release
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.buildCommit={{.Commit}}
+      - -X main.buildDate={{.Date}}
+      - -X main.buildVersion={{.Version}}
+
+universal_binaries:
+  - ids:
+      - full-project
+    replace: true
+
+
+archives:
+  - name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE*
+      - README*
+      - CHANGELOG*
+
+nfpms:
+  - id: packages
+    package_name: full-project
+    homepage: https://github.com/full-owner/full-repo
+    maintainer: full-owner
+    description: Full featured application
+    license: GPL-3.0
+    formats:
+      - deb
+      - rpm
+      - apk
+
+homebrew_casks:
+  - repository:
+      owner: full-owner
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    homepage: https://github.com/full-owner/full-repo
+    description: Full featured application
+    license: GPL-3.0
+
+
+dockers:
+  - image_templates:
+      - "full-owner/full-project:{{ .Tag }}"
+      - "full-owner/full-project:{{ .Major }}"
+      - "full-owner/full-project:{{ .Major }}.{{ .Minor }}"
+      - "full-owner/full-project:latest"
+    dockerfile: Containerfile.goreleaser
+    use: buildx
+    build_flag_templates:
+      - "--pull"
+      - "--platform=linux/amd64,linux/arm64"
+      - "--label=org.opencontainers.image.title=full-project"
+      - "--label=org.opencontainers.image.description=Full featured application"
+      - "--label=org.opencontainers.image.url=https://github.com/full-owner/full-repo"
+      - "--label=org.opencontainers.image.source=https://github.com/full-owner/full-repo"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.created={{ .Date }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--label=org.opencontainers.image.licenses=GPL-3.0"
+
+
+release:
+  replace_existing_artifacts: true
+
+source: {}
+
+checksum:
+  name_template: 'checksums.txt'
+
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - '^docs'
+      - '^test'
+      - '^chore'
+      - Merge pull request
+      - Merge branch
+
+

@@ -1,0 +1,19 @@
+dockers:
+  - image_templates:
+      - "{{.DockerImage}}:{{ "{{" }} .Tag {{ "}}" }}"
+      - "{{.DockerImage}}:{{ "{{" }} .Major {{ "}}" }}"
+      - "{{.DockerImage}}:{{ "{{" }} .Major {{ "}}" }}.{{ "{{" }} .Minor {{ "}}" }}"
+      - "{{.DockerImage}}:latest"
+    dockerfile: {{.DockerFile}}
+    use: buildx
+    build_flag_templates:
+      - "--pull"
+      - "--platform=linux/amd64,linux/arm64"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.description={{.Description}}"
+      - "--label=org.opencontainers.image.url=https://github.com/{{.RepoOwner}}/{{.RepoName}}"
+      - "--label=org.opencontainers.image.source=https://github.com/{{.RepoOwner}}/{{.RepoName}}"
+      - "--label=org.opencontainers.image.version={{ "{{" }} .Version {{ "}}" }}"
+      - "--label=org.opencontainers.image.created={{ "{{" }} .Date {{ "}}" }}"
+      - "--label=org.opencontainers.image.revision={{ "{{" }} .FullCommit {{ "}}" }}"
+      - "--label=org.opencontainers.image.licenses={{.License}}"

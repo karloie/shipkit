@@ -1,0 +1,62 @@
+name: Reusable NPM Publish
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Release tag to checkout (e.g. v1.2.3)
+        required: true
+        type: string
+      node_version:
+        description: "Node version (default: 18)"
+        required: false
+        default: "18"
+        type: string
+      npm_args:
+        description: Additional npm arguments
+        required: false
+        default: ""
+        type: string
+    secrets:
+      NPM_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: npm-publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: npm
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: |
+          NPM_ARGS="${{ inputs.npm_args }}"
+          # shellcheck disable=SC2086
+          npm ci $NPM_ARGS
+
+      - name: Publish to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          # Skip if NPM_TOKEN not provided
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "NPM_TOKEN not provided, skipping publish"
+            exit 0
+          fi
+          
+          echo "Publishing to npm registry..."
+          NPM_ARGS="${{ inputs.npm_args }}"
+          # shellcheck disable=SC2086
+          npm publish --access public $NPM_ARGS

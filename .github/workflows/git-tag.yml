@@ -1,0 +1,60 @@
+name: Reusable Git Tag Creation
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Tag to create (e.g. v1.2.3)
+        required: true
+        type: string
+      mode:
+        description: Release mode (release, rerelease, etc.)
+        required: true
+        type: string
+      files:
+        description: Files to commit before tagging (space-separated, optional)
+        required: false
+        default: ""
+        type: string
+      commit_message:
+        description: Commit message for files (optional, uses default if empty)
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    if: inputs.mode == 'release'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ github.token }}
+
+      - name: Configure Git
+        run: go run github.com/karloie/shipkit/cmd/shipkit@main git-config
+
+      - name: Commit and tag
+        run: |
+          # Commit files if specified
+          if [ -n "${{ inputs.files }}" ]; then
+            git add ${{ inputs.files }}
+            
+            # Use custom commit message or default
+            if [ -n "${{ inputs.commit_message }}" ]; then
+              COMMIT_MSG="${{ inputs.commit_message }}"
+            else
+              COMMIT_MSG="chore: release ${{ inputs.tag }}"
+            fi
+            
+            git commit -m "$COMMIT_MSG" || true
+          fi
+          
+          # Create and push tag
+          git tag "${{ inputs.tag }}"
+          git push origin "${{ inputs.tag }}"
