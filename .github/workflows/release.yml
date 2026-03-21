@@ -151,7 +151,7 @@ jobs:
 
   # Build group: test and build current code (runs in parallel, no version changes)
   npm-build:
-    name: build
+    name: 🏗️ build
     needs: plan
     if: needs.plan.outputs.skip != 'true' && needs.plan.outputs.has_npm == 'true' && inputs.use_npm == true
     uses: ./.github/workflows/npm-build.yml
@@ -160,7 +160,7 @@ jobs:
       npm_args: ${{ inputs.npm_args }}
 
   go-build:
-    name: build
+    name: 🏗️ build
     needs: plan
     if: needs.plan.outputs.skip != 'true' && needs.plan.outputs.has_go == 'true' && inputs.use_go == true
     uses: ./.github/workflows/go-build.yml
@@ -171,7 +171,7 @@ jobs:
       go_version: ${{ inputs.go_version }}
 
   maven-build:
-    name: build
+    name: 🏗️ build
     needs: plan
     if: needs.plan.outputs.skip != 'true' && needs.plan.outputs.has_maven == 'true' && inputs.use_maven == true
     uses: ./.github/workflows/maven-build.yml
@@ -180,7 +180,7 @@ jobs:
       maven_args: ${{ inputs.maven_args }}
 
   docker-build:
-    name: build
+    name: 🏗️ build
     needs: plan
     if: needs.plan.outputs.skip != 'true' && needs.plan.outputs.goreleaser_docker != 'true' && (needs.plan.outputs.has_docker == 'true' || needs.plan.outputs.has_docker == '') && inputs.use_docker == true
     uses: ./.github/workflows/docker-build.yml
@@ -192,7 +192,7 @@ jobs:
 
   # Setup group: creates tag and updates version files (only if ALL builds pass)
   tag:
-    name: tag
+    name: 🏷️ tag
     needs: [plan, npm-build, go-build, maven-build, docker-build]
     if: |
       always() &&
@@ -210,7 +210,7 @@ jobs:
       tag: ${{ needs.plan.outputs.tag }}
 
   version-files:
-    name: update-versions
+    name: 📝 update-versions
     needs: [plan, npm-build, go-build, maven-build, docker-build, tag]
     if: |
       always() &&
@@ -231,7 +231,7 @@ jobs:
 
   # Publish group: publishes artifacts (runs in parallel after setup)
   npm-publish:
-    name: publish
+    name: 🚀 publish
     needs: [plan, npm-build, go-build, maven-build, docker-build, tag, version-files]
     if: |
       always() &&
@@ -254,7 +254,7 @@ jobs:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   maven-publish:
-    name: publish
+    name: 🚀 publish
     needs: [plan, npm-build, go-build, maven-build, docker-build, tag, version-files]
     if: |
       always() &&
@@ -280,7 +280,7 @@ jobs:
       MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
 
   docker-publish:
-    name: publish
+    name: 🚀 publish
     needs: [plan, npm-build, go-build, maven-build, docker-build, tag, version-files]
     # Backward compatible: treat missing has_docker (from old versions) as true
     if: |
@@ -310,7 +310,7 @@ jobs:
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
 
   go-publish:
-    name: publish
+    name: 🚀 publish
     needs: [plan, npm-build, go-build, maven-build, docker-build, tag, version-files]
     if: |
       always() &&

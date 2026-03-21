@@ -41,7 +41,7 @@ permissions:
 
 jobs:
   publish:
-    name: docker-publish
+    name: 🐳 docker
     runs-on: ubuntu-latest
 
     steps:

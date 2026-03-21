@@ -37,7 +37,7 @@ permissions:
 
 jobs:
   go:
-    name: go-build
+    name: 🐹 go
     runs-on: ubuntu-latest
 
     steps:

@@ -91,7 +91,7 @@ permissions:
   pull-requests: read
 
 jobs:
-  release:
+  _:
     name: " "
     concurrency:
       group: release-shipkit-main

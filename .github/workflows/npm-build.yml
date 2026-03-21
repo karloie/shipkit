@@ -29,7 +29,7 @@ permissions:
 
 jobs:
   build:
-    name: npm-build
+    name: 📦 npm
     runs-on: ubuntu-latest
 
     steps:

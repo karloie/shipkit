@@ -24,7 +24,7 @@ permissions:
 
 jobs:
   build:
-    name: maven-build
+    name: ☕ maven
     runs-on: ubuntu-latest
 
     steps:
