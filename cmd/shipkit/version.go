@@ -99,12 +99,17 @@ func computeVersion(eventName, bumpInput string, git GitProvider, pr PRProvider)
 
 	next = fmt.Sprintf("v%d.%d.%d", major, minor, patch)
 
-	exists, err := git.TagExists(next)
-	if err != nil {
-		return "", "", "", err
-	}
-	if exists {
-		return "", "", "", fmt.Errorf("tag %s already exists", next)
+	// Keep incrementing patch until we find an available tag
+	for {
+		exists, err := git.TagExists(next)
+		if err != nil {
+			return "", "", "", err
+		}
+		if !exists {
+			break
+		}
+		patch++
+		next = fmt.Sprintf("v%d.%d.%d", major, minor, patch)
 	}
 
 	return latest, next, PublishTrue, nil

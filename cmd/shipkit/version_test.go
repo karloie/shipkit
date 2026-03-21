@@ -32,11 +32,14 @@ func TestComputeVersionSkipWhenNoMarkers(t *testing.T) {
 	}
 }
 
-func TestComputeVersionFailsOnExistingTag(t *testing.T) {
+func TestComputeVersionAutoIncrementsOnExistingTag(t *testing.T) {
 	git := &GitProviderMock{LatestTag: "v1.0.0", ExistsTags: map[string]bool{"v1.0.1": true}}
-	_, _, _, err := computeVersion("workflow_dispatch", "patch", git, &PRProviderMock{})
-	if err == nil {
-		t.Fatalf("expected existing-tag error")
+	_, next, _, err := computeVersion("workflow_dispatch", "patch", git, &PRProviderMock{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if next != "v1.0.2" {
+		t.Errorf("expected v1.0.2, got %s", next)
 	}
 }
 
