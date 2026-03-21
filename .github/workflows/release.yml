@@ -182,7 +182,7 @@ jobs:
   docker-build:
     name: 🏗️ build
     needs: plan
-    if: needs.plan.outputs.skip != 'true' && needs.plan.outputs.goreleaser_docker != 'true' && (needs.plan.outputs.has_docker == 'true' || needs.plan.outputs.has_docker == '') && inputs.use_docker == true
+    if: needs.plan.outputs.skip != 'true' && needs.plan.outputs.goreleaser_docker != 'true' && needs.plan.outputs.has_docker == 'true' && inputs.use_docker == true
     uses: ./.github/workflows/docker-build.yml
     with:
       image: ${{ needs.plan.outputs.docker_image }}
@@ -282,12 +282,11 @@ jobs:
   docker-publish:
     name: 🚀 publish
     needs: [plan, npm-build, go-build, maven-build, docker-build, tag, version-files]
-    # Backward compatible: treat missing has_docker (from old versions) as true
     if: |
       always() &&
       needs.plan.outputs.skip != 'true' &&
       needs.plan.outputs.goreleaser_docker != 'true' &&
-      (needs.plan.outputs.has_docker == 'true' || needs.plan.outputs.has_docker == '') &&
+      needs.plan.outputs.has_docker == 'true' &&
       inputs.mode != 'goreleaser' &&
       inputs.use_docker == true &&
       inputs.dry_run != true &&
