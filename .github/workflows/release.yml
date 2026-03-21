@@ -241,7 +241,7 @@ jobs:
       (needs.go-build.result == 'success' || needs.go-build.result == 'skipped') &&
       (needs.maven-build.result == 'success' || needs.maven-build.result == 'skipped') &&
       (needs.docker-build.result == 'success' || needs.docker-build.result == 'skipped')
-    uses: ./.github/workflows/git-update-versions.yml
+    uses: ./.github/workflows/git-version-files.yml
     with:
       mode: ${{ inputs.mode }}
       tag: ${{ needs.plan.outputs.tag }}
