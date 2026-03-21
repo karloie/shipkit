@@ -78,11 +78,7 @@ jobs:
             git add $FILES_TO_ADD
             git commit -m "chore: update version files for ${{ inputs.tag }}" || true
             
-            # Delete existing tag (created by git-tag.yml)
-            git tag -d "${{ inputs.tag }}" 2>/dev/null || true
-            git push origin ":refs/tags/${{ inputs.tag }}" 2>/dev/null || true
-            
-            # Recreate tag with version file changes
-            git tag "${{ inputs.tag }}"
-            git push origin "${{ inputs.tag }}"
+            # Recreate tag with version file changes (force to overwrite)
+            git tag -f -a "${{ inputs.tag }}" -m "Release ${{ inputs.tag }}"
+            git push -f origin "${{ inputs.tag }}"
           fi

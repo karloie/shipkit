@@ -68,8 +68,8 @@ jobs:
       - name: Create and push tag
         if: ${{ inputs.mode == 'goreleaser' && inputs.tag != '' }}
         run: |
-          git tag ${{ inputs.tag }}
-          git push origin ${{ inputs.tag }}
+          git tag -f -a ${{ inputs.tag }} -m "Release ${{ inputs.tag }}"
+          git push -f origin ${{ inputs.tag }}
 
       - name: Fetch tags
         if: ${{ inputs.mode == 'release' }}
