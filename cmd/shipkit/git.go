@@ -79,7 +79,7 @@ func createGitTag(tag string) error {
 
 	// Create tag (force if exists)
 	msg := fmt.Sprintf("Release %s", tag)
-	if err := defaultRunner.Run("git", "tag", "-f", "-a", tag, "-m", msg); err != nil {
+	if err := defaultRunner.Run("git", "tag", "-f", "-a", tag, "-m", msg, "HEAD"); err != nil {
 		return fmt.Errorf("failed to create tag: %w", err)
 	}
 	fmt.Printf("✓ Created tag: %s\n", tag)
