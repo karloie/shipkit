@@ -41,8 +41,17 @@ jobs:
           fetch-depth: 0
           token: ${{ github.token }}
 
+      - name: Download shipkit binary
+        uses: actions/download-artifact@v4
+        with:
+          name: shipkit-binary
+          path: .
+
+      - name: Make binary executable  
+        run: chmod +x shipkit
+
       - name: Configure Git
-        run: go run github.com/karloie/shipkit/cmd/shipkit@${{ inputs.tool_ref }} git-config
+        run: ./shipkit git-config
 
       - name: Commit and tag
         run: |
@@ -61,4 +70,4 @@ jobs:
           fi
           
           # Create and push tag using shipkit (handles force update if exists)
-          go run github.com/karloie/shipkit/cmd/shipkit@${{ inputs.tool_ref }} git-tag -tag="${{ inputs.tag }}"
+          ./shipkit git-tag -tag="${{ inputs.tag }}"

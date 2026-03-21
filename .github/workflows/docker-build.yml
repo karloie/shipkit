@@ -33,22 +33,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v5
+      - name: Download shipkit binary
+        uses: actions/download-artifact@v4
         with:
-          go-version: ${{ inputs.go_version }}
-          go-version-file: ${{ inputs.go_version == '' && 'go.mod' || '' }}
-          cache: true
+          name: shipkit-binary
+          path: .
+
+      - name: Make binary executable
+        run: chmod +x shipkit
 
       - name: Compute docker policy
         id: plan
-        run: >-
-          go clean -modcache || true
-
-          go run github.com/karloie/shipkit/cmd/shipkit@${{ inputs.tool_ref }} plan
-          -mode=docker
-          -next-tag=${{ inputs.tag || github.ref_name }}
-          -image=${{ inputs.image }}
-          -sha=${{ github.sha }}
+        run: ./shipkit plan -mode=docker -next-tag=${{ inputs.tag || github.ref_name }} -image=${{ inputs.image }} -sha=${{ github.sha }}
         env:
           GITHUB_EVENT_NAME: workflow_call
 

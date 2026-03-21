@@ -45,6 +45,15 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Download shipkit binary
+        uses: actions/download-artifact@v4
+        with:
+          name: shipkit-binary
+          path: .
+
+      - name: Make binary executable
+        run: chmod +x shipkit
+
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ inputs.go_version }}
@@ -52,7 +61,7 @@ jobs:
           cache: true
 
       - name: Configure Git
-        run: go run github.com/karloie/shipkit/cmd/shipkit@${{ inputs.tool_ref }} git-config
+        run: ./shipkit git-config
 
       - name: Run tests
         run: |

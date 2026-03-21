@@ -104,9 +104,42 @@ permissions:
   pull-requests: read
 
 jobs:
+  # Build the shipkit tool at exact tool_ref commit to avoid Go module caching issues
+  build-tool:
+    name: 🔧 build tool
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout shipkit at tool_ref
+        uses: actions/checkout@v4
+        with:
+          repository: karloie/shipkit
+          ref: ${{ inputs.tool_ref }}
+          path: shipkit-tool
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: shipkit-tool/go.mod
+          cache: false
+
+      - name: Build shipkit binary
+        run: |
+          cd shipkit-tool
+          go build -o ../shipkit ./cmd/shipkit
+          cd ..
+          chmod +x shipkit
+          ./shipkit --version || echo "Version command not available"
+
+      - name: Upload shipkit binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: shipkit-binary
+          path: shipkit
+          retention-days: 1
+
   plan:
     name: plan
     runs-on: ubuntu-latest
+    needs: build-tool
     outputs:
       docker_image: ${{ steps.plan.outputs.docker_image }}
       goreleaser_docker: ${{ steps.plan.outputs.goreleaser_docker }}
@@ -129,29 +162,28 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-go@v5
+      - name: Download shipkit binary
+        uses: actions/download-artifact@v4
         with:
-          go-version: ${{ inputs.go_version }}
-          go-version-file: ${{ inputs.go_version == '' && 'go.mod' || '' }}
-          cache: true
+          name: shipkit-binary
+          path: .
 
-      - name: 🐛 Debug tool_ref
+      - name: Make binary executable
+        run: chmod +x shipkit
+
+      - name: 🐛 Debug tool
         run: |
-          echo "::group::🐛 Debug tool_ref"
-          echo "tool_ref input: ${{ inputs.tool_ref }}"
-          echo "Command will be: go run github.com/karloie/shipkit/cmd/shipkit@${{ inputs.tool_ref }} plan"
-          git fetch --tags
-          echo "Tags at this ref:"
-          git tag --points-at ${{ inputs.tool_ref }} || echo "Not a commit, might be a tag"
+          echo "::group::🐛 Debug tool"
+          echo "tool_ref: ${{ inputs.tool_ref }}"
+          echo "Binary info:"
+          ls -lh shipkit
+          file shipkit
+          ./shipkit --version || echo "Version command not available"
           echo "::endgroup::"
 
       - name: Plan release
         id: plan
-        run: >-
-          go run github.com/karloie/shipkit/cmd/shipkit@${{ inputs.tool_ref }} plan
-          -mode=${{ inputs.mode }}
-          -bump=${{ inputs.bump }}
-          -sha=${{ github.sha }}
+        run: ./shipkit plan -mode=${{ inputs.mode }} -bump=${{ inputs.bump }} -sha=${{ github.sha }}
         env:
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}

@@ -53,6 +53,15 @@ jobs:
           fetch-depth: 0
           ref: ${{ inputs.mode == 'rerelease' && inputs.tag || '' }}
 
+      - name: Download shipkit binary
+        uses: actions/download-artifact@v4
+        with:
+          name: shipkit-binary
+          path: .
+
+      - name: Make binary executable
+        run: chmod +x shipkit
+
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ inputs.go_version }}
@@ -77,12 +86,7 @@ jobs:
 
       - name: Generate GoReleaser config
         if: ${{ inputs.goreleaser_config_current != 'true' }}
-        run: >-
-          go run github.com/karloie/shipkit/cmd/shipkit@${{ inputs.tool_ref }} goreleaser
-          -owner=${{ github.repository_owner }}
-          -repo=${{ github.event.repository.name }}
-          -main=${{ inputs.go_main }}
-          -output=/tmp/goreleaser-generated.yml
+        run: ./shipkit goreleaser -owner=${{ github.repository_owner }} -repo=${{ github.event.repository.name }} -main=${{ inputs.go_main }} -output=/tmp/goreleaser-generated.yml
 
       - uses: goreleaser/goreleaser-action@v6
         with:
@@ -95,6 +99,4 @@ jobs:
 
       - name: Cleanup on failure
         if: ${{ failure() && inputs.tag != '' && inputs.mode == 'release' }}
-        run: >-
-          go run github.com/karloie/shipkit/cmd/shipkit@${{ inputs.tool_ref }} git-tag-cleanup
-          -tag=${{ inputs.tag }}
+        run: ./shipkit git-tag-cleanup -tag=${{ inputs.tag }}
