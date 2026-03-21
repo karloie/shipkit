@@ -120,11 +120,24 @@ func runPlan(args []string) error {
 		case ModeGoreleaser:
 			secrets = EnvHomebrewTapToken
 		case ModeRerelease:
-			secrets = fmt.Sprintf("%s,%s,%s", EnvDockerHubUsername, EnvDockerHubToken, EnvHomebrewTapToken)
-		case ModeRelease, ModeDocker:
+			// Only require Docker secrets if Docker is actually present
+			if hasStandaloneDocker || hasGoreleaserDocker {
+				secrets = fmt.Sprintf("%s,%s,%s", EnvDockerHubUsername, EnvDockerHubToken, EnvHomebrewTapToken)
+			} else {
+				secrets = EnvHomebrewTapToken
+			}
+		case ModeDocker:
+			// Docker mode always needs Docker credentials
 			secrets = fmt.Sprintf("%s,%s", EnvDockerHubUsername, EnvDockerHubToken)
+		case ModeRelease:
+			// Only require Docker secrets if Docker is actually present
+			if hasStandaloneDocker || hasGoreleaserDocker {
+				secrets = fmt.Sprintf("%s,%s", EnvDockerHubUsername, EnvDockerHubToken)
+			}
+			// else: empty string, no secrets required
 		default:
-			secrets = fmt.Sprintf("%s,%s", EnvDockerHubUsername, EnvDockerHubToken)
+			// Unknown mode, don't require secrets
+			secrets = ""
 		}
 	}
 

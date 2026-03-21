@@ -39,7 +39,7 @@ func runPolicy(args []string) error {
 	nextTag := fs.String("next-tag", "", "next release tag, e.g. v1.2.3")
 	image := fs.String("image", DefaultImage, "docker image repository")
 	sha := fs.String("sha", "", "git sha used for summary output")
-	requiredSecrets := fs.String("required-secrets", EnvDockerHubUsername+","+EnvDockerHubToken, "comma-separated required secret names")
+	requiredSecrets := fs.String("required-secrets", "", "comma-separated required secret names")
 	resolveLatestTag := fs.Bool("resolve-latest-tag", false, "resolve latest tag from git (used by rerelease mode)")
 
 	if err := fs.Parse(args); err != nil {
