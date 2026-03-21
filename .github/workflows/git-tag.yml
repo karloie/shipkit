@@ -31,7 +31,7 @@ permissions:
   contents: write
 
 jobs:
-  tag:
+  git-tag:
     runs-on: ubuntu-latest
     if: inputs.mode == 'release'
 

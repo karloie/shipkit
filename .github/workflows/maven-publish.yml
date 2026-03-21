@@ -37,7 +37,7 @@ permissions:
 
 jobs:
   publish:
-    name: ☕ maven
+    name: ☕ maven publish
     runs-on: ubuntu-latest
 
     steps:

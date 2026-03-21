@@ -28,7 +28,7 @@ permissions:
   contents: write
 
 jobs:
-  update-versions:
+  git-update-versions:
     runs-on: ubuntu-latest
     if: inputs.mode == 'release' && (inputs.has_npm == 'true' || inputs.has_maven == 'true')
 

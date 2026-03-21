@@ -27,7 +27,7 @@ permissions:
 
 jobs:
   build:
-    name: 🐳 docker
+    name: 🐳 docker build
     runs-on: ubuntu-latest
 
     steps:

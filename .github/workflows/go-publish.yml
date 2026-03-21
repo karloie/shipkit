@@ -44,7 +44,7 @@ permissions:
 
 jobs:
   publish:
-    name: 🐹 go
+    name: 🐹 go publish
     runs-on: ubuntu-latest
 
     steps:
