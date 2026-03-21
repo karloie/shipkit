@@ -295,6 +295,26 @@ func runPlan(args []string) error {
 		writeOutput(githubOutput, OutputVersionClean, versionClean)
 	}
 
+	// Debug: Print all outputs
+	fmt.Println("::group::📤 All Outputs")
+	fmt.Printf("  skip=%s\n", policy.Skip)
+	fmt.Printf("  version=%s\n", policy.Version)
+	fmt.Printf("  version_major_minor=%s\n", policy.VersionMajorMinor)
+	fmt.Printf("  dockerfile=%s\n", policy.Dockerfile)
+	fmt.Printf("  release_tag=%s\n", policy.ReleaseTag)
+	fmt.Printf("  next_tag=%s\n", policy.NextTag)
+	fmt.Printf("  tag_exists=%v\n", policy.TagExists)
+	fmt.Printf("  goreleaser_config_current=%v\n", hasCustomGoreleaserConfig)
+	fmt.Printf("  goreleaser_docker=%v\n", hasGoreleaserDocker)
+	fmt.Printf("  has_docker=%v\n", hasStandaloneDocker)
+	fmt.Printf("  has_go=%v\n", hasGo)
+	fmt.Printf("  has_maven=%v\n", hasMaven)
+	fmt.Printf("  has_npm=%v\n", hasNpm)
+	fmt.Printf("  tag_latest=%v\n", modeVal != ModeRerelease)
+	fmt.Printf("  docker_image=%s\n", dockerImage)
+	fmt.Printf("  version_clean=%s\n", versionClean)
+	fmt.Println("::endgroup::")
+
 	fmt.Println("::endgroup::")
 
 	// Handle Docker login for docker mode
