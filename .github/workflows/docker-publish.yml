@@ -89,7 +89,7 @@ jobs:
             type=sha,prefix=sha-
 
       - uses: docker/build-push-action@v6
-        if: steps.plan.outputs.skip != 'true'
+        if: steps.plan.outputs.skip != 'true' && steps.plan.outputs.dockerfile != ''
         with:
           context: .
           file: ./${{ steps.plan.outputs.dockerfile }}
