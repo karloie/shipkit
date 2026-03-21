@@ -16,10 +16,10 @@ on:
       tool_ref:
         description: "Shipkit version"
         required: false
-        default: e89ab05f7b0959d3e92214a730baa88997321294
+        default: 6d726920469d08f0b72ab65b62f8273161b8f396
         type: choice
         options:
-          - e89ab05f7b0959d3e92214a730baa88997321294
+          - 6d726920469d08f0b72ab65b62f8273161b8f396
       bump:
         description: "Version bump (patch, minor, major)"
         required: false
@@ -98,7 +98,7 @@ jobs:
     # Note: @ref must be static - GitHub Actions doesn't allow inputs context here
     # The tool_ref input controls which Go code version is used, not the workflow file version
     # Using commit SHA to avoid annotated tag resolution issues
-    uses: karloie/shipkit/.github/workflows/release.yml@e89ab05f7b0959d3e92214a730baa88997321294
+    uses: karloie/shipkit/.github/workflows/release.yml@6d726920469d08f0b72ab65b62f8273161b8f396
     with:
       bump: ${{ inputs.bump }}
       dry_run: ${{ inputs.dry_run }}
@@ -108,7 +108,7 @@ jobs:
       go_main: ${{ inputs.go_main }}
       mode: ${{ inputs.mode || 'release' }}
       node_version: ${{ inputs.node_version }}
-      tool_ref: ${{ inputs.tool_ref_override != '' && inputs.tool_ref_override || inputs.tool_ref || 'e89ab05f7b0959d3e92214a730baa88997321294' }}
+      tool_ref: ${{ inputs.tool_ref_override != '' && inputs.tool_ref_override || inputs.tool_ref || '6d726920469d08f0b72ab65b62f8273161b8f396' }}
       use_docker: ${{ inputs.use_docker }}
       use_go: ${{ inputs.use_go }}
       use_goreleaser: ${{ inputs.use_goreleaser }}
