@@ -1,0 +1,102 @@
+name: Reusable Go Publish
+
+on:
+  workflow_call:
+    inputs:
+      mode:
+        description: Release mode (release, rerelease, goreleaser)
+        required: true
+        type: string
+      tag:
+        description: Release tag (e.g. v1.2.3)
+        required: true
+        type: string
+      tool_ref:
+        description: Shipkit ref for go run module@ref
+        required: false
+        default: main
+        type: string
+      go_version:
+        description: Go version for running tool (leave empty to auto-detect from go.mod)
+        required: false
+        default: ""
+        type: string
+      node_version:
+        description: Node version for frontend build (leave empty to skip)
+        required: false
+        default: ""
+        type: string
+      go_main:
+        description: Main package path override (leave empty to use ./cmd/{project})
+        required: false
+        default: ""
+        type: string
+      goreleaser_config_current:
+        description: Whether .goreleaser.yml exists
+        required: false
+        type: string
+    secrets:
+      HOMEBREW_TAP_GITHUB_TOKEN:
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: 🐹 go publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.mode == 'rerelease' && inputs.tag || '' }}
+
+      - name: Download shipkit binary
+        uses: actions/download-artifact@v4
+        with:
+          name: shipkit-binary
+          path: .
+
+      - name: Make binary executable
+        run: chmod +x shipkit
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go_version }}
+          go-version-file: ${{ inputs.go_version == '' && 'go.mod' || '' }}
+          cache: true
+
+      - uses: actions/setup-node@v4
+        if: ${{ inputs.node_version != '' }}
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: npm
+
+      - name: Create and push tag
+        if: ${{ inputs.mode == 'goreleaser' && inputs.tag != '' }}
+        run: |
+          git tag -f -a ${{ inputs.tag }} -m "Release ${{ inputs.tag }}"
+          git push -f origin ${{ inputs.tag }}
+
+      - name: Fetch tags
+        if: ${{ inputs.mode == 'release' }}
+        run: git fetch --tags --force
+
+      - name: Generate GoReleaser config
+        if: ${{ inputs.goreleaser_config_current != 'true' }}
+        run: ./shipkit goreleaser -owner=${{ github.repository_owner }} -repo=${{ github.event.repository.name }} -main=${{ inputs.go_main }} -output=/tmp/goreleaser-generated.yml
+
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean ${{ inputs.goreleaser_config_current != 'true' && '--config=/tmp/goreleaser-generated.yml' || '' }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+
+      - name: Cleanup on failure
+        if: ${{ failure() && inputs.tag != '' && inputs.mode == 'release' }}
+        run: ./shipkit git-tag-cleanup -tag=${{ inputs.tag }}

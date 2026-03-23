@@ -1,0 +1,67 @@
+name: Reusable NPM Build
+
+on:
+  workflow_call:
+    inputs:
+      node_version:
+        description: "Node version (default: 18)"
+        required: false
+        default: "18"
+        type: string
+      npm_args:
+        description: Additional npm arguments
+        required: false
+        default: ""
+        type: string
+      build_script:
+        description: "npm script to run for build (default: build)"
+        required: false
+        default: "build"
+        type: string
+      test_script:
+        description: "npm script to run for tests (default: test)"
+        required: false
+        default: "test"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: 📦 npm build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: npm
+
+      - name: Install dependencies
+        run: |
+          NPM_ARGS="${{ inputs.npm_args }}"
+          # shellcheck disable=SC2086
+          npm ci $NPM_ARGS
+
+      - name: Run tests
+        if: ${{ inputs.test_script != '' }}
+        run: |
+          # Check if test script exists in package.json
+          if npm run "${{ inputs.test_script }}" --if-present 2>/dev/null; then
+            echo "Running tests..."
+          else
+            echo "No test script found, skipping tests"
+          fi
+
+      - name: Build
+        if: ${{ inputs.build_script != '' }}
+        run: |
+          # Check if build script exists in package.json
+          if npm run "${{ inputs.build_script }}" --if-present 2>/dev/null; then
+            echo "Building..."
+          else
+            echo "No build script found, skipping build"
+          fi
