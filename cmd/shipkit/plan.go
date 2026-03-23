@@ -20,30 +20,27 @@ func runPlan(args []string) error {
 	fs := newFlagSet("plan")
 
 	// Version flags
-	bump := fs.String("bump", "", "patch|minor|major (optional, auto-detect from commits if empty)")
-	nextTag := fs.String("next-tag", "", "next release tag (optional, skip version computation if provided)")
-	latestTag := fs.String("latest-tag", "", "latest release tag (optional, used with -next-tag)")
+	bump := fs.String("bump", "", "Version bump")
+	nextTag := fs.String("next-tag", "", "Next tag")
+	latestTag := fs.String("latest-tag", "", "Latest tag")
 
 	// Policy flags
-	mode := fs.String("mode", DefaultMode, "policy mode: release|rerelease|docker|goreleaser")
-	image := fs.String("image", DefaultImage, "docker image repository")
-	owner := fs.String("owner", "", "repository owner (optional, auto-detected from git if empty)")
-	repo := fs.String("repo", "", "repository name (optional, auto-detected from git if empty)")
-	sha := fs.String("sha", "", "git sha used for summary output")
-	requiredSecrets := fs.String("required-secrets", "", "comma-separated required secret names (auto-detected by mode if empty)")
-	resolveLatestTag := fs.Bool("resolve-latest-tag", false, "resolve latest tag from git (used by rerelease mode)")
+	mode := fs.String("mode", DefaultMode, "Release mode")
+	image := fs.String("image", DefaultImage, "Docker image")
+	owner := fs.String("owner", "", "Repo owner")
+	repo := fs.String("repo", "", "Repo name")
+	sha := fs.String("sha", "", "Git SHA")
+	requiredSecrets := fs.String("required-secrets", "", "Required secrets")
+	resolveLatestTag := fs.Bool("resolve-latest-tag", false, "Resolve latest")
 
 	// Workflow control flags (for precalculating job execution)
-	dryRun := fs.Bool("dry-run", false, "dry run mode")
-	useNpm := fs.Bool("use-npm", true, "enable npm jobs")
-	useMaven := fs.Bool("use-maven", true, "enable maven jobs")
-	useDocker := fs.Bool("use-docker", true, "enable docker jobs")
-	useGo := fs.Bool("use-go", true, "enable go jobs")
-	useGoreleaser := fs.Bool("use-goreleaser", true, "enable goreleaser job")
-
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
+	dryRun := fs.Bool("dry-run", false, "Dry run")
+	useNpm := fs.Bool("use-npm", true, "Enable npm")
+	useMaven := fs.Bool("use-maven", true, "Enable maven")
+	useDocker := fs.Bool("use-docker", true, "Enable docker")
+	useGo := fs.Bool("use-go", true, "Enable go")
+	useGoreleaser := fs.Bool("use-goreleaser", true, "Enable goreleaser")
+	parseFlagsOrExit(fs, args)
 
 	// Trim all flag values once for cleaner code
 	modeVal := strings.TrimSpace(*mode)
@@ -105,6 +102,32 @@ func runPlan(args []string) error {
 
 	// Check if npm project (package.json exists)
 	hasNpm := fileExists(FileNode)
+
+	// Check for build orchestrators (Makefile, justfile, Taskfile)
+	hasMakefile := fileExists("Makefile")
+	hasJustfile := fileExists("justfile")
+	hasTaskfile := fileExists("Taskfile.yml") || fileExists("Taskfile.yaml")
+
+	// Determine build orchestrator preference
+	buildOrchestrator := ""
+	if hasMakefile {
+		buildOrchestrator = "make"
+	} else if hasJustfile {
+		buildOrchestrator = "just"
+	} else if hasTaskfile {
+		buildOrchestrator = "task"
+	} else {
+		buildOrchestrator = "convention"
+	}
+
+	// Parse Makefile if it exists to understand available targets
+	var makeTargets []string
+	if hasMakefile {
+		if graph, err := ParseMakefile("Makefile"); err == nil {
+			makeTargets = graph.GetTargets()
+			fmt.Fprintf(os.Stderr, "  📋 Detected %d Makefile targets\n", len(makeTargets))
+		}
+	}
 
 	// Compute docker image if not provided or is default
 	dockerImage := imageVal
@@ -299,6 +322,12 @@ func runPlan(args []string) error {
 	// Output npm project status
 	writeBoolOutput(githubOutput, OutputHasNpm, hasNpm)
 
+	// Output build orchestrator information
+	writeOutput(githubOutput, "build_orchestrator", buildOrchestrator)
+	writeBoolOutput(githubOutput, "has_makefile", hasMakefile)
+	writeBoolOutput(githubOutput, "has_justfile", hasJustfile)
+	writeBoolOutput(githubOutput, "has_taskfile", hasTaskfile)
+
 	// Output tag_latest flag (true unless rerelease mode)
 	writeBoolOutput(githubOutput, OutputTagLatestFlag, modeVal != ModeRerelease)
 
@@ -344,6 +373,11 @@ func runPlan(args []string) error {
 		"has_npm":                   hasNpm,
 		"goreleaser_docker":         hasGoreleaserDocker,
 		"goreleaser_config_current": hasCustomGoreleaserConfig,
+		"build_orchestrator":        buildOrchestrator,
+		"has_makefile":              hasMakefile,
+		"has_justfile":              hasJustfile,
+		"has_taskfile":              hasTaskfile,
+		"make_targets":              makeTargets,
 	}
 
 	planJSON, err := json.MarshalIndent(planData, "", "  ")

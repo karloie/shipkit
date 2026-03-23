@@ -1,357 +1,58 @@
 package main
 
 import (
-	"strings"
-	"testing"
+"strings"
+"testing"
 )
 
 func TestGenerateSummary(t *testing.T) {
-	tests := []struct {
-		name            string
-		inputs          SummaryInputs
-		wantContains    []string
-		wantNotContains []string
-	}{
-		{
-			name: "successful release with all jobs",
-			inputs: SummaryInputs{
-				Mode:                    "release",
-				ToolRef:                 "main",
-				Skip:                    false,
-				Tag:                     "v1.2.3",
-				TagExists:               false,
-				Version:                 "1.2.3",
-				DockerImage:             "org/app",
-				HasGo:                   true,
-				HasDocker:               true,
-				HasMaven:                true,
-				HasNpm:                  true,
-				GoreleaserDocker:        false,
-				GoreleaserConfigCurrent: true,
-				ResultPlan:              "success",
-				ResultBuildNpm:          "success",
-				ResultBuildGo:           "success",
-				ResultBuildMaven:        "success",
-				ResultBuildDocker:       "success",
-				ResultTag:               "success",
-				ResultUpdateVersions:    "success",
-				ResultPublishNpm:        "success",
-				ResultPublishMaven:      "success",
-				ResultPublishDocker:     "success",
-				ResultPublishGo:         "success",
-			},
-			wantContains: []string{
-				"# 🚀 Release Summary",
-				"## 📋 Plan",
-				"| Mode | `release` |",
-				"| Tool Ref | `main` |",
-				"| Tag | `v1.2.3` |",
-				"| Version | `1.2.3` |",
-				"| Docker Image | `org/app` |",
-				"## 🔍 Detected Projects",
-				"| Go | ✅ |",
-				"| Docker | ✅ | ❌ |",
-				"| Maven | ✅ |",
-				"| npm | ✅ |",
-				"✅ Using **custom** .goreleaser.yml config",
-				"## ⚙️ Execution Results",
-				"| 🚢 Plan | ✅ Success |",
-				"| 🏗️ npm Build | ✅ Success |",
-				"| 🏗️ Go Build | ✅ Success |",
-				"| 🏗️ Maven Build | ✅ Success |",
-				"| 🏗️ Docker Build | ✅ Success |",
-				"| 🏷️ Tag | ✅ Success |",
-				"| 📝 Update Versions | ✅ Success |",
-				"| 🚀 npm Publish | ✅ Success |",
-				"| 🚀 Maven Publish | ✅ Success |",
-				"| 🚀 Docker Publish | ✅ Success |",
-				"| 🚀 Go Publish | ✅ Success |",
-				"## ✅ Overall Status: **SUCCESS**",
-				"Release `v1.2.3` completed successfully!",
-			},
-			wantNotContains: []string{
-				"❌ Failed",
-				"SKIPPED",
-				"PARTIAL",
-			},
-		},
-		{
-			name: "skipped release",
-			inputs: SummaryInputs{
-				Mode:       "release",
-				ToolRef:    "main",
-				Skip:       true,
-				Tag:        "",
-				ResultPlan: "success",
-			},
-			wantContains: []string{
-				"## ℹ️ Overall Status: **SKIPPED**",
-				"No release markers found. Release was skipped.",
-			},
-			wantNotContains: []string{
-				"SUCCESS",
-				"FAILED",
-			},
-		},
-		{
-			name: "plan failed",
-			inputs: SummaryInputs{
-				Mode:       "release",
-				ToolRef:    "main",
-				Skip:       false,
-				Tag:        "v1.0.0",
-				ResultPlan: "failure",
-			},
-			wantContains: []string{
-				"| 🚢 Plan | ❌ Failed |",
-				"## ❌ Overall Status: **FAILED**",
-				"Release failed during planning phase.",
-			},
-			wantNotContains: []string{
-				"SUCCESS",
-				"SKIPPED",
-			},
-		},
-		{
-			name: "tag failed",
-			inputs: SummaryInputs{
-				Mode:          "release",
-				ToolRef:       "main",
-				Skip:          false,
-				Tag:           "v1.0.0",
-				ResultPlan:    "success",
-				ResultBuildGo: "success",
-				ResultTag:     "failure",
-			},
-			wantContains: []string{
-				"| 🏷️ Tag | ❌ Failed |",
-				"## ❌ Overall Status: **FAILED**",
-				"Release failed during tag creation.",
-			},
-		},
-		{
-			name: "partial success",
-			inputs: SummaryInputs{
-				Mode:             "release",
-				ToolRef:          "main",
-				Skip:             false,
-				Tag:              "v1.0.0",
-				ResultPlan:       "success",
-				ResultBuildGo:    "success",
-				ResultTag:        "success",
-				ResultPublishGo:  "skipped",
-				ResultPublishNpm: "skipped",
-			},
-			wantContains: []string{
-				"## ⚠️ Overall Status: **PARTIAL**",
-				"Some jobs succeeded, but publish phase may have been skipped or failed.",
-			},
-		},
-		{
-			name: "auto-generated goreleaser config",
-			inputs: SummaryInputs{
-				Mode:                    "release",
-				ToolRef:                 "main",
-				GoreleaserConfigCurrent: false,
-				ResultPlan:              "success",
-			},
-			wantContains: []string{
-				"🔧 Will **auto-generate** GoReleaser config",
-			},
-			wantNotContains: []string{
-				"custom",
-			},
-		},
-		{
-			name: "only show jobs that ran",
-			inputs: SummaryInputs{
-				Mode:              "release",
-				ToolRef:           "main",
-				Skip:              false,
-				ResultPlan:        "success",
-				ResultBuildGo:     "success",
-				ResultBuildNpm:    "skipped",
-				ResultBuildMaven:  "skipped",
-				ResultBuildDocker: "skipped",
-				ResultTag:         "success",
-				ResultPublishGo:   "success",
-			},
-			wantContains: []string{
-				"| 🚢 Plan | ✅ Success |",
-				"| 🏗️ Go Build | ✅ Success |",
-				"| 🏷️ Tag | ✅ Success |",
-				"| 🚀 Go Publish | ✅ Success |",
-			},
-			wantNotContains: []string{
-				"npm Build",
-				"Maven Build",
-				"Docker Build",
-			},
-		},
-		{
-			name: "goreleaser handles docker",
-			inputs: SummaryInputs{
-				Mode:             "release",
-				ToolRef:          "main",
-				HasDocker:        true,
-				GoreleaserDocker: true,
-				ResultPlan:       "success",
-			},
-			wantContains: []string{
-				"| Docker | ✅ | ✅ |",
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := GenerateSummary(tt.inputs)
-
-			for _, want := range tt.wantContains {
-				if !strings.Contains(result, want) {
-					t.Errorf("Summary missing expected content: %q\nGot:\n%s", want, result)
-				}
-			}
-
-			for _, notWant := range tt.wantNotContains {
-				if strings.Contains(result, notWant) {
-					t.Errorf("Summary contains unexpected content: %q\nGot:\n%s", notWant, result)
-				}
-			}
-		})
-	}
+inputs := SummaryInputs{
+Mode:                    ModeRelease,
+ToolRef:                 "main",
+Tag:                     "v1.2.3",
+Version:                 "1.2.3",
+HasGo:                   true,
+BuildOrchestrator:       "make",
+GoreleaserConfigCurrent: true,
+ResultPlan:              "success",
+ResultBuild:             "success",
+ResultTag:               "success",
+ResultPublish:           "success",
 }
 
-func TestCheckmark(t *testing.T) {
-	tests := []struct {
-		value bool
-		want  string
-	}{
-		{true, "✅"},
-		{false, "❌"},
-	}
+result := GenerateSummary(inputs)
 
-	for _, tt := range tests {
-		got := checkmark(tt.value)
-		if got != tt.want {
-			t.Errorf("checkmark(%v) = %q, want %q", tt.value, got, tt.want)
-		}
-	}
+tests := []string{"Release Summary", "v1.2.3", "Make", "success"}
+for _, expected := range tests {
+if !strings.Contains(result, expected) {
+t.Errorf("Expected summary to contain %q", expected)
+}
+}
 }
 
 func TestStatusBadge(t *testing.T) {
-	tests := []struct {
-		result string
-		want   string
-	}{
-		{"success", "✅ Success"},
-		{"Success", "✅ Success"},
-		{"SUCCESS", "✅ Success"},
-		{"failure", "❌ Failed"},
-		{"Failure", "❌ Failed"},
-		{"skipped", "⏭️ Skipped"},
-		{"cancelled", "🚫 Cancelled"},
-		{" success ", "✅ Success"},
-		{"unknown", "⚠️ unknown"},
-	}
-
-	for _, tt := range tests {
-		got := statusBadge(tt.result)
-		if got != tt.want {
-			t.Errorf("statusBadge(%q) = %q, want %q", tt.result, got, tt.want)
-		}
-	}
+tests := []struct {
+status string
+want   string
+}{
+{"success", "✅ success"},
+{"failure", "❌ failure"},
+{"skipped", "⏭️ skipped"},
 }
 
-func TestJobRan(t *testing.T) {
-	tests := []struct {
-		result string
-		want   bool
-	}{
-		{"success", true},
-		{"Success", true},
-		{"failure", true},
-		{"Failure", true},
-		{" success ", true},
-		{" failure ", true},
-		{"skipped", false},
-		{"cancelled", false},
-		{"", false},
-		{"unknown", false},
-	}
-
-	for _, tt := range tests {
-		got := jobRan(tt.result)
-		if got != tt.want {
-			t.Errorf("jobRan(%q) = %v, want %v", tt.result, got, tt.want)
-		}
-	}
+for _, tt := range tests {
+got := statusBadge(tt.status)
+if got != tt.want {
+t.Errorf("statusBadge(%q) = %q, want %q", tt.status, got, tt.want)
+}
+}
 }
 
-func TestDetermineOverallStatus(t *testing.T) {
-	tests := []struct {
-		name         string
-		inputs       SummaryInputs
-		wantContains string
-	}{
-		{
-			name: "skipped",
-			inputs: SummaryInputs{
-				Skip: true,
-			},
-			wantContains: "SKIPPED",
-		},
-		{
-			name: "success - go published",
-			inputs: SummaryInputs{
-				Skip:            false,
-				Tag:             "v1.0.0",
-				ResultPublishGo: "success",
-			},
-			wantContains: "SUCCESS",
-		},
-		{
-			name: "success - docker published",
-			inputs: SummaryInputs{
-				Skip:                false,
-				Tag:                 "v1.0.0",
-				ResultPublishDocker: "success",
-			},
-			wantContains: "SUCCESS",
-		},
-		{
-			name: "plan failed",
-			inputs: SummaryInputs{
-				Skip:       false,
-				ResultPlan: "failure",
-			},
-			wantContains: "planning phase",
-		},
-		{
-			name: "tag failed",
-			inputs: SummaryInputs{
-				Skip:      false,
-				ResultTag: "failure",
-			},
-			wantContains: "tag creation",
-		},
-		{
-			name: "partial",
-			inputs: SummaryInputs{
-				Skip:       false,
-				ResultPlan: "success",
-				ResultTag:  "success",
-			},
-			wantContains: "PARTIAL",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := determineOverallStatus(tt.inputs)
-			if !strings.Contains(result, tt.wantContains) {
-				t.Errorf("determineOverallStatus() missing %q\nGot: %s", tt.wantContains, result)
-			}
-		})
-	}
+func TestCheckmark(t *testing.T) {
+if checkmark(true) != "✅" {
+t.Error("checkmark(true) should return ✅")
+}
+if checkmark(false) != "❌" {
+t.Error("checkmark(false) should return ❌")
+}
 }

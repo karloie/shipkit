@@ -32,19 +32,16 @@ type PolicyInput struct {
 
 func runPolicy(args []string) error {
 	fs := newFlagSet("policy")
-	mode := fs.String("mode", DefaultMode, "policy mode: release|rerelease|docker|goreleaser")
-	eventName := fs.String("event-name", os.Getenv(EnvGitHubEventName), "workflow event name")
-	publish := fs.String("publish", "", "publish output from version tool (true|skip)")
-	latestTag := fs.String("latest-tag", "", "latest release tag, e.g. v1.2.2")
-	nextTag := fs.String("next-tag", "", "next release tag, e.g. v1.2.3")
-	image := fs.String("image", DefaultImage, "docker image repository")
-	sha := fs.String("sha", "", "git sha used for summary output")
-	requiredSecrets := fs.String("required-secrets", "", "comma-separated required secret names")
-	resolveLatestTag := fs.Bool("resolve-latest-tag", false, "resolve latest tag from git (used by rerelease mode)")
-
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
+	mode := fs.String("mode", DefaultMode, "Release mode")
+	eventName := fs.String("event-name", os.Getenv(EnvGitHubEventName), "Event name")
+	publish := fs.String("publish", "", "Publish flag")
+	latestTag := fs.String("latest-tag", "", "Latest tag")
+	nextTag := fs.String("next-tag", "", "Next tag")
+	image := fs.String("image", DefaultImage, "Docker image")
+	sha := fs.String("sha", "", "Git SHA")
+	requiredSecrets := fs.String("required-secrets", "", "Required secrets")
+	resolveLatestTag := fs.Bool("resolve-latest-tag", false, "Resolve latest")
+	parseFlagsOrExit(fs, args)
 
 	input := PolicyInput{
 		Mode:            strings.TrimSpace(*mode),

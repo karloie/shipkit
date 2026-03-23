@@ -27,8 +27,6 @@ func TestWorkflowYAMLSyntax(t *testing.T) {
 		"maven-build.yml",
 		"npm-publish.yml",
 		"npm-build.yml",
-		"git-tag.yml",
-		"git-version-files.yml",
 	}
 
 	// Get absolute path to repo root (two levels up from cmd/shipkit)

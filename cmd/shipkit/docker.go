@@ -24,15 +24,11 @@ type dockerHubRepoUpdate struct {
 
 func runDockerHubReadme(args []string) error {
 	fs := newFlagSet("docker-hub-readme")
-
-	repo := fs.String("repo", "", "Docker Hub repository (owner/name) (required)")
-	username := fs.String("username", os.Getenv(EnvDockerHubUsername), "Docker Hub username (or set DOCKERHUB_USERNAME env)")
-	password := fs.String("password", "", "Docker Hub password/token (or set DOCKERHUB_PASSWORD or DOCKERHUB_TOKEN env)")
-	readmePath := fs.String("readme", FileReadme, "Path to README file")
-
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
+	repo := fs.String("repo", "", "Docker Hub repo")
+	username := fs.String("username", os.Getenv(EnvDockerHubUsername), "Username")
+	password := fs.String("password", "", "Password/token")
+	readmePath := fs.String("readme", FileReadme, "README path")
+	parseFlagsOrExit(fs, args)
 
 	if *repo == "" {
 		return fmt.Errorf("repo is required")

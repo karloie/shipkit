@@ -10,10 +10,8 @@ import (
 
 func runVersion(args []string) error {
 	fs := newFlagSet("version")
-	bump := fs.String("bump", "", "patch|minor|major (optional, auto-detect from commits if empty)")
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
+	bump := fs.String("bump", "", "Version bump type")
+	parseFlagsOrExit(fs, args)
 
 	eventName := os.Getenv(EnvGitHubEventName)
 	githubOutput := os.Getenv(EnvGitHubOutput)

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 )
 
@@ -23,19 +24,13 @@ type SummaryInputs struct {
 	HasNpm                  bool   `json:"has_npm"`
 	GoreleaserDocker        bool   `json:"goreleaser_docker"`
 	GoreleaserConfigCurrent bool   `json:"goreleaser_config_current"`
+	BuildOrchestrator       string `json:"build_orchestrator"`
 
 	// Job results
-	ResultPlan           string `json:"result_plan"`
-	ResultBuildNpm       string `json:"result_build_npm"`
-	ResultBuildGo        string `json:"result_build_go"`
-	ResultBuildMaven     string `json:"result_build_maven"`
-	ResultBuildDocker    string `json:"result_build_docker"`
-	ResultTag            string `json:"result_tag"`
-	ResultUpdateVersions string `json:"result_update_versions"`
-	ResultPublishNpm     string `json:"result_publish_npm"`
-	ResultPublishMaven   string `json:"result_publish_maven"`
-	ResultPublishDocker  string `json:"result_publish_docker"`
-	ResultPublishGo      string `json:"result_publish_go"`
+	ResultPlan    string `json:"result_plan"`
+	ResultBuild   string `json:"result_build"` // Single build result from `shipkit build`
+	ResultTag     string `json:"result_tag"`
+	ResultPublish string `json:"result_publish"` // Single publish result from `shipkit publish`
 }
 
 // GenerateSummary creates a markdown summary of the release
@@ -70,6 +65,23 @@ func GenerateSummary(inputs SummaryInputs) string {
 	sb.WriteString(fmt.Sprintf("| npm | %s | - |\n", checkmark(inputs.HasNpm)))
 	sb.WriteString("\n")
 
+	// Build orchestrator section
+	if inputs.BuildOrchestrator != "" {
+		sb.WriteString("## 🔨 Build Orchestrator\n\n")
+		orchestratorName := inputs.BuildOrchestrator
+		switch orchestratorName {
+		case "make":
+			orchestratorName = "**Make** (Makefile)"
+		case "just":
+			orchestratorName = "**just** (justfile)"
+		case "task":
+			orchestratorName = "**Task** (Taskfile)"
+		case "convention":
+			orchestratorName = "Convention-based (no Makefile detected)"
+		}
+		sb.WriteString(fmt.Sprintf("Using: %s\n\n", orchestratorName))
+	}
+
 	// GoReleaser config section
 	sb.WriteString("## 🚀 GoReleaser Configuration\n\n")
 	if inputs.GoreleaserConfigCurrent {
@@ -88,35 +100,14 @@ func GenerateSummary(inputs SummaryInputs) string {
 	if inputs.ResultPlan != "" && inputs.ResultPlan != "skipped" {
 		sb.WriteString(fmt.Sprintf("| 🚢 Plan | %s |\n", statusBadge(inputs.ResultPlan)))
 	}
-	if jobRan(inputs.ResultBuildNpm) {
-		sb.WriteString(fmt.Sprintf("| 🏗️ npm Build | %s |\n", statusBadge(inputs.ResultBuildNpm)))
-	}
-	if jobRan(inputs.ResultBuildGo) {
-		sb.WriteString(fmt.Sprintf("| 🏗️ Go Build | %s |\n", statusBadge(inputs.ResultBuildGo)))
-	}
-	if jobRan(inputs.ResultBuildMaven) {
-		sb.WriteString(fmt.Sprintf("| 🏗️ Maven Build | %s |\n", statusBadge(inputs.ResultBuildMaven)))
-	}
-	if jobRan(inputs.ResultBuildDocker) {
-		sb.WriteString(fmt.Sprintf("| 🏗️ Docker Build | %s |\n", statusBadge(inputs.ResultBuildDocker)))
+	if jobRan(inputs.ResultBuild) {
+		sb.WriteString(fmt.Sprintf("| 🔨 Build | %s |\n", statusBadge(inputs.ResultBuild)))
 	}
 	if jobRan(inputs.ResultTag) {
 		sb.WriteString(fmt.Sprintf("| 🏷️ Tag | %s |\n", statusBadge(inputs.ResultTag)))
 	}
-	if jobRan(inputs.ResultUpdateVersions) {
-		sb.WriteString(fmt.Sprintf("| 📝 Update Versions | %s |\n", statusBadge(inputs.ResultUpdateVersions)))
-	}
-	if jobRan(inputs.ResultPublishNpm) {
-		sb.WriteString(fmt.Sprintf("| 🚀 npm Publish | %s |\n", statusBadge(inputs.ResultPublishNpm)))
-	}
-	if jobRan(inputs.ResultPublishMaven) {
-		sb.WriteString(fmt.Sprintf("| 🚀 Maven Publish | %s |\n", statusBadge(inputs.ResultPublishMaven)))
-	}
-	if jobRan(inputs.ResultPublishDocker) {
-		sb.WriteString(fmt.Sprintf("| 🚀 Docker Publish | %s |\n", statusBadge(inputs.ResultPublishDocker)))
-	}
-	if jobRan(inputs.ResultPublishGo) {
-		sb.WriteString(fmt.Sprintf("| 🚀 Go Publish | %s |\n", statusBadge(inputs.ResultPublishGo)))
+	if jobRan(inputs.ResultPublish) {
+		sb.WriteString(fmt.Sprintf("| 🚀 Publish | %s |\n", statusBadge(inputs.ResultPublish)))
 	}
 	sb.WriteString("\n")
 
@@ -164,11 +155,8 @@ func determineOverallStatus(inputs SummaryInputs) string {
 		return "## ℹ️ Overall Status: **SKIPPED**\n\nNo release markers found. Release was skipped.\n"
 	}
 
-	// Check if any publish job succeeded
-	anyPublished := inputs.ResultPublishGo == "success" ||
-		inputs.ResultPublishDocker == "success" ||
-		inputs.ResultPublishNpm == "success" ||
-		inputs.ResultPublishMaven == "success"
+	// Check if publish succeeded
+	anyPublished := inputs.ResultPublish == "success"
 
 	if anyPublished {
 		return fmt.Sprintf("## ✅ Overall Status: **SUCCESS**\n\nRelease `%s` completed successfully!\n", inputs.Tag)
@@ -188,6 +176,10 @@ func determineOverallStatus(inputs SummaryInputs) string {
 func runSummary(args []string) error {
 	fs := newFlagSet("summary")
 
+	// Makefile override support
+	makefile := fs.String("makefile", "Makefile", "Path to Makefile")
+	useMake := fs.Bool("use-make", true, "Check for ci-summary target in Makefile")
+
 	// File-based input (preferred)
 	planFile := fs.String("plan-file", "", "Path to plan.json file from plan job")
 
@@ -206,24 +198,23 @@ func runSummary(args []string) error {
 	hasDocker := fs.Bool("has-docker", false, "has docker")
 	hasMaven := fs.Bool("has-maven", false, "has maven")
 	hasNpm := fs.Bool("has-npm", false, "has npm")
-	goreleaserDocker := fs.Bool("should-build-docker-goreleaser", false, "goreleaser handles docker")
+	goreleaserDocker := fs.Bool("goreleaser-docker", false, "goreleaser handles docker")
 	goreleaserConfigCurrent := fs.Bool("goreleaser-config-current", false, "has custom goreleaser config")
+	buildOrchestrator := fs.String("build-orchestrator", "", "build orchestrator (make, just, task)")
 
 	// Job results
 	resultPlan := fs.String("result-plan", "", "plan job result")
-	resultBuildNpm := fs.String("result-build-npm", "", "npm-build job result")
-	resultBuildGo := fs.String("result-build-go", "", "go-build job result")
-	resultBuildMaven := fs.String("result-build-maven", "", "maven-build job result")
-	resultBuildDocker := fs.String("result-build-docker", "", "docker-build job result")
+	resultBuild := fs.String("result-build", "", "build job result")
 	resultTag := fs.String("result-tag", "", "tag job result")
-	resultUpdateVersions := fs.String("result-update-versions", "", "update-versions job result")
-	resultPublishNpm := fs.String("result-publish-npm", "", "npm-publish job result")
-	resultPublishMaven := fs.String("result-publish-maven", "", "maven-publish job result")
-	resultPublishDocker := fs.String("result-publish-docker", "", "docker-publish job result")
-	resultPublishGo := fs.String("result-publish-go", "", "go-publish job result")
+	resultPublish := fs.String("result-publish", "", "publish job result")
+	parseFlagsOrExit(fs, args)
 
-	if err := fs.Parse(args); err != nil {
-		return err
+	// Check for Makefile ci-summary target first
+	if *useMake {
+		if hasCISummaryTarget(*makefile) {
+			fmt.Fprintf(os.Stderr, "📊 Using Makefile ci-summary target\n")
+			return runMakeSummary(*makefile, args)
+		}
 	}
 
 	var inputs SummaryInputs
@@ -259,17 +250,11 @@ func runSummary(args []string) error {
 			HasNpm:                  *hasNpm,
 			GoreleaserDocker:        *goreleaserDocker,
 			GoreleaserConfigCurrent: *goreleaserConfigCurrent,
+			BuildOrchestrator:       strings.TrimSpace(*buildOrchestrator),
 			ResultPlan:              strings.TrimSpace(*resultPlan),
-			ResultBuildNpm:          strings.TrimSpace(*resultBuildNpm),
-			ResultBuildGo:           strings.TrimSpace(*resultBuildGo),
-			ResultBuildMaven:        strings.TrimSpace(*resultBuildMaven),
-			ResultBuildDocker:       strings.TrimSpace(*resultBuildDocker),
+			ResultBuild:             strings.TrimSpace(*resultBuild),
 			ResultTag:               strings.TrimSpace(*resultTag),
-			ResultUpdateVersions:    strings.TrimSpace(*resultUpdateVersions),
-			ResultPublishNpm:        strings.TrimSpace(*resultPublishNpm),
-			ResultPublishMaven:      strings.TrimSpace(*resultPublishMaven),
-			ResultPublishDocker:     strings.TrimSpace(*resultPublishDocker),
-			ResultPublishGo:         strings.TrimSpace(*resultPublishGo),
+			ResultPublish:           strings.TrimSpace(*resultPublish),
 		}
 	}
 
@@ -283,35 +268,14 @@ func runSummary(args []string) error {
 		if *resultPlan != "" {
 			inputs.ResultPlan = strings.TrimSpace(*resultPlan)
 		}
-		if *resultBuildNpm != "" {
-			inputs.ResultBuildNpm = strings.TrimSpace(*resultBuildNpm)
-		}
-		if *resultBuildGo != "" {
-			inputs.ResultBuildGo = strings.TrimSpace(*resultBuildGo)
-		}
-		if *resultBuildMaven != "" {
-			inputs.ResultBuildMaven = strings.TrimSpace(*resultBuildMaven)
-		}
-		if *resultBuildDocker != "" {
-			inputs.ResultBuildDocker = strings.TrimSpace(*resultBuildDocker)
+		if *resultBuild != "" {
+			inputs.ResultBuild = strings.TrimSpace(*resultBuild)
 		}
 		if *resultTag != "" {
 			inputs.ResultTag = strings.TrimSpace(*resultTag)
 		}
-		if *resultUpdateVersions != "" {
-			inputs.ResultUpdateVersions = strings.TrimSpace(*resultUpdateVersions)
-		}
-		if *resultPublishNpm != "" {
-			inputs.ResultPublishNpm = strings.TrimSpace(*resultPublishNpm)
-		}
-		if *resultPublishMaven != "" {
-			inputs.ResultPublishMaven = strings.TrimSpace(*resultPublishMaven)
-		}
-		if *resultPublishDocker != "" {
-			inputs.ResultPublishDocker = strings.TrimSpace(*resultPublishDocker)
-		}
-		if *resultPublishGo != "" {
-			inputs.ResultPublishGo = strings.TrimSpace(*resultPublishGo)
+		if *resultPublish != "" {
+			inputs.ResultPublish = strings.TrimSpace(*resultPublish)
 		}
 	}
 
@@ -336,6 +300,63 @@ func runSummary(args []string) error {
 	}
 
 	fmt.Fprintln(os.Stderr, "📊 Release summary generated successfully")
+
+	return nil
+}
+
+// hasCISummaryTarget checks if Makefile has a ci-summary target
+func hasCISummaryTarget(makefilePath string) bool {
+	graph, err := ParseMakefile(makefilePath)
+	if err != nil {
+		return false
+	}
+	_, exists := graph.Targets["ci-summary"]
+	return exists
+}
+
+// runMakeSummary delegates summary generation to Makefile ci-summary target
+func runMakeSummary(makefilePath string, args []string) error {
+	// Re-parse args to get all the values we need to pass as env vars
+	fs := newFlagSet("summary-make")
+	planFile := fs.String("plan-file", "", "Plan file path")
+	toolRef := fs.String("tool-ref", "", "Tool ref")
+	resultPlan := fs.String("result-plan", "", "Plan result")
+	resultBuild := fs.String("result-build", "", "Build result")
+	resultTag := fs.String("result-tag", "", "Tag result")
+	resultPublish := fs.String("result-publish", "", "Publish result")
+	parseFlagsOrExit(fs, args)
+
+	// Set environment variables for Makefile to use
+	env := os.Environ()
+	if *planFile != "" {
+		env = append(env, fmt.Sprintf("SHIPKIT_PLAN_FILE=%s", *planFile))
+	}
+	if *toolRef != "" {
+		env = append(env, fmt.Sprintf("SHIPKIT_TOOL_REF=%s", *toolRef))
+	}
+	if *resultPlan != "" {
+		env = append(env, fmt.Sprintf("SHIPKIT_RESULT_PLAN=%s", *resultPlan))
+	}
+	if *resultBuild != "" {
+		env = append(env, fmt.Sprintf("SHIPKIT_RESULT_BUILD=%s", *resultBuild))
+	}
+	if *resultTag != "" {
+		env = append(env, fmt.Sprintf("SHIPKIT_RESULT_TAG=%s", *resultTag))
+	}
+	if *resultPublish != "" {
+		env = append(env, fmt.Sprintf("SHIPKIT_RESULT_PUBLISH=%s", *resultPublish))
+	}
+
+	// Run make ci-summary
+	cmd := exec.Command("make", "-f", makefilePath, "ci-summary")
+	cmd.Env = env
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("make ci-summary failed: %w", err)
+	}
 
 	return nil
 }
