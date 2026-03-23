@@ -7,6 +7,287 @@ import (
 	"testing"
 )
 
+// TestPlanOutput is a table-driven test for all plan output variations
+func TestPlanOutput(t *testing.T) {
+	tests := []struct {
+		name         string
+		eventName    string
+		plan         *Plan
+		mockLatest   string
+		expectation  map[string]string
+		validateFunc func(*testing.T, map[string]string)
+	}{
+		{
+			name:      "patch_bump",
+			eventName: "workflow_dispatch",
+			plan: &Plan{
+				Mode:                "release",
+				Bump:                "patch",
+				DryRun:              true,
+				UseDocker:           true,
+				UseGoreleaser:       true,
+				UseGoreleaserDocker: true,
+				DockerImage:         "karloie/kompass",
+			},
+			mockLatest: "v1.2.2",
+			expectation: map[string]string{
+				"mode":          "release",
+				"tag_latest":    "v1.2.2",
+				"tag_next":      "v1.2.3",
+				"version_clean": "1.2.3",
+				"release_skip":  "false",
+			},
+		},
+		{
+			name:      "minor_bump",
+			eventName: "workflow_dispatch",
+			plan: &Plan{
+				Mode:                "release",
+				Bump:                "minor",
+				DryRun:              true,
+				UseDocker:           true,
+				UseGoreleaser:       true,
+				UseGoreleaserDocker: true,
+				DockerImage:         "karloie/kompass",
+			},
+			mockLatest: "v1.2.2",
+			expectation: map[string]string{
+				"mode":         "release",
+				"tag_next":     "v1.3.0",
+				"release_skip": "false",
+			},
+		},
+		{
+			name:      "major_bump",
+			eventName: "workflow_dispatch",
+			plan: &Plan{
+				Mode:                "release",
+				Bump:                "major",
+				DryRun:              true,
+				UseDocker:           true,
+				UseGoreleaser:       true,
+				UseGoreleaserDocker: true,
+				DockerImage:         "karloie/kompass",
+			},
+			mockLatest: "v1.2.2",
+			expectation: map[string]string{
+				"mode":         "release",
+				"tag_next":     "v2.0.0",
+				"release_skip": "false",
+			},
+		},
+		{
+			name:      "release_no_bump",
+			eventName: "push",
+			plan: &Plan{
+				Mode:                "release",
+				DryRun:              true,
+				UseDocker:           true,
+				UseGoreleaser:       true,
+				UseGoreleaserDocker: true,
+				DockerImage:         "karloie/kompass",
+			},
+			mockLatest: "v1.2.2",
+			validateFunc: func(t *testing.T, outputs map[string]string) {
+				if skip := outputs["release_skip"]; skip != "true" && skip != "false" {
+					t.Errorf("release_skip must be 'true' or 'false', got: %s", skip)
+				}
+			},
+		},
+		{
+			name:      "docker_mode",
+			eventName: "push",
+			plan: &Plan{
+				Mode:                "docker",
+				TagNext:             "v1.2.3",
+				TagLatest:           "v1.2.2",
+				DryRun:              true,
+				UseDocker:           true,
+				UseGoreleaser:       true,
+				UseGoreleaserDocker: true,
+				DockerImage:         "karloie/kompass",
+			},
+			mockLatest: "v1.2.2",
+			expectation: map[string]string{
+				"mode":         "docker",
+				"tag_next":     "v1.2.3",
+				"release_skip": "true", // No Dockerfile in temp dir
+			},
+		},
+		{
+			name:      "rerelease_mode",
+			eventName: "push",
+			plan: &Plan{
+				Mode:                "rerelease",
+				ResolveLatestTag:    true,
+				DryRun:              true,
+				UseDocker:           true,
+				UseGoreleaser:       true,
+				UseGoreleaserDocker: true,
+				DockerImage:         "karloie/kompass",
+			},
+			mockLatest: "v1.2.2",
+			expectation: map[string]string{
+				"mode":         "rerelease",
+				"release_skip": "false",
+			},
+			validateFunc: func(t *testing.T, outputs map[string]string) {
+				if outputs["tag_release"] == "" {
+					t.Errorf("Expected tag_release to have a value in rerelease mode, got empty string")
+				}
+			},
+		},
+		{
+			name:      "goreleaser_mode",
+			eventName: "workflow_dispatch",
+			plan: &Plan{
+				Mode:                "goreleaser",
+				Bump:                "patch",
+				DryRun:              true,
+				UseDocker:           true,
+				UseGoreleaser:       true,
+				UseGoreleaserDocker: true,
+				DockerImage:         "karloie/kompass",
+			},
+			mockLatest: "v1.2.2",
+			expectation: map[string]string{
+				"mode": "goreleaser",
+			},
+		},
+		{
+			name:      "dry_run",
+			eventName: "workflow_dispatch",
+			plan: &Plan{
+				Mode:                "release",
+				Bump:                "patch",
+				DryRun:              true,
+				UseDocker:           true,
+				UseGoreleaser:       true,
+				UseGoreleaserDocker: true,
+				DockerImage:         "karloie/kompass",
+			},
+			mockLatest: "v1.2.2",
+			expectation: map[string]string{
+				"release_skip": "false",
+			},
+		},
+		{
+			name:      "custom_image",
+			eventName: "workflow_dispatch",
+			plan: &Plan{
+				Mode:                "release",
+				Bump:                "patch",
+				DryRun:              true,
+				UseDocker:           true,
+				UseGoreleaser:       true,
+				UseGoreleaserDocker: true,
+				DockerImage:         "myorg/myapp",
+			},
+			mockLatest: "v1.2.2",
+			expectation: map[string]string{
+				"docker_image": "myorg/myapp",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			outputFile, cleanup := setupPlanTest(t)
+			defer cleanup()
+
+			// Set event name if specified
+			if tt.eventName != "" {
+				os.Setenv("GITHUB_EVENT_NAME", tt.eventName)
+			}
+
+			mockGit := &GitProviderMock{
+				LatestTag: tt.mockLatest,
+			}
+
+			err := runPlanClean(tt.plan, mockGit, nil)
+			if err != nil {
+				t.Fatalf("runPlan failed: %v", err)
+			}
+
+			outputBytes, _ := os.ReadFile(outputFile)
+			outputs := parseOutputs(string(outputBytes))
+
+			// Log outputs for debugging
+			t.Logf("=== %s OUTPUTS ===", strings.ToUpper(tt.name))
+			for k, v := range outputs {
+				t.Logf("%s=%s", k, v)
+			}
+
+			// Verify required outputs
+			verifyRequiredOutputs(t, outputs)
+
+			// Check expected values
+			for key, expectedValue := range tt.expectation {
+				if actualValue := outputs[key]; actualValue != expectedValue {
+					t.Errorf("Expected %s=%s, got: %s", key, expectedValue, actualValue)
+				}
+			}
+
+			// Run custom validation if provided
+			if tt.validateFunc != nil {
+				tt.validateFunc(t, outputs)
+			}
+		})
+	}
+}
+
+// TestPlanOutputConsistency verifies that all outputs are written in all modes
+func TestPlanOutputConsistency(t *testing.T) {
+	modes := []string{"release", "docker", "rerelease", "goreleaser"}
+
+	for _, mode := range modes {
+		t.Run(mode, func(t *testing.T) {
+			outputFile, cleanup := setupPlanTest(t)
+			defer cleanup()
+
+			plan := &Plan{
+				Mode:                mode,
+				DryRun:              true,
+				UseDocker:           true,
+				UseGoreleaser:       true,
+				UseGoreleaserDocker: true,
+				DockerImage:         "karloie/kompass",
+			}
+
+			if mode == "docker" {
+				plan.TagNext = "v1.0.0"
+				plan.TagLatest = "v0.9.0"
+			}
+			if mode == "release" || mode == "goreleaser" {
+				os.Setenv("GITHUB_EVENT_NAME", "workflow_dispatch")
+				plan.Bump = "patch"
+			}
+			if mode == "rerelease" {
+				plan.ResolveLatestTag = true
+			}
+
+			mockGit := &GitProviderMock{
+				LatestTag: "v1.2.2",
+			}
+
+			err := runPlanClean(plan, mockGit, nil)
+			if err != nil {
+				t.Fatalf("runPlan failed for mode %s: %v", mode, err)
+			}
+
+			outputBytes, _ := os.ReadFile(outputFile)
+			outputs := parseOutputs(string(outputBytes))
+
+			verifyRequiredOutputs(t, outputs)
+
+			// Verify mode is set correctly
+			if outputs["mode"] != mode {
+				t.Errorf("Expected mode=%s, got: %s", mode, outputs["mode"])
+			}
+		})
+	}
+}
+
 // parseOutputs is a helper to parse GITHUB_OUTPUT format into a map
 func parseOutputs(output string) map[string]string {
 	outputs := make(map[string]string)
@@ -72,320 +353,5 @@ func verifyRequiredOutputs(t *testing.T, outputs map[string]string) {
 		if _, ok := outputs[key]; !ok {
 			t.Errorf("MISSING CRITICAL OUTPUT: %s", key)
 		}
-	}
-}
-
-// TestPlanOutputPatchBump tests plan output with explicit patch bump
-func TestPlanOutputPatchBump(t *testing.T) {
-	outputFile, cleanup := setupPlanTest(t)
-	defer cleanup()
-
-	// Override event to workflow_dispatch so bump parameter is used
-	os.Setenv("GITHUB_EVENT_NAME", "workflow_dispatch")
-
-	// Create a plan with mock git
-	plan := &Plan{
-		Mode:                "release",
-		Bump:                "patch",
-		DryRun:              true,
-		UseDocker:           true,
-		UseGoreleaser:       true,
-		UseGoreleaserDocker: true,
-		DockerImage:         "karloie/kompass",
-	}
-
-	// Mock git to return v1.2.2 as latest tag
-	mockGit := &GitProviderMock{
-		LatestTag: "v1.2.2",
-	}
-
-	err := runPlanClean(plan, mockGit, nil)
-	if err != nil {
-		t.Fatalf("runPlan failed: %v", err)
-	}
-
-	outputBytes, _ := os.ReadFile(outputFile)
-	outputs := parseOutputs(string(outputBytes))
-
-	t.Logf("=== PATCH BUMP OUTPUTS ===")
-	for k, v := range outputs {
-		t.Logf("%s=%s", k, v)
-	}
-
-	verifyRequiredOutputs(t, outputs)
-
-	if outputs["release_skip"] != "false" {
-		t.Errorf("Expected release_skip=false with -bump=patch, got: %s", outputs["release_skip"])
-	}
-
-	if outputs["mode"] != "release" {
-		t.Errorf("Expected mode=release, got: %s", outputs["mode"])
-	}
-
-	if outputs["tag_latest"] != "v1.2.2" {
-		t.Errorf("Expected tag_latest=v1.2.2, got: %s", outputs["tag_latest"])
-	}
-
-	if outputs["tag_next"] != "v1.2.3" {
-		t.Errorf("Expected tag_next=v1.2.3 (patch bump from v1.2.2), got: %s", outputs["tag_next"])
-	}
-
-	if outputs["version_clean"] != "1.2.3" {
-		t.Errorf("Expected version_clean=1.2.3, got: %s", outputs["version_clean"])
-	}
-}
-
-// TestPlanOutputMinorBump tests plan output with minor bump
-func TestPlanOutputMinorBump(t *testing.T) {
-	outputFile, cleanup := setupPlanTest(t)
-	defer cleanup()
-
-	err := runPlan([]string{"-mode=release", "-bump=minor"})
-	if err != nil {
-		t.Fatalf("runPlan failed: %v", err)
-	}
-
-	outputBytes, _ := os.ReadFile(outputFile)
-	outputs := parseOutputs(string(outputBytes))
-
-	t.Logf("=== MINOR BUMP OUTPUTS ===")
-	for k, v := range outputs {
-		t.Logf("%s=%s", k, v)
-	}
-
-	verifyRequiredOutputs(t, outputs)
-
-	if outputs["release_skip"] != "false" {
-		t.Errorf("Expected release_skip=false with -bump=minor, got: %s", outputs["release_skip"])
-	}
-}
-
-// TestPlanOutputMajorBump tests plan output with major bump
-func TestPlanOutputMajorBump(t *testing.T) {
-	outputFile, cleanup := setupPlanTest(t)
-	defer cleanup()
-
-	err := runPlan([]string{"-mode=release", "-bump=major"})
-	if err != nil {
-		t.Fatalf("runPlan failed: %v", err)
-	}
-
-	outputBytes, _ := os.ReadFile(outputFile)
-	outputs := parseOutputs(string(outputBytes))
-
-	t.Logf("=== MAJOR BUMP OUTPUTS ===")
-	for k, v := range outputs {
-		t.Logf("%s=%s", k, v)
-	}
-
-	verifyRequiredOutputs(t, outputs)
-
-	if outputs["release_skip"] != "false" {
-		t.Errorf("Expected release_skip=false with -bump=major, got: %s", outputs["release_skip"])
-	}
-}
-
-// TestPlanOutputReleaseNoBump tests release mode without explicit bump (depends on commits)
-func TestPlanOutputReleaseNoBump(t *testing.T) {
-	outputFile, cleanup := setupPlanTest(t)
-	defer cleanup()
-
-	err := runPlan([]string{"-mode=release"})
-	if err != nil {
-		t.Fatalf("runPlan failed: %v", err)
-	}
-
-	outputBytes, _ := os.ReadFile(outputFile)
-	outputs := parseOutputs(string(outputBytes))
-
-	t.Logf("=== RELEASE NO BUMP OUTPUTS ===")
-	for k, v := range outputs {
-		t.Logf("%s=%s", k, v)
-	}
-
-	verifyRequiredOutputs(t, outputs)
-
-	// release_skip depends on whether repo has conventional commits
-	// Just verify it exists and is either "true" or "false"
-	if skip := outputs["release_skip"]; skip != "true" && skip != "false" {
-		t.Errorf("release_skip must be 'true' or 'false', got: %s", skip)
-	}
-}
-
-// TestPlanOutputDockerMode tests docker mode
-func TestPlanOutputDockerMode(t *testing.T) {
-	outputFile, cleanup := setupPlanTest(t)
-	defer cleanup()
-
-	err := runPlan([]string{"-mode=docker", "-next-tag=v1.2.3", "-latest-tag=v1.2.2"})
-	if err != nil {
-		t.Fatalf("runPlan failed: %v", err)
-	}
-
-	outputBytes, _ := os.ReadFile(outputFile)
-	outputs := parseOutputs(string(outputBytes))
-
-	t.Logf("=== DOCKER MODE OUTPUTS ===")
-	for k, v := range outputs {
-		t.Logf("%s=%s", k, v)
-	}
-
-	verifyRequiredOutputs(t, outputs)
-
-	if outputs["mode"] != "docker" {
-		t.Errorf("Expected mode=docker, got: %s", outputs["mode"])
-	}
-
-	if outputs["tag_next"] != "v1.2.3" {
-		t.Errorf("Expected tag_next=v1.2.3, got: %s", outputs["tag_next"])
-	}
-
-	// Docker mode WITHOUT a Dockerfile should skip
-	if outputs["release_skip"] != "true" {
-		t.Errorf("Expected release_skip=true in docker mode when no Dockerfile exists, got: %s", outputs["release_skip"])
-	}
-}
-
-// TestPlanOutputRereleaseMode tests rerelease mode
-func TestPlanOutputRereleaseMode(t *testing.T) {
-	outputFile, cleanup := setupPlanTest(t)
-	defer cleanup()
-
-	err := runPlan([]string{"-mode=rerelease"})
-	if err != nil {
-		t.Fatalf("runPlan failed: %v", err)
-	}
-
-	outputBytes, _ := os.ReadFile(outputFile)
-	outputs := parseOutputs(string(outputBytes))
-
-	t.Logf("=== RERELEASE MODE OUTPUTS ===")
-	for k, v := range outputs {
-		t.Logf("%s=%s", k, v)
-	}
-
-	verifyRequiredOutputs(t, outputs)
-
-	if outputs["mode"] != "rerelease" {
-		t.Errorf("Expected mode=rerelease, got: %s", outputs["mode"])
-	}
-
-	// Rerelease should never skip
-	if outputs["release_skip"] != "false" {
-		t.Errorf("Expected release_skip=false in rerelease mode, got: %s", outputs["release_skip"])
-	}
-
-	// tag_latest should contain the actual latest tag from git
-	if outputs["tag_latest"] == "" {
-		t.Errorf("Expected tag_latest to have a value in rerelease mode, got empty string")
-	}
-}
-
-// TestPlanOutputGoreleaserMode tests goreleaser mode
-func TestPlanOutputGoreleaserMode(t *testing.T) {
-	outputFile, cleanup := setupPlanTest(t)
-	defer cleanup()
-
-	err := runPlan([]string{"-mode=goreleaser"})
-	if err != nil {
-		t.Fatalf("runPlan failed: %v", err)
-	}
-
-	outputBytes, _ := os.ReadFile(outputFile)
-	outputs := parseOutputs(string(outputBytes))
-
-	t.Logf("=== GORELEASER MODE OUTPUTS ===")
-	for k, v := range outputs {
-		t.Logf("%s=%s", k, v)
-	}
-
-	verifyRequiredOutputs(t, outputs)
-
-	if outputs["mode"] != "goreleaser" {
-		t.Errorf("Expected mode=goreleaser, got: %s", outputs["mode"])
-	}
-}
-
-// TestPlanOutputWithDryRun tests that dry-run doesn't affect outputs
-func TestPlanOutputWithDryRun(t *testing.T) {
-	outputFile, cleanup := setupPlanTest(t)
-	defer cleanup()
-
-	err := runPlan([]string{"-mode=release", "-bump=patch", "-dry-run=true"})
-	if err != nil {
-		t.Fatalf("runPlan failed: %v", err)
-	}
-
-	outputBytes, _ := os.ReadFile(outputFile)
-	outputs := parseOutputs(string(outputBytes))
-
-	t.Logf("=== DRY RUN OUTPUTS ===")
-	for k, v := range outputs {
-		t.Logf("%s=%s", k, v)
-	}
-
-	verifyRequiredOutputs(t, outputs)
-
-	// Dry run still computes everything
-	if outputs["release_skip"] != "false" {
-		t.Errorf("Expected release_skip=false even in dry-run, got: %s", outputs["release_skip"])
-	}
-}
-
-// TestPlanOutputCustomImage tests custom docker image parameter
-func TestPlanOutputCustomImage(t *testing.T) {
-	outputFile, cleanup := setupPlanTest(t)
-	defer cleanup()
-
-	err := runPlan([]string{"-mode=release", "-bump=patch", "-image=myorg/myapp"})
-	if err != nil {
-		t.Fatalf("runPlan failed: %v", err)
-	}
-
-	outputBytes, _ := os.ReadFile(outputFile)
-	outputs := parseOutputs(string(outputBytes))
-
-	t.Logf("=== CUSTOM IMAGE OUTPUTS ===")
-	for k, v := range outputs {
-		t.Logf("%s=%s", k, v)
-	}
-
-	if outputs["docker_image"] != "myorg/myapp" {
-		t.Errorf("Expected docker_image=myorg/myapp, got: %s", outputs["docker_image"])
-	}
-}
-
-// TestPlanOutputConsistency verifies that all outputs are written in all modes
-func TestPlanOutputConsistency(t *testing.T) {
-	modes := []string{"release", "docker", "rerelease", "goreleaser"}
-
-	for _, mode := range modes {
-		t.Run(mode, func(t *testing.T) {
-			outputFile, cleanup := setupPlanTest(t)
-			defer cleanup()
-
-			args := []string{"-mode=" + mode}
-			if mode == "docker" {
-				args = append(args, "-next-tag=v1.0.0")
-			}
-			if mode == "release" || mode == "goreleaser" {
-				args = append(args, "-bump=patch")
-			}
-
-			err := runPlan(args)
-			if err != nil {
-				t.Fatalf("runPlan failed for mode %s: %v", mode, err)
-			}
-
-			outputBytes, _ := os.ReadFile(outputFile)
-			outputs := parseOutputs(string(outputBytes))
-
-			verifyRequiredOutputs(t, outputs)
-
-			// Verify mode is set correctly
-			if outputs["mode"] != mode {
-				t.Errorf("Expected mode=%s, got: %s", mode, outputs["mode"])
-			}
-		})
 	}
 }
