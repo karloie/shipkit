@@ -74,7 +74,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: ./.github/actions/setup-shipkit
+      - uses: karloie/shipkit/.github/actions/setup-shipkit@${{ inputs.tool_ref }}
         with:
           tool_ref: ${{ inputs.tool_ref }}
 
@@ -112,7 +112,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: ./.github/actions/setup-shipkit
+      - uses: karloie/shipkit/.github/actions/setup-shipkit@${{ inputs.tool_ref }}
         with:
           tool_ref: ${{ inputs.tool_ref }}
 
@@ -211,7 +211,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: ./.github/actions/setup-shipkit
+      - uses: karloie/shipkit/.github/actions/setup-shipkit@${{ inputs.tool_ref }}
         with:
           tool_ref: ${{ inputs.tool_ref }}
 
@@ -230,7 +230,7 @@ jobs:
     outputs:
       should_publish: ${{ steps.decide.outputs.should_publish }}
     steps:
-      - uses: ./.github/actions/setup-shipkit
+      - uses: karloie/shipkit/.github/actions/setup-shipkit@${{ inputs.tool_ref }}
         with:
           tool_ref: ${{ inputs.tool_ref }}
 
@@ -256,7 +256,7 @@ jobs:
           ref: ${{ needs.plan.outputs.tag }}
           fetch-depth: 0
 
-      - uses: ./.github/actions/setup-shipkit
+      - uses: karloie/shipkit/.github/actions/setup-shipkit@${{ inputs.tool_ref }}
         with:
           tool_ref: ${{ inputs.tool_ref }}
 
@@ -290,7 +290,7 @@ jobs:
       - name: Checkout project
         uses: actions/checkout@v4
 
-      - uses: ./.github/actions/setup-shipkit
+      - uses: karloie/shipkit/.github/actions/setup-shipkit@${{ inputs.tool_ref }}
         with:
           tool_ref: ${{ inputs.tool_ref }}
 
