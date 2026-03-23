@@ -11,20 +11,22 @@ import (
 // SummaryInputs contains all inputs for generating the release summary
 type SummaryInputs struct {
 	// Plan outputs
-	Mode                    string `json:"mode"`
-	ToolRef                 string `json:"tool_ref"`
-	Skip                    bool   `json:"skip"`
-	Tag                     string `json:"tag"`
-	TagExists               bool   `json:"tag_exists"`
-	VersionClean            string `json:"version_clean"`
-	DockerImage             string `json:"dockerimage"`
-	HasGo                   bool   `json:"has_go"`
-	HasDocker               bool   `json:"has_docker"`
-	HasMaven                bool   `json:"has_maven"`
-	HasNpm                  bool   `json:"has_npm"`
-	GoreleaserDocker        bool   `json:"goreleaser_docker"`
-	GoreleaserConfigCurrent bool   `json:"goreleaser_config_current"`
-	BuildOrchestrator       string `json:"build_orchestrator"`
+	Mode                    string              `json:"mode"`
+	ToolRef                 string              `json:"tool_ref"`
+	Skip                    bool                `json:"skip"`
+	Tag                     string              `json:"tag"`
+	TagExists               bool                `json:"tag_exists"`
+	VersionClean            string              `json:"version_clean"`
+	DockerImage             string              `json:"dockerimage"`
+	HasGo                   bool                `json:"has_go"`
+	HasDocker               bool                `json:"has_docker"`
+	UseDocker               bool                `json:"use_docker"`
+	UseGoreleaser           bool                `json:"use_goreleaser"`
+	UseGoreleaserDocker     bool                `json:"use_goreleaser_docker"`
+	GoreleaserDocker        bool                `json:"goreleaser_docker"`
+	GoreleaserConfigCurrent bool                `json:"goreleaser_config_current"`
+	BuildOrchestrator       string              `json:"build_orchestrator"`
+	BuildTargets            map[string][]string `json:"build_targets,omitempty"`
 
 	// Job results
 	ResultPlan    string `json:"result_plan"`
@@ -55,31 +57,75 @@ func GenerateSummary(inputs SummaryInputs) string {
 	}
 	sb.WriteString("\n")
 
+	// Workflow control section
+	sb.WriteString("## ⚙️ Workflow Control\n\n")
+	sb.WriteString("| Feature | Enabled |\n")
+	sb.WriteString("|---------|---------|\n")
+	sb.WriteString(fmt.Sprintf("| Use Docker | %s |\n", checkmark(inputs.UseDocker)))
+	sb.WriteString(fmt.Sprintf("| Use GoReleaser | %s |\n", checkmark(inputs.UseGoreleaser)))
+	sb.WriteString(fmt.Sprintf("| Use GoReleaser Docker | %s |\n", checkmark(inputs.UseGoreleaserDocker)))
+	sb.WriteString("\n")
+
 	// Detection section
 	sb.WriteString("## 🔍 Detected Projects\n\n")
 	sb.WriteString("| Project Type | Detected | GoReleaser Handles |\n")
 	sb.WriteString("|--------------|----------|-------------------|\n")
 	sb.WriteString(fmt.Sprintf("| Go | %s | - |\n", checkmark(inputs.HasGo)))
 	sb.WriteString(fmt.Sprintf("| Docker | %s | %s |\n", checkmark(inputs.HasDocker), checkmark(inputs.GoreleaserDocker)))
-	sb.WriteString(fmt.Sprintf("| Maven | %s | - |\n", checkmark(inputs.HasMaven)))
-	sb.WriteString(fmt.Sprintf("| npm | %s | - |\n", checkmark(inputs.HasNpm)))
 	sb.WriteString("\n")
 
 	// Build orchestrator section
 	if inputs.BuildOrchestrator != "" {
 		sb.WriteString("## 🔨 Build Orchestrator\n\n")
 		orchestratorName := inputs.BuildOrchestrator
+		targetLabel := "targets"
 		switch orchestratorName {
 		case "make":
 			orchestratorName = "**Make** (Makefile)"
+			targetLabel = "targets"
 		case "just":
 			orchestratorName = "**just** (justfile)"
+			targetLabel = "recipes"
 		case "task":
 			orchestratorName = "**Task** (Taskfile)"
+			targetLabel = "tasks"
 		case "convention":
 			orchestratorName = "Convention-based (no Makefile detected)"
 		}
 		sb.WriteString(fmt.Sprintf("Using: %s\n\n", orchestratorName))
+
+		// Display targets if available
+		if len(inputs.BuildTargets) > 0 {
+			sb.WriteString(fmt.Sprintf("### Available %s\n\n", targetLabel))
+			sb.WriteString("| Target | Dependencies |\n")
+			sb.WriteString("|--------|--------------|\n")
+			for target, deps := range inputs.BuildTargets {
+				depsStr := "none"
+				if len(deps) > 0 {
+					depsStr = strings.Join(deps, ", ")
+				}
+				sb.WriteString(fmt.Sprintf("| `%s` | %s |\n", target, depsStr))
+			}
+			sb.WriteString("\n")
+			
+			// Show CI hooks section
+			sb.WriteString("### CI Hooks\n\n")
+			ciHooks := []string{"ci-generate", "ci-build", "ci-test", "ci-integration-test", "ci-release", "ci-summary"}
+			sb.WriteString("| Hook | Found | Dependencies |\n")
+			sb.WriteString("|------|-------|-------------|\n")
+			for _, hook := range ciHooks {
+				if deps, found := inputs.BuildTargets[hook]; found {
+					depsStr := "none"
+					if len(deps) > 0 {
+						depsStr = strings.Join(deps, ", ")
+					}
+					sb.WriteString(fmt.Sprintf("| `%s` | ✅ | %s |\n", hook, depsStr))
+				} else {
+					sb.WriteString(fmt.Sprintf("| `%s` | ❌ | - |\n", hook))
+				}
+			}
+			sb.WriteString("\n")
+		}
 	}
 
 	// GoReleaser config section
@@ -186,6 +232,8 @@ func runSummary(args []string) error {
 
 	// File-based input (preferred)
 	planFile := fs.String("plan-file", "", "Path to plan.json file from plan job")
+	_ = makefile
+	_ = useMake
 
 	// Direct JSON input (fallback)
 	jsonInput := fs.String("json", "", "JSON string with all summary inputs")
@@ -200,8 +248,9 @@ func runSummary(args []string) error {
 	dockerImage := fs.String("docker-image", "", "docker image")
 	hasGo := fs.Bool("has-go", false, "has go project")
 	hasDocker := fs.Bool("has-docker", false, "has docker")
-	hasMaven := fs.Bool("has-maven", false, "has maven")
-	hasNpm := fs.Bool("has-npm", false, "has npm")
+	useDocker := fs.Bool("use-docker", true, "use docker")
+	useGoreleaser := fs.Bool("use-goreleaser", true, "use goreleaser")
+	useGoreleaserDocker := fs.Bool("use-goreleaser-docker", false, "use goreleaser docker")
 	goreleaserDocker := fs.Bool("goreleaser-docker", false, "goreleaser handles docker")
 	goreleaserConfigCurrent := fs.Bool("goreleaser-config-current", false, "has custom goreleaser config")
 	buildOrchestrator := fs.String("build-orchestrator", "", "build orchestrator (make, just, task)")
@@ -250,8 +299,9 @@ func runSummary(args []string) error {
 			DockerImage:             strings.TrimSpace(*dockerImage),
 			HasGo:                   *hasGo,
 			HasDocker:               *hasDocker,
-			HasMaven:                *hasMaven,
-			HasNpm:                  *hasNpm,
+			UseDocker:               *useDocker,
+			UseGoreleaser:           *useGoreleaser,
+			UseGoreleaserDocker:     *useGoreleaserDocker,
 			GoreleaserDocker:        *goreleaserDocker,
 			GoreleaserConfigCurrent: *goreleaserConfigCurrent,
 			BuildOrchestrator:       strings.TrimSpace(*buildOrchestrator),

@@ -7,12 +7,23 @@ import (
 
 func TestGenerateSummary(t *testing.T) {
 	inputs := SummaryInputs{
-		Mode:                    ModeRelease,
-		ToolRef:                 "main",
-		Tag:                     "v1.2.3",
-		VersionClean:            "1.2.3",
-		HasGo:                   true,
-		BuildOrchestrator:       "make",
+		Mode:              ModeRelease,
+		ToolRef:           "main",
+		Tag:               "v1.2.3",
+		VersionClean:      "1.2.3",
+		HasGo:             true,
+		HasDocker:         true,
+		UseDocker:         true,
+		UseGoreleaser:     true,
+		UseGoreleaserDocker: false,
+		BuildOrchestrator: "make",
+		BuildTargets: map[string][]string{
+			"build":      []string{"deps"},
+			"test":       []string{"build"},
+			"ci-build":   []string{"test"},
+			"ci-summary": []string{},
+			"deps":       []string{},
+		},
 		GoreleaserConfigCurrent: true,
 		ResultPlan:              "success",
 		ResultBuild:             "success",
@@ -21,6 +32,8 @@ func TestGenerateSummary(t *testing.T) {
 	}
 
 	result := GenerateSummary(inputs)
+
+	t.Logf("\n%s", result)
 
 	tests := []string{"Release Summary", "v1.2.3", "Make", "success"}
 	for _, expected := range tests {
