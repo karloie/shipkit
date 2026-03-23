@@ -36,6 +36,11 @@ on:
         required: false
         default: ""
         type: string
+      image:
+        description: Docker image name override (leave empty to use {owner}/{project})
+        required: false
+        default: ""
+        type: string
       dry_run:
         description: Dry run mode (plan only, skip actual release)
         required: false
@@ -110,7 +115,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       docker_image: ${{ steps.plan.outputs.docker_image }}
-      goreleaser_docker: ${{ steps.plan.outputs.goreleaser_docker }}
+      should_build_goreleaser_docker: ${{ steps.plan.outputs.should_build_goreleaser_docker }}
       goreleaser_config_current: ${{ steps.plan.outputs.goreleaser_config_current }}
       goreleaser_config_auto: ${{ steps.plan.outputs.goreleaser_config_auto }}
       has_docker: ${{ steps.plan.outputs.has_docker }}
@@ -124,6 +129,10 @@ jobs:
       tag_exists: ${{ steps.plan.outputs.tag_exists }}
       tag_latest: ${{ steps.plan.outputs.tag_latest }}
       version_clean: ${{ steps.plan.outputs.version_clean }}
+      should_build_npm: ${{ steps.plan.outputs.should_build_npm }}
+      should_build_go: ${{ steps.plan.outputs.should_build_go }}
+      should_build_maven: ${{ steps.plan.outputs.should_build_maven }}
+      should_build_docker: ${{ steps.plan.outputs.should_build_docker }}
 
     steps:
       - name: Checkout shipkit at tool_ref
@@ -163,7 +172,17 @@ jobs:
 
       - name: Plan release
         id: plan
-        run: ./shipkit plan -mode=${{ inputs.mode }} -bump=${{ inputs.bump }} -sha=${{ github.sha }}
+        run: |
+          ./shipkit plan \
+            -mode=${{ inputs.mode }} \
+            -bump=${{ inputs.bump }} \
+            -sha=${{ github.sha }} \
+            -dry-run=${{ inputs.dry_run }} \
+            -use-npm=${{ inputs.use_npm }} \
+            -use-maven=${{ inputs.use_maven }} \
+            -use-docker=${{ inputs.use_docker }} \
+            -use-go=${{ inputs.use_go }} \
+            -use-goreleaser=${{ inputs.use_goreleaser }}
         env:
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -175,7 +194,7 @@ jobs:
   npm-build:
     name: 🏗️ build
     needs: plan
-    if: needs.plan.outputs.skip != 'true' && needs.plan.outputs.has_npm == 'true' && inputs.use_npm == true
+    if: needs.plan.outputs.should_build_npm == 'true'
     uses: ./.github/workflows/npm-build.yml
     with:
       node_version: ${{ inputs.node_version || '18' }}
@@ -184,7 +203,7 @@ jobs:
   go-build:
     name: 🏗️ build
     needs: plan
-    if: needs.plan.outputs.skip != 'true' && needs.plan.outputs.has_go == 'true' && inputs.use_go == true
+    if: needs.plan.outputs.should_build_go == 'true'
     uses: ./.github/workflows/go-build.yml
     with:
       mode: ${{ inputs.mode }}
@@ -195,7 +214,7 @@ jobs:
   maven-build:
     name: 🏗️ build
     needs: plan
-    if: needs.plan.outputs.skip != 'true' && needs.plan.outputs.has_maven == 'true' && inputs.use_maven == true
+    if: needs.plan.outputs.should_build_maven == 'true'
     uses: ./.github/workflows/maven-build.yml
     with:
       java_version: ${{ inputs.java_version || '17' }}
@@ -204,10 +223,10 @@ jobs:
   docker-build:
     name: 🏗️ build
     needs: plan
-    if: needs.plan.outputs.skip != 'true' && needs.plan.outputs.goreleaser_docker != 'true' && needs.plan.outputs.has_docker == 'true' && inputs.use_docker == true
+    if: needs.plan.outputs.should_build_docker == 'true'
     uses: ./.github/workflows/docker-build.yml
     with:
-      image: ${{ needs.plan.outputs.docker_image }}
+      image: ${{ inputs.image || needs.plan.outputs.docker_image }}
       tag: ${{ needs.plan.outputs.tag }}
       tool_ref: ${{ inputs.tool_ref }}
       go_version: ${{ inputs.go_version }}
@@ -252,22 +271,51 @@ jobs:
       has_npm: ${{ needs.plan.outputs.has_npm }}
       has_maven: ${{ needs.plan.outputs.has_maven }}
 
+  # Decide: Evaluate publish decisions (testable Go code)
+  decide:
+    name: 🤔 decide
+    runs-on: ubuntu-latest
+    needs: [plan, npm-build, go-build, maven-build, docker-build, tag, update-versions]
+    if: always()
+    outputs:
+      should_publish_npm: ${{ steps.decide.outputs.should_publish_npm }}
+      should_publish_maven: ${{ steps.decide.outputs.should_publish_maven }}
+      should_publish_docker: ${{ steps.decide.outputs.should_publish_docker }}
+      should_publish_go: ${{ steps.decide.outputs.should_publish_go }}
+    steps:
+      - name: Download shipkit binary
+        uses: actions/download-artifact@v4
+        with:
+          name: shipkit-binary
+          path: .
+
+      - name: Make binary executable
+        run: chmod +x shipkit
+
+      - name: Decide publish actions
+        id: decide
+        run: |
+          ./shipkit decide \
+            -mode=${{ inputs.mode }} \
+            -dry-run=${{ inputs.dry_run }} \
+            -use-goreleaser=${{ inputs.use_goreleaser }} \
+            -goreleaser-docker=${{ needs.plan.outputs.should_build_goreleaser_docker }} \
+            -should-run-npm-build=${{ needs.plan.outputs.should_build_npm }} \
+            -should-run-go-build=${{ needs.plan.outputs.should_build_go }} \
+            -should-run-maven-build=${{ needs.plan.outputs.should_build_maven }} \
+            -should-run-docker-build=${{ needs.plan.outputs.should_build_docker }} \
+            -npm-build-result=${{ needs.npm-build.result }} \
+            -go-build-result=${{ needs.go-build.result }} \
+            -maven-build-result=${{ needs.maven-build.result }} \
+            -docker-build-result=${{ needs.docker-build.result }} \
+            -tag-result=${{ needs.tag.result }} \
+            -update-versions-result=${{ needs.update-versions.result }}
+
   # Publish group: publishes artifacts (runs in parallel after setup)
   npm-publish:
     name: 🚀 publish
-    needs: [plan, npm-build, go-build, maven-build, docker-build, tag, update-versions]
-    if: |
-      always() &&
-      needs.plan.outputs.skip != 'true' &&
-      needs.plan.outputs.has_npm == 'true' &&
-      inputs.use_npm == true &&
-      inputs.dry_run != true &&
-      (needs.tag.result == 'success' || needs.tag.result == 'skipped') &&
-      (needs.update-versions.result == 'success' || needs.update-versions.result == 'skipped') &&
-      (needs.npm-build.result == 'success' || needs.npm-build.result == 'skipped') &&
-      (needs.go-build.result == 'success' || needs.go-build.result == 'skipped') &&
-      (needs.maven-build.result == 'success' || needs.maven-build.result == 'skipped') &&
-      (needs.docker-build.result == 'success' || needs.docker-build.result == 'skipped')
+    needs: [plan, npm-build, go-build, maven-build, docker-build, tag, update-versions, decide]
+    if: needs.decide.outputs.should_publish_npm == 'true'
     uses: ./.github/workflows/npm-publish.yml
     with:
       tag: ${{ needs.plan.outputs.tag }}
@@ -278,19 +326,8 @@ jobs:
 
   maven-publish:
     name: 🚀 publish
-    needs: [plan, npm-build, go-build, maven-build, docker-build, tag, update-versions]
-    if: |
-      always() &&
-      needs.plan.outputs.skip != 'true' &&
-      needs.plan.outputs.has_maven == 'true' &&
-      inputs.use_maven == true &&
-      inputs.dry_run != true &&
-      (needs.tag.result == 'success' || needs.tag.result == 'skipped') &&
-      (needs.update-versions.result == 'success' || needs.update-versions.result == 'skipped') &&
-      (needs.npm-build.result == 'success' || needs.npm-build.result == 'skipped') &&
-      (needs.go-build.result == 'success' || needs.go-build.result == 'skipped') &&
-      (needs.maven-build.result == 'success' || needs.maven-build.result == 'skipped') &&
-      (needs.docker-build.result == 'success' || needs.docker-build.result == 'skipped')
+    needs: [plan, npm-build, go-build, maven-build, docker-build, tag, update-versions, decide]
+    if: needs.decide.outputs.should_publish_maven == 'true'
     uses: ./.github/workflows/maven-publish.yml
     with:
       tag: ${{ needs.plan.outputs.tag }}
@@ -304,26 +341,13 @@ jobs:
 
   docker-publish:
     name: 🚀 publish
-    needs: [plan, npm-build, go-build, maven-build, docker-build, tag, update-versions]
-    if: |
-      always() &&
-      needs.plan.outputs.skip != 'true' &&
-      needs.plan.outputs.goreleaser_docker != 'true' &&
-      needs.plan.outputs.has_docker == 'true' &&
-      inputs.mode != 'goreleaser' &&
-      inputs.use_docker == true &&
-      inputs.dry_run != true &&
-      (needs.tag.result == 'success' || needs.tag.result == 'skipped') &&
-      (needs.update-versions.result == 'success' || needs.update-versions.result == 'skipped') &&
-      (needs.npm-build.result == 'success' || needs.npm-build.result == 'skipped') &&
-      (needs.go-build.result == 'success' || needs.go-build.result == 'skipped') &&
-      (needs.maven-build.result == 'success' || needs.maven-build.result == 'skipped') &&
-      (needs.docker-build.result == 'success' || needs.docker-build.result == 'skipped')
+    needs: [plan, npm-build, go-build, maven-build, docker-build, tag, update-versions, decide]
+    if: needs.decide.outputs.should_publish_docker == 'true'
     uses: ./.github/workflows/docker-publish.yml
     with:
       event_name: push
       go_version: ${{ inputs.go_version }}
-      image: ${{ needs.plan.outputs.docker_image }}
+      image: ${{ inputs.image || needs.plan.outputs.docker_image }}
       tag_latest: ${{ needs.plan.outputs.tag_latest == 'true' }}
       tag: ${{ needs.plan.outputs.tag }}
       tool_ref: ${{ inputs.tool_ref }}
@@ -333,26 +357,16 @@ jobs:
 
   go-publish:
     name: 🚀 publish
-    needs: [plan, npm-build, go-build, maven-build, docker-build, tag, update-versions]
-    if: |
-      always() &&
-      needs.plan.outputs.skip != 'true' &&
-      inputs.use_goreleaser == true &&
-      inputs.dry_run != true &&
-      (needs.tag.result == 'success' || needs.tag.result == 'skipped') &&
-      (needs.update-versions.result == 'success' || needs.update-versions.result == 'skipped') &&
-      (needs.npm-build.result == 'success' || needs.npm-build.result == 'skipped') &&
-      (needs.go-build.result == 'success' || needs.go-build.result == 'skipped') &&
-      (needs.maven-build.result == 'success' || needs.maven-build.result == 'skipped') &&
-      (needs.docker-build.result == 'success' || needs.docker-build.result == 'skipped')
+    needs: [plan, npm-build, go-build, maven-build, docker-build, tag, update-versions, decide]
+    if: needs.decide.outputs.should_publish_go == 'true'
     uses: ./.github/workflows/go-publish.yml
     with:
       mode: ${{ inputs.mode }}
       tag: ${{ needs.plan.outputs.tag }}
       tool_ref: ${{ inputs.tool_ref }}
-      go_version: ${{ inputs.go_version }}
       node_version: ${{ inputs.node_version }}
       go_main: ${{ inputs.go_main }}
+      go_version: ${{ inputs.go_version }}
       goreleaser_config_current: ${{ needs.plan.outputs.goreleaser_config_current }}
     secrets:
       HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
@@ -361,7 +375,7 @@ jobs:
     name: 📊 summary
     runs-on: ubuntu-latest
     if: always()
-    needs: [plan, npm-build, go-build, maven-build, docker-build, tag, update-versions, npm-publish, maven-publish, docker-publish, go-publish]
+    needs: [plan, npm-build, go-build, maven-build, docker-build, tag, update-versions, decide, npm-publish, maven-publish, docker-publish, go-publish]
     steps:
       - name: Generate release summary
         run: |
@@ -390,7 +404,7 @@ jobs:
           echo "| Project Type | Detected | GoReleaser Handles |" >> $GITHUB_STEP_SUMMARY
           echo "|--------------|----------|-------------------|" >> $GITHUB_STEP_SUMMARY
           echo "| Go | ${{ needs.plan.outputs.has_go == 'true' && '✅' || '❌' }} | - |" >> $GITHUB_STEP_SUMMARY
-          echo "| Docker | ${{ needs.plan.outputs.has_docker == 'true' && '✅' || '❌' }} | ${{ needs.plan.outputs.goreleaser_docker == 'true' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker | ${{ needs.plan.outputs.has_docker == 'true' && '✅' || '❌' }} | ${{ needs.plan.outputs.should_build_goreleaser_docker == 'true' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Maven | ${{ needs.plan.outputs.has_maven == 'true' && '✅' || '❌' }} | - |" >> $GITHUB_STEP_SUMMARY
           echo "| npm | ${{ needs.plan.outputs.has_npm == 'true' && '✅' || '❌' }} | - |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

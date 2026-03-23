@@ -60,8 +60,8 @@ func TestRunDockerHubStatusNoDocker(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	b, _ := os.ReadFile(outFile)
-	if !strings.Contains(string(b), "goreleaser_docker=false") {
-		t.Errorf("expected goreleaser_docker=false, got: %s", string(b))
+	if !strings.Contains(string(b), "should_build_goreleaser_docker=false") {
+		t.Errorf("expected should_build_goreleaser_docker=false, got: %s", string(b))
 	}
 }
 
@@ -79,8 +79,8 @@ func TestRunDockerHubStatusWithContainerfile(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	b, _ := os.ReadFile(outFile)
-	if !strings.Contains(string(b), "goreleaser_docker=true") {
-		t.Errorf("expected goreleaser_docker=true, got: %s", string(b))
+	if !strings.Contains(string(b), "should_build_goreleaser_docker=true") {
+		t.Errorf("expected should_build_goreleaser_docker=true, got: %s", string(b))
 	}
 }
 

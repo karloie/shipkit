@@ -32,6 +32,14 @@ func runPlan(args []string) error {
 	requiredSecrets := fs.String("required-secrets", "", "comma-separated required secret names (auto-detected by mode if empty)")
 	resolveLatestTag := fs.Bool("resolve-latest-tag", false, "resolve latest tag from git (used by rerelease mode)")
 
+	// Workflow control flags (for precalculating job execution)
+	dryRun := fs.Bool("dry-run", false, "dry run mode")
+	useNpm := fs.Bool("use-npm", true, "enable npm jobs")
+	useMaven := fs.Bool("use-maven", true, "enable maven jobs")
+	useDocker := fs.Bool("use-docker", true, "enable docker jobs")
+	useGo := fs.Bool("use-go", true, "enable go jobs")
+	useGoreleaser := fs.Bool("use-goreleaser", true, "enable goreleaser job")
+
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -57,6 +65,12 @@ func runPlan(args []string) error {
 		"repo":             repoVal,
 		"sha":              shaVal,
 		"required-secrets": secretsVal,
+		"dry-run":          fmt.Sprintf("%v", *dryRun),
+		"use-npm":          fmt.Sprintf("%v", *useNpm),
+		"use-maven":        fmt.Sprintf("%v", *useMaven),
+		"use-docker":       fmt.Sprintf("%v", *useDocker),
+		"use-go":           fmt.Sprintf("%v", *useGo),
+		"use-goreleaser":   fmt.Sprintf("%v", *useGoreleaser),
 	})
 
 	// Auto-enable resolve-latest-tag for rerelease mode
@@ -294,6 +308,19 @@ func runPlan(args []string) error {
 	if versionClean != "" {
 		writeOutput(githubOutput, OutputVersionClean, versionClean)
 	}
+
+	// Precalculate "should run" decisions (testable logic in Go)
+	skip := policy.Skip == PublishTrue
+	shouldRunNpmBuild := !skip && hasNpm && *useNpm
+	shouldRunGoBuild := !skip && hasGo && *useGo
+	shouldRunMavenBuild := !skip && hasMaven && *useMaven
+	shouldRunDockerBuild := !skip && !hasGoreleaserDocker && hasStandaloneDocker && *useDocker
+
+	// Output should_run_* decisions
+	writeBoolOutput(githubOutput, "should_build_npm", shouldRunNpmBuild)
+	writeBoolOutput(githubOutput, "should_build_go", shouldRunGoBuild)
+	writeBoolOutput(githubOutput, "should_build_maven", shouldRunMavenBuild)
+	writeBoolOutput(githubOutput, "should_build_docker", shouldRunDockerBuild)
 
 	fmt.Println("::endgroup::")
 

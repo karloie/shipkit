@@ -381,28 +381,28 @@ func TestPlanOutputsHasDockerForWorkflowCondition(t *testing.T) {
 			}
 
 			if tt.expectedGorelDocker {
-				if !strings.Contains(outputs, "goreleaser_docker=true") {
-					t.Errorf("expected goreleaser_docker=true in output, got:\n%s", outputs)
+				if !strings.Contains(outputs, "should_build_goreleaser_docker=true") {
+					t.Errorf("expected should_build_goreleaser_docker=true in output, got:\n%s", outputs)
 				}
 			} else {
-				if !strings.Contains(outputs, "goreleaser_docker=false") {
-					t.Errorf("expected goreleaser_docker=false in output, got:\n%s", outputs)
+				if !strings.Contains(outputs, "should_build_goreleaser_docker=false") {
+					t.Errorf("expected should_build_goreleaser_docker=false in output, got:\n%s", outputs)
 				}
 			}
 
 			// Simulate workflow condition logic
 			hasDocker := strings.Contains(outputs, "has_docker=true")
 			hasDockerEmpty := !strings.Contains(outputs, "has_docker=") // Missing output (old versions)
-			goreleaserDocker := strings.Contains(outputs, "goreleaser_docker=true")
+			goreleaserDocker := strings.Contains(outputs, "should_build_goreleaser_docker=true")
 			skip := false // For this test, assume not skipped
 
 			// Workflow condition (backward compatible):
-			// if: needs.plan.outputs.skip != 'true' && needs.plan.outputs.goreleaser_docker != 'true' && (needs.plan.outputs.has_docker == 'true' || needs.plan.outputs.has_docker == '')
+			// if: needs.plan.outputs.skip != 'true' && needs.plan.outputs.should_build_goreleaser_docker != 'true' && (needs.plan.outputs.has_docker == 'true' || needs.plan.outputs.has_docker == '')
 			// Empty/missing has_docker (from old versions) is treated as true for backward compatibility
 			workflowWouldRun := !skip && !goreleaserDocker && (hasDocker || hasDockerEmpty)
 
 			if workflowWouldRun != tt.workflowShouldRunDoc {
-				t.Errorf("workflow docker job would run=%v, expected=%v (skip=%v, goreleaser_docker=%v, has_docker=%v, has_docker_empty=%v)",
+				t.Errorf("workflow docker job would run=%v, expected=%v (skip=%v, should_build_goreleaser_docker=%v, has_docker=%v, has_docker_empty=%v)",
 					workflowWouldRun, tt.workflowShouldRunDoc, skip, goreleaserDocker, hasDocker, hasDockerEmpty)
 			}
 		})
