@@ -75,6 +75,10 @@ jobs:
         if: ${{ inputs.mode == 'build-test' && inputs.go_version != '' }}
         run: go mod download
 
+      - name: Generate
+        if: ${{ inputs.mode == 'build-test' }}
+        run: make ci-generate
+
       - name: Build
         if: ${{ inputs.mode == 'build-test' }}
         run: make ci-build
@@ -82,3 +86,7 @@ jobs:
       - name: Test
         if: ${{ inputs.mode == 'build-test' }}
         run: make ci-test
+
+      - name: Integration Test
+        if: ${{ inputs.mode == 'build-test' }}
+        run: make ci-integration-test

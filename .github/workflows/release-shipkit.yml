@@ -40,11 +40,17 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Generate
+        run: make ci-generate
+
       - name: Build
         run: make ci-build
 
       - name: Test
         run: make ci-test
+
+      - name: Integration Test
+        run: make ci-integration-test
 
   tag:
     name: 🏷️ Tag
