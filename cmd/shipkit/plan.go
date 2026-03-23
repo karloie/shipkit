@@ -75,7 +75,7 @@ func runPlan(args []string) error {
 	dryRun := fs.Bool("dry-run", plan.DryRun, "Dry run")
 	useDocker := fs.Bool("use-docker", true, "Enable docker")
 	useGoreleaser := fs.Bool("use-goreleaser", true, "Enable goreleaser")
-	useGoreleaserDocker := fs.Bool("use-goreleaser-docker", true, "Enable goreleaser docker")
+	useGoreleaserDocker := fs.Bool("use-goreleaser-docker", false, "Enable goreleaser docker")
 
 	parseFlagsOrExit(fs, args)
 

@@ -86,7 +86,7 @@ func (m *GitProviderMock) GetLatestTag() (string, error) {
 		return "", m.Err
 	}
 	if m.LatestTag == "" {
-		return "v0.0.1", nil
+		return "v0.0.0", nil // No tags - start from v0.0.0, first bump will produce v0.0.1
 	}
 	return m.LatestTag, nil
 }

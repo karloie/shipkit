@@ -42,7 +42,7 @@ func runVersion(args []string) error {
 func computeVersion(eventName, bumpInput string, git GitProvider, pr PRProvider) (latest, next, publish string, err error) {
 	latest, err = git.GetLatestTag()
 	if err != nil {
-		latest = "v0.0.12"
+		latest = "v0.0.0" // No tags found - start from v0.0.0
 	}
 
 	version := strings.TrimPrefix(latest, "v")

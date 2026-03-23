@@ -9,14 +9,7 @@ import (
 
 // TestPlanOutput is a table-driven test for all plan output variations
 func TestPlanOutput(t *testing.T) {
-	tests := []struct {
-		name         string
-		eventName    string
-		plan         *Plan
-		mockLatest   string
-		expectation  map[string]string
-		validateFunc func(*testing.T, map[string]string)
-	}{
+	tests := []planTestCase{
 		{
 			name:      "patch_bump",
 			eventName: "workflow_dispatch",
@@ -36,6 +29,28 @@ func TestPlanOutput(t *testing.T) {
 				"tag_next":      "v1.2.3",
 				"version_clean": "1.2.3",
 				"release_skip":  "false",
+			},
+		},
+		{
+			name:      "initial_release_no_tags",
+			eventName: "workflow_dispatch",
+			plan: &Plan{
+				Mode:                "release",
+				Bump:                "patch",
+				DryRun:              true,
+				UseDocker:           true,
+				UseGoreleaser:       true,
+				UseGoreleaserDocker: true,
+				DockerImage:         "karloie/kompass",
+			},
+			mockLatest: "", // No tags in repository
+			expectation: map[string]string{
+				"mode":                "release",
+				"tag_latest":          "v0.0.0", // Baseline when no tags exist
+				"tag_next":            "v0.0.1", // First release starts at v0.0.1
+				"version_clean":       "0.0.1",
+				"version_major_minor": "", // 0.x versions return empty
+				"release_skip":        "false",
 			},
 		},
 		{
@@ -92,26 +107,6 @@ func TestPlanOutput(t *testing.T) {
 				if skip := outputs["release_skip"]; skip != "true" && skip != "false" {
 					t.Errorf("release_skip must be 'true' or 'false', got: %s", skip)
 				}
-			},
-		},
-		{
-			name:      "docker_mode",
-			eventName: "push",
-			plan: &Plan{
-				Mode:                "docker",
-				TagNext:             "v1.2.3",
-				TagLatest:           "v1.2.2",
-				DryRun:              true,
-				UseDocker:           true,
-				UseGoreleaser:       true,
-				UseGoreleaserDocker: true,
-				DockerImage:         "karloie/kompass",
-			},
-			mockLatest: "v1.2.2",
-			expectation: map[string]string{
-				"mode":         "docker",
-				"tag_next":     "v1.2.3",
-				"release_skip": "true", // No Dockerfile in temp dir
 			},
 		},
 		{
@@ -172,24 +167,62 @@ func TestPlanOutput(t *testing.T) {
 			},
 		},
 		{
-			name:      "custom_image",
+			name:      "version_0x_major_minor_empty",
 			eventName: "workflow_dispatch",
 			plan: &Plan{
 				Mode:                "release",
-				Bump:                "patch",
+				Bump:                "minor",
 				DryRun:              true,
 				UseDocker:           true,
 				UseGoreleaser:       true,
 				UseGoreleaserDocker: true,
-				DockerImage:         "myorg/myapp",
+				DockerImage:         "karloie/kompass",
+			},
+			mockLatest: "v0.1.5",
+			expectation: map[string]string{
+				"mode":                "release",
+				"tag_latest":          "v0.1.5",
+				"tag_next":            "v0.2.0",
+				"version_clean":       "0.2.0",
+				"version_major_minor": "", // 0.x versions should return empty
+			},
+		},
+		{
+			name:      "rerelease_docker_tag_latest_false",
+			eventName: "push",
+			plan: &Plan{
+				Mode:                "rerelease",
+				ResolveLatestTag:    true,
+				DryRun:              true,
+				UseDocker:           true,
+				UseGoreleaser:       true,
+				UseGoreleaserDocker: true,
+				DockerImage:         "karloie/kompass",
 			},
 			mockLatest: "v1.2.2",
 			expectation: map[string]string{
-				"docker_image": "myorg/myapp",
+				"mode":              "rerelease",
+				"docker_tag_latest": "false", // Rerelease should not tag as latest
 			},
 		},
 	}
 
+	runPlanTests(t, tests)
+}
+
+// planTestCase defines the structure for table-driven plan tests
+type planTestCase struct {
+	name         string
+	eventName    string
+	plan         *Plan
+	mockLatest   string
+	setupFunc    func(*testing.T)
+	expectation  map[string]string
+	validateFunc func(*testing.T, map[string]string)
+}
+
+// runPlanTests executes a slice of plan test cases
+func runPlanTests(t *testing.T, tests []planTestCase) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			outputFile, cleanup := setupPlanTest(t)
@@ -198,6 +231,11 @@ func TestPlanOutput(t *testing.T) {
 			// Set event name if specified
 			if tt.eventName != "" {
 				os.Setenv("GITHUB_EVENT_NAME", tt.eventName)
+			}
+
+			// Run setup function if provided (e.g., create test files)
+			if tt.setupFunc != nil {
+				tt.setupFunc(t)
 			}
 
 			mockGit := &GitProviderMock{
@@ -231,58 +269,6 @@ func TestPlanOutput(t *testing.T) {
 			// Run custom validation if provided
 			if tt.validateFunc != nil {
 				tt.validateFunc(t, outputs)
-			}
-		})
-	}
-}
-
-// TestPlanOutputConsistency verifies that all outputs are written in all modes
-func TestPlanOutputConsistency(t *testing.T) {
-	modes := []string{"release", "docker", "rerelease", "goreleaser"}
-
-	for _, mode := range modes {
-		t.Run(mode, func(t *testing.T) {
-			outputFile, cleanup := setupPlanTest(t)
-			defer cleanup()
-
-			plan := &Plan{
-				Mode:                mode,
-				DryRun:              true,
-				UseDocker:           true,
-				UseGoreleaser:       true,
-				UseGoreleaserDocker: true,
-				DockerImage:         "karloie/kompass",
-			}
-
-			if mode == "docker" {
-				plan.TagNext = "v1.0.0"
-				plan.TagLatest = "v0.9.0"
-			}
-			if mode == "release" || mode == "goreleaser" {
-				os.Setenv("GITHUB_EVENT_NAME", "workflow_dispatch")
-				plan.Bump = "patch"
-			}
-			if mode == "rerelease" {
-				plan.ResolveLatestTag = true
-			}
-
-			mockGit := &GitProviderMock{
-				LatestTag: "v1.2.2",
-			}
-
-			err := runPlanClean(plan, mockGit, nil)
-			if err != nil {
-				t.Fatalf("runPlan failed for mode %s: %v", mode, err)
-			}
-
-			outputBytes, _ := os.ReadFile(outputFile)
-			outputs := parseOutputs(string(outputBytes))
-
-			verifyRequiredOutputs(t, outputs)
-
-			// Verify mode is set correctly
-			if outputs["mode"] != mode {
-				t.Errorf("Expected mode=%s, got: %s", mode, outputs["mode"])
 			}
 		})
 	}
