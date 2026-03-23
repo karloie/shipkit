@@ -1,0 +1,69 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: shipkit
+    main: ./cmd/shipkit
+    binary: shipkit
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.buildVersion={{.Version}}
+      - -X main.buildCommit={{.Commit}}
+      - -X main.buildDate={{.Date}}
+
+archives:
+  - id: shipkit
+    format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+    name_template: "shipkit_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
+      - Merge pull request
+      - Merge branch
+
+brews:
+  - name: shipkit
+    repository:
+      owner: karloie
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Formula
+    homepage: https://github.com/karloie/shipkit
+    description: "Make-first release automation tool"
+    license: MIT
+    test: |
+      system "#{bin}/shipkit", "version"
+    install: |
+      bin.install "shipkit"
+
+release:
+  github:
+    owner: karloie
+    name: shipkit
+  draft: false
+  prerelease: auto
+  name_template: "{{.Tag}}"
