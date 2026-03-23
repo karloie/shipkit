@@ -61,19 +61,19 @@ func TestDetectDockerFilesGoreleaser(t *testing.T) {
 		t.Errorf("expected not found, got %q", name)
 	}
 
-	// Containerfile.goreleaser takes priority
-	os.WriteFile("Containerfile.goreleaser", []byte("FROM scratch"), 0644)
+	// Containerfile takes priority
+	os.WriteFile("Containerfile", []byte("FROM scratch"), 0644)
 	found, name = detectDockerFiles("goreleaser")
-	if !found || name != "Containerfile.goreleaser" {
-		t.Errorf("expected Containerfile.goreleaser, got found=%v name=%q", found, name)
+	if !found || name != "Containerfile" {
+		t.Errorf("expected Containerfile, got found=%v name=%q", found, name)
 	}
 
-	// Dockerfile.goreleaser as fallback
-	os.Remove("Containerfile.goreleaser")
-	os.WriteFile("Dockerfile.goreleaser", []byte("FROM scratch"), 0644)
+	// Dockerfile as fallback
+	os.Remove("Containerfile")
+	os.WriteFile("Dockerfile", []byte("FROM scratch"), 0644)
 	found, name = detectDockerFiles("goreleaser")
-	if !found || name != "Dockerfile.goreleaser" {
-		t.Errorf("expected Dockerfile.goreleaser, got found=%v name=%q", found, name)
+	if !found || name != "Dockerfile" {
+		t.Errorf("expected Dockerfile, got found=%v name=%q", found, name)
 	}
 }
 

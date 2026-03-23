@@ -7,139 +7,170 @@ import (
 	"strings"
 )
 
-// writeBoolOutput writes a boolean value as PublishTrue or PublishFalse
-func writeBoolOutput(githubOutput, key string, value bool) {
-	if value {
-		writeOutput(githubOutput, key, PublishTrue)
-	} else {
-		writeOutput(githubOutput, key, PublishFalse)
-	}
+type Plan struct {
+	// Input fields (from CLI flags or plan.json)
+	Bump                string `json:"bump"`
+	DryRun              bool   `json:"dry_run,omitempty"`
+	Mode                string `json:"mode"`
+	Owner               string `json:"owner,omitempty"`
+	Repo                string `json:"repo,omitempty"`
+	RequiredSecrets     string `json:"required_secrets,omitempty"`
+	ResolveLatestTag    bool   `json:"resolve_latest_tag,omitempty"`
+	Sha                 string `json:"sha,omitempty"`
+	UseDocker           bool   `json:"use_docker,omitempty"`
+	UseGoreleaser       bool   `json:"use_goreleaser,omitempty"`
+	UseGoreleaserDocker bool   `json:"use_goreleaser_docker,omitempty"`
+
+	// Output fields (computed by runPlanClean)
+	BuildOrchestrator    string `json:"build_orchestrator"`
+	DockerFile           string `json:"docker_file"`
+	DockerImage          string `json:"docker_image"`
+	DockerTagLatest      bool   `json:"docker_tag_latest"`
+	GoreleaserConfig     string `json:"goreleaser_config,omitempty"`
+	GoreleaserDockerfile string `json:"goreleaser_dockerfile,omitempty"`
+	HasDocker            bool   `json:"has_docker"`
+	HasJustfile          bool   `json:"has_justfile"`
+	HasMakefile          bool   `json:"has_makefile"`
+	HasTaskfile          bool   `json:"has_taskfile"`
+	ReleaseDocker        bool   `json:"release_docker,omitempty"`
+	ReleaseSkip          bool   `json:"release_skip"`
+	TagRelease           string `json:"tag_release"` // Effective tag for this release (NextTag || ReleaseTag)
+	TagExists            bool   `json:"tag_exists"`
+	TagLatest            string `json:"tag_latest"`
+	TagNext              string `json:"tag_next"`
+	VersionClean         string `json:"version_clean"`
+	VersionMajorMinor    string `json:"version_major_minor"`
 }
 
 func runPlan(args []string) error {
-	// Log raw args BEFORE parsing (so we see them even if parsing fails)
 	logInputs(map[string]string{
 		"raw_args": strings.Join(args, " "),
 	})
 
+	// Load plan.json if it exists
+	var plan Plan
+	data, err := os.ReadFile("plan.json")
+	if err == nil {
+		json.Unmarshal(data, &plan)
+	}
+
+	// Parse CLI flags
 	fs := newFlagSet("plan")
 
 	// Version flags
-	bump := fs.String("bump", "", "Version bump")
-	nextTag := fs.String("next-tag", "", "Next tag")
-	latestTag := fs.String("latest-tag", "", "Latest tag")
+	bump := fs.String("bump", plan.Bump, "Version bump")
+	nextTag := fs.String("next-tag", plan.TagNext, "Next tag")
+	latestTag := fs.String("latest-tag", plan.TagLatest, "Latest tag")
 
 	// Policy flags
 	mode := fs.String("mode", DefaultMode, "Release mode")
 	image := fs.String("image", DefaultImage, "Docker image")
-	owner := fs.String("owner", "", "Repo owner")
-	repo := fs.String("repo", "", "Repo name")
-	sha := fs.String("sha", "", "Git SHA")
-	requiredSecrets := fs.String("required-secrets", "", "Required secrets")
-	resolveLatestTag := fs.Bool("resolve-latest-tag", false, "Resolve latest")
+	owner := fs.String("owner", plan.Owner, "Repo owner")
+	repo := fs.String("repo", plan.Repo, "Repo name")
+	sha := fs.String("sha", plan.Sha, "Git SHA")
+	requiredSecrets := fs.String("required-secrets", plan.RequiredSecrets, "Required secrets")
+	resolveLatestTag := fs.Bool("resolve-latest-tag", plan.ResolveLatestTag, "Resolve latest")
 
 	// Workflow control flags (for precalculating job execution)
-	dryRun := fs.Bool("dry-run", false, "Dry run")
-	useNpm := fs.Bool("use-npm", true, "Enable npm")
-	useMaven := fs.Bool("use-maven", true, "Enable maven")
+	dryRun := fs.Bool("dry-run", plan.DryRun, "Dry run")
 	useDocker := fs.Bool("use-docker", true, "Enable docker")
-	useGo := fs.Bool("use-go", true, "Enable go")
 	useGoreleaser := fs.Bool("use-goreleaser", true, "Enable goreleaser")
+	useGoreleaserDocker := fs.Bool("use-goreleaser-docker", true, "Enable goreleaser docker")
+
 	parseFlagsOrExit(fs, args)
 
-	// Log all inputs RAW (before any processing)
+	// Override plan with CLI args
+	plan.Bump = strings.TrimSpace(*bump)
+	plan.TagNext = strings.TrimSpace(*nextTag)
+	plan.TagLatest = strings.TrimSpace(*latestTag)
+	plan.Mode = strings.TrimSpace(*mode)
+	plan.DockerImage = strings.TrimSpace(*image)
+	plan.Owner = strings.TrimSpace(*owner)
+	plan.Repo = strings.TrimSpace(*repo)
+	plan.Sha = strings.TrimSpace(*sha)
+	plan.RequiredSecrets = strings.TrimSpace(*requiredSecrets)
+	plan.ResolveLatestTag = *resolveLatestTag
+	plan.DryRun = *dryRun
+	plan.UseDocker = *useDocker
+	plan.UseGoreleaser = *useGoreleaser
+	plan.UseGoreleaserDocker = *useGoreleaserDocker
+
+	// Log inputs
 	logInputs(map[string]string{
-		"mode":             *mode,
-		"bump":             *bump,
-		"next-tag":         *nextTag,
-		"latest-tag":       *latestTag,
-		"image":            *image,
-		"owner":            *owner,
-		"repo":             *repo,
-		"sha":              *sha,
-		"required-secrets": *requiredSecrets,
-		"dry-run":          fmt.Sprintf("%v", *dryRun),
-		"use-npm":          fmt.Sprintf("%v", *useNpm),
-		"use-maven":        fmt.Sprintf("%v", *useMaven),
-		"use-docker":       fmt.Sprintf("%v", *useDocker),
-		"use-go":           fmt.Sprintf("%v", *useGo),
-		"use-goreleaser":   fmt.Sprintf("%v", *useGoreleaser),
+		"mode":                  plan.Mode,
+		"bump":                  plan.Bump,
+		"next-tag":              plan.TagNext,
+		"latest-tag":            plan.TagLatest,
+		"image":                 plan.DockerImage,
+		"owner":                 plan.Owner,
+		"repo":                  plan.Repo,
+		"sha":                   plan.Sha,
+		"required-secrets":      plan.RequiredSecrets,
+		"dry-run":               fmt.Sprintf("%v", plan.DryRun),
+		"use-docker":            fmt.Sprintf("%v", plan.UseDocker),
+		"use-goreleaser":        fmt.Sprintf("%v", plan.UseGoreleaser),
+		"use-goreleaser-docker": fmt.Sprintf("%v", plan.UseGoreleaserDocker),
 	})
 
-	// Trim all flag values once for cleaner code
-	modeVal := strings.TrimSpace(*mode)
-	imageVal := strings.TrimSpace(*image)
-	ownerVal := strings.TrimSpace(*owner)
-	repoVal := strings.TrimSpace(*repo)
-	shaVal := strings.TrimSpace(*sha)
-	nextTagVal := strings.TrimSpace(*nextTag)
-	latestTagVal := strings.TrimSpace(*latestTag)
-	secretsVal := strings.TrimSpace(*requiredSecrets)
+	return runPlanClean(&plan, nil, nil)
+}
+
+// runPlanClean writes a Plan to outputs (plan.json, GITHUB_OUTPUT, logs)
+// git and pr can be nil to use real implementations
+func runPlanClean(plan *Plan, git GitProvider, pr PRProvider) error {
+	githubOutput := os.Getenv(EnvGitHubOutput)
 
 	// Auto-enable resolve-latest-tag for rerelease mode
-	if modeVal == ModeRerelease && !*resolveLatestTag {
-		*resolveLatestTag = true
+	if plan.Mode == ModeRerelease && !plan.ResolveLatestTag {
+		plan.ResolveLatestTag = true
 	}
-
-	fmt.Println("::group::Detect")
 
 	// Detect project types
 	detectedProjects := detectProjectTypes()
 	_ = detectedProjects // Will be used to steer plan logic
 
-	// Check if custom .goreleaser.yml exists
-	hasCustomGoreleaserConfig := fileExists(FileGoReleaser) || fileExists(".goreleaser.yaml")
-	if hasCustomGoreleaserConfig {
-		fmt.Fprintln(os.Stderr, "  🚀 Using custom .goreleaser.yml config")
+	// Check if custom .goreleaser.yml exists and populate plan
+	if fileExists(FileGoReleaser) {
+		plan.GoreleaserConfig = FileGoReleaser
+	} else if fileExists(".goreleaser.yaml") {
+		plan.GoreleaserConfig = ".goreleaser.yaml"
 	}
 
-	// Check if GoReleaser will handle Docker builds
-	hasGoreleaserDocker := fileExists(FileGoreleaserContainerfile) || fileExists(FileGoreleaserDockerfile)
+	// Detect Docker files and populate plan
+	if fileExists(FileContainerfile) {
+		plan.GoreleaserDockerfile = FileContainerfile
+	} else if fileExists(FileDockerfile) {
+		plan.GoreleaserDockerfile = FileDockerfile
+	}
 
-	// Check if standalone Docker files exist (not handled by GoReleaser)
-	hasStandaloneDocker := fileExists(FileContainerfile) || fileExists(FileDockerfile)
+	// Check for build orchestrators (Makefile, justfile, Taskfile) and populate plan
+	plan.HasMakefile = fileExists("Makefile")
+	plan.HasJustfile = fileExists("justfile")
+	plan.HasTaskfile = fileExists("Taskfile.yml") || fileExists("Taskfile.yaml")
 
-	// Check if Go project (go.mod exists)
-	hasGo := fileExists(FileGo)
-
-	// Check if Maven project (pom.xml exists)
-	hasMaven := fileExists(FileMaven)
-
-	// Check if npm project (package.json exists)
-	hasNpm := fileExists(FileNode)
-
-	// Check for build orchestrators (Makefile, justfile, Taskfile)
-	hasMakefile := fileExists("Makefile")
-	hasJustfile := fileExists("justfile")
-	hasTaskfile := fileExists("Taskfile.yml") || fileExists("Taskfile.yaml")
-
-	// Determine build orchestrator preference
-	buildOrchestrator := ""
-	if hasMakefile {
-		buildOrchestrator = "make"
-	} else if hasJustfile {
-		buildOrchestrator = "just"
-	} else if hasTaskfile {
-		buildOrchestrator = "task"
+	// Determine build orchestrator preference and populate plan
+	if plan.HasMakefile {
+		plan.BuildOrchestrator = "make"
+	} else if plan.HasJustfile {
+		plan.BuildOrchestrator = "just"
+	} else if plan.HasTaskfile {
+		plan.BuildOrchestrator = "task"
 	} else {
-		buildOrchestrator = "convention"
+		plan.BuildOrchestrator = "convention"
 	}
 
 	// Parse Makefile if it exists to understand available targets
-	var makeTargets []string
-	if hasMakefile {
+	if plan.HasMakefile {
 		if graph, err := ParseMakefile("Makefile"); err == nil {
-			makeTargets = graph.GetTargets()
-			fmt.Fprintf(os.Stderr, "  📋 Detected %d Makefile targets\n", len(makeTargets))
+			_ = graph.GetTargets()
 		}
 	}
 
-	// Compute docker image if not provided or is default
-	dockerImage := imageVal
-	if dockerImage == "" || dockerImage == DefaultImage {
+	// Compute docker image if not provided or is default and populate plan
+	if plan.DockerImage == "" || plan.DockerImage == DefaultImage {
 		// Compute from owner/repo
-		ownerStr := ownerVal
-		repoStr := repoVal
+		ownerStr := plan.Owner
+		repoStr := plan.Repo
 
 		// Try to get from environment if not provided
 		if ownerStr == "" {
@@ -160,24 +191,21 @@ func runPlan(args []string) error {
 		}
 
 		if ownerStr != "" && repoStr != "" {
-			dockerImage = fmt.Sprintf("%s/%s", ownerStr, repoStr)
-		} else if dockerImage == "" {
-			dockerImage = DefaultImage
+			plan.DockerImage = fmt.Sprintf("%s/%s", ownerStr, repoStr)
+		} else if plan.DockerImage == "" {
+			plan.DockerImage = DefaultImage
 		}
 	}
 
-	fmt.Fprintf(os.Stderr, "  mode=%s\n", modeVal)
-	fmt.Println("::endgroup::")
-
 	// Set default required secrets based on mode if not provided
-	secrets := secretsVal
+	secrets := plan.RequiredSecrets
 	if secrets == "" {
-		switch modeVal {
+		switch plan.Mode {
 		case ModeGoreleaser:
 			secrets = EnvHomebrewTapToken
 		case ModeRerelease:
 			// Only require Docker secrets if Docker is actually present
-			if hasStandaloneDocker || hasGoreleaserDocker {
+			if plan.GoreleaserDockerfile != "" {
 				secrets = fmt.Sprintf("%s,%s,%s", EnvDockerHubUsername, EnvDockerHubToken, EnvHomebrewTapToken)
 			} else {
 				secrets = EnvHomebrewTapToken
@@ -187,7 +215,7 @@ func runPlan(args []string) error {
 			secrets = fmt.Sprintf("%s,%s", EnvDockerHubUsername, EnvDockerHubToken)
 		case ModeRelease:
 			// Only require Docker secrets if Docker is actually present
-			if hasStandaloneDocker || hasGoreleaserDocker {
+			if plan.GoreleaserDockerfile != "" {
 				secrets = fmt.Sprintf("%s,%s", EnvDockerHubUsername, EnvDockerHubToken)
 			}
 			// else: empty string, no secrets required
@@ -198,219 +226,200 @@ func runPlan(args []string) error {
 	}
 
 	eventName := os.Getenv(EnvGitHubEventName)
-	githubOutput := os.Getenv(EnvGitHubOutput)
 	token := os.Getenv(EnvGitHubToken)
 
-	git := &GitProviderReal{}
-	pr := &PRProviderReal{token: token}
+	// Use provided providers or default to real implementations
+	if git == nil {
+		git = &GitProviderReal{}
+	}
+	if pr == nil {
+		pr = &PRProviderReal{token: token}
+	}
 
-	var latest, next, publish string
+	var publish string
 	var err error
 
-	fmt.Println("::group::Version")
-
-	// Step 1: Compute or use provided version
-	if nextTagVal != "" {
+	// Step 1: Compute or use provided version and populate plan
+	if plan.TagNext != "" {
 		// Use provided version (docker mode when called from release workflow)
-		next = nextTagVal
-		latest = latestTagVal
-		if latest == "" {
+		if plan.TagLatest == "" {
 			// Try to get latest from git if not provided
-			latest, _ = git.GetLatestTag()
+			plan.TagLatest, _ = git.GetLatestTag()
 		}
 		publish = PublishTrue
-		fmt.Fprintf(os.Stderr, "📌 Using provided tag: %s\n", next)
-	} else if modeVal == ModeRerelease {
+	} else if plan.Mode == ModeRerelease {
 		// Rerelease resolves the tag itself — skip commit-based version computation
 		publish = PublishTrue
-		fmt.Fprintln(os.Stderr, "  Tag will be resolved from latest git tag")
 	} else {
-		// Compute version from git/commits
-		latest, next, publish, err = computeVersion(eventName, *bump, git, pr)
+		// Compute version from git/commits and populate plan
+		plan.TagLatest, plan.TagNext, publish, err = computeVersion(eventName, plan.Bump, git, pr)
 		if err != nil {
-			return err
-		}
-		if publish == PublishSkip {
-			fmt.Fprintln(os.Stderr, "  No release markers found — will skip")
-		} else {
-			fmt.Fprintf(os.Stderr, "  %s → %s\n", latest, next)
+			return outputPartialPlanOnError(githubOutput, plan, err)
 		}
 	}
 
-	fmt.Println("::endgroup::")
+	// Compute clean version (strip 'v' prefix) and populate plan
+	plan.VersionClean = strings.TrimPrefix(plan.TagNext, "v")
 
-	// Compute clean version (strip 'v' prefix)
-	versionClean := next
-	if strings.HasPrefix(versionClean, "v") {
-		versionClean = versionClean[1:]
-	}
-
-	// Check if tag already exists
-	tagExists := PublishFalse
-	if next != "" {
-		exists, err := git.TagExists(next)
+	// Check if tag already exists and populate plan
+	if plan.TagNext != "" {
+		exists, err := git.TagExists(plan.TagNext)
 		if err == nil && exists {
-			tagExists = PublishTrue
-			fmt.Fprintf(os.Stderr, "⚠️  Tag %s already exists\n", next)
+			plan.TagExists = true
 		}
 	}
 
 	// If we're skipping, stop early (but write plan.json first for downstream)
 	if publish == PublishSkip {
-		fmt.Println("Info: No release markers found. Skipping release.")
-
-		// Build minimal plan - same structure as full plan
-		plan := map[string]string{
-			"mode":            modeVal,
-			"latest_tag":      latest,
-			"next_tag":        latest,
-			"tag":             latest,
-			"tag_exists":      "false",
-			"publish_skip":    "true",
-			"summary_message": "Info: No release markers found. Skipping tag and publish.",
-		}
+		// Populate remaining plan fields for skip case
+		plan.TagRelease = plan.TagLatest
+		plan.ReleaseSkip = true
+		plan.DockerTagLatest = plan.Mode != ModeRerelease
+		plan.HasDocker = plan.GoreleaserDockerfile != ""
 
 		// Write plan.json for downstream jobs
 		planJSON, _ := json.MarshalIndent(plan, "", "  ")
-		if err := os.WriteFile("plan.json", planJSON, 0644); err == nil {
-			fmt.Fprintln(os.Stderr, "  📝 Wrote plan data to plan.json")
-		}
+		os.WriteFile("plan.json", planJSON, 0644)
 
-		// Output same plan to GITHUB_OUTPUT
-		for key, value := range plan {
+		// Output to GITHUB_OUTPUT
+		outputMap := plan.ToOutputMap()
+		for key, value := range outputMap {
 			writeOutput(githubOutput, key, value)
 		}
 
-		// Log outputs
-		logOutputs(plan)
+		// Log plan as sorted JSON
+		fmt.Fprintln(os.Stderr, "PLAN:")
+		fmt.Fprintln(os.Stderr, string(planJSON))
 		return nil
 	}
 
-	fmt.Println("::group::Policy")
-
 	// Step 2: Compute release policy
 	input := PolicyInput{
-		Mode:            modeVal,
+		Mode:            plan.Mode,
 		EventName:       eventName,
 		Publish:         publish,
-		LatestTag:       latest,
-		NextTag:         next,
-		Image:           imageVal,
-		SHA:             shaVal,
+		LatestTag:       plan.TagLatest,
+		NextTag:         plan.TagNext,
+		Image:           plan.DockerImage,
+		SHA:             plan.Sha,
 		RequiredSecrets: parseCSV(secrets),
-		ResolveLatest:   *resolveLatestTag,
-		DryRun:          *dryRun,
+		ResolveLatest:   plan.ResolveLatestTag,
+		DryRun:          plan.DryRun,
 	}
 
 	policy, err := computeReleasePolicy(input, &EnvProviderReal{}, git)
 	if err != nil {
-		return err
+		plan.TagRelease = plan.TagNext
+		plan.ReleaseSkip = true
+		plan.DockerTagLatest = plan.Mode != ModeRerelease
+		plan.HasDocker = plan.GoreleaserDockerfile != ""
+		return outputPartialPlanOnError(githubOutput, plan, err)
 	}
 
-	fmt.Println("::endgroup::")
-
-	// Precalculate "should run" decisions (testable logic in Go)
-	skip := policy.Skip == PublishTrue
-	shouldRunNpmBuild := !skip && hasNpm && *useNpm
-	shouldRunGoBuild := !skip && hasGo && *useGo
-	shouldRunMavenBuild := !skip && hasMaven && *useMaven
-	shouldRunDockerBuild := !skip && !hasGoreleaserDocker && hasStandaloneDocker && *useDocker
+	// Populate plan with policy results
+	plan.ReleaseSkip = policy.Skip == PublishTrue
+	plan.VersionMajorMinor = policy.VersionMajorMinor
+	plan.DockerFile = policy.Dockerfile
 
 	// Determine tag for plan data
-	tag := next
-	if tag == "" {
-		tag = policy.ReleaseTag
+	plan.TagRelease = plan.TagNext
+	if plan.TagRelease == "" {
+		plan.TagRelease = policy.ReleaseTag
 	}
 
-	// Handle Docker login for docker mode
-	pushDocker := ""
-	if modeVal == ModeDocker && policy.Skip != PublishTrue {
+	// Handle Docker login for docker workflows
+	hasDockerfile := policy.Dockerfile != "" || plan.GoreleaserDockerfile != ""
+	if plan.UseDocker && !plan.ReleaseSkip && hasDockerfile {
 		username := os.Getenv(EnvDockerHubUsername)
 		dockerToken := os.Getenv(EnvDockerHubToken)
 
 		if username != "" && dockerToken != "" {
 			if err := dockerLogin(username, dockerToken); err != nil {
-				return fmt.Errorf("docker login failed: %w", err)
+				plan.DockerTagLatest = plan.Mode != ModeRerelease
+				plan.HasDocker = policy.Dockerfile != ""
+				return outputPartialPlanOnError(githubOutput, plan, fmt.Errorf("docker login failed: %w", err))
 			}
-			pushDocker = PublishTrue
-		} else {
-			fmt.Fprintln(os.Stderr, "⚠️  Warning: Missing DockerHub credentials - will build locally without pushing")
-			pushDocker = PublishFalse
+			plan.ReleaseDocker = true
 		}
 	}
 
-	// Check for GoReleaser config in release/rerelease modes
-	if (modeVal == ModeRelease || modeVal == ModeRerelease) && policy.Skip != PublishTrue {
-		fmt.Println("::group::GoReleaser config")
-		hasCustomGoreleaserConfig = fileExists(FileGoReleaser) || fileExists(".goreleaser.yaml")
-		if hasCustomGoreleaserConfig {
-			fmt.Fprintln(os.Stderr, "  🚀 Using .goreleaser.yml config")
-		} else {
-			fmt.Fprintln(os.Stderr, "  ⚠️  No .goreleaser.yml found - goreleaser will use defaults or fail")
+	// Check for GoReleaser config in release/rerelease modes and populate plan
+	if (plan.Mode == ModeRelease || plan.Mode == ModeRerelease) && !plan.ReleaseSkip {
+		if fileExists(FileGoReleaser) {
+			plan.GoreleaserConfig = FileGoReleaser
+		} else if fileExists(".goreleaser.yaml") {
+			plan.GoreleaserConfig = ".goreleaser.yaml"
 		}
-		fmt.Println("::endgroup::")
 	}
 
-	// Build complete plan map - SINGLE SOURCE OF TRUTH for everything
-	plan := map[string]string{
-		"mode":                   modeVal,
-		"latest_tag":             latest,
-		"next_tag":               next,
-		"tag":                    tag,
-		"tag_exists":             tagExists,
-		"publish":                publish,
-		"publish_skip":           fmt.Sprintf("%v", skip),
-		"version":                policy.Version,
-		"version_clean":          versionClean,
-		"version_major_minor":    policy.VersionMajorMinor,
-		"release_tag":            policy.ReleaseTag,
-		"docker_image":           dockerImage,
-		"dockerfile":             policy.Dockerfile,
-		"build_orchestrator":     buildOrchestrator,
-		"has_makefile":           fmt.Sprintf("%v", hasMakefile),
-		"has_justfile":           fmt.Sprintf("%v", hasJustfile),
-		"has_taskfile":           fmt.Sprintf("%v", hasTaskfile),
-		"has_go":                 fmt.Sprintf("%v", hasGo),
-		"has_docker":             fmt.Sprintf("%v", hasStandaloneDocker),
-		"has_maven":              fmt.Sprintf("%v", hasMaven),
-		"has_npm":                fmt.Sprintf("%v", hasNpm),
-		"goreleaser_docker":      fmt.Sprintf("%v", hasGoreleaserDocker),
-		"goreleaser_yml_current": fmt.Sprintf("%v", hasCustomGoreleaserConfig),
-		"tag_latest":             fmt.Sprintf("%v", modeVal != ModeRerelease),
-		"should_build_npm":       fmt.Sprintf("%v", shouldRunNpmBuild),
-		"should_build_go":        fmt.Sprintf("%v", shouldRunGoBuild),
-		"should_build_maven":     fmt.Sprintf("%v", shouldRunMavenBuild),
-		"should_build_docker":    fmt.Sprintf("%v", shouldRunDockerBuild),
-		"summary_message":        policy.Message,
-	}
-	if pushDocker != "" {
-		plan["push"] = pushDocker
-	}
+	// Populate remaining plan fields
+	plan.DockerTagLatest = plan.Mode != ModeRerelease
+	plan.HasDocker = policy.Dockerfile != ""
 
 	// Write plan.json for downstream jobs
 	planJSON, err := json.MarshalIndent(plan, "", "  ")
 	if err == nil {
-		if err := os.WriteFile("plan.json", planJSON, 0644); err == nil {
-			fmt.Fprintln(os.Stderr, "  📝 Wrote plan data to plan.json")
-		} else {
-			fmt.Fprintf(os.Stderr, "  ⚠️  Warning: Failed to write plan.json: %v\n", err)
-		}
+		os.WriteFile("plan.json", planJSON, 0644)
 	}
 
 	// Write all outputs to GITHUB_OUTPUT file for GitHub Actions
-	for key, value := range plan {
+	outputMap := plan.ToOutputMap()
+	for key, value := range outputMap {
 		writeOutput(githubOutput, key, value)
 	}
 
-	// Print summary with visual diagram
-	printReleaseDiagram(modeVal, latest, tag, policy.Skip == PublishTrue, hasGoreleaserDocker, hasCustomGoreleaserConfig)
-
-	if policy.Message != "" {
-		fmt.Printf("\n%s\n", policy.Message)
+	// Log plan as sorted JSON
+	if planJSON != nil {
+		fmt.Fprintln(os.Stderr, "PLAN:")
+		fmt.Fprintln(os.Stderr, string(planJSON))
 	}
 
-	// Log outputs in human-readable format
-	logOutputs(plan)
-
 	return nil
+}
+
+// ToOutputMap converts Plan to string map for GITHUB_OUTPUT
+func (p *Plan) ToOutputMap() map[string]string {
+	// Marshal to JSON then unmarshal to map[string]interface{}, then convert to string map
+	jsonBytes, _ := json.Marshal(p)
+	var rawMap map[string]interface{}
+	json.Unmarshal(jsonBytes, &rawMap)
+
+	// Convert all values to strings
+	m := make(map[string]string, len(rawMap))
+	for k, v := range rawMap {
+		m[k] = fmt.Sprintf("%v", v)
+	}
+	return m
+}
+
+// outputPartialPlanOnError writes whatever plan state is available when an error occurs
+func outputPartialPlanOnError(githubOutput string, p *Plan, err error) error {
+	// Ensure ReleaseSkip is true on error
+	p.ReleaseSkip = true
+
+	// Write partial plan.json
+	if planJSON, jsonErr := json.MarshalIndent(p, "", "  "); jsonErr == nil {
+		os.WriteFile("plan.json", planJSON, 0644)
+
+		// Write outputs
+		outputMap := p.ToOutputMap()
+		for key, value := range outputMap {
+			writeOutput(githubOutput, key, value)
+		}
+
+		// Log plan as sorted JSON
+		fmt.Fprintln(os.Stderr, "PLAN:")
+		fmt.Fprintln(os.Stderr, string(planJSON))
+	}
+
+	return err
+}
+
+// writeBoolOutput writes a boolean value as PublishTrue or PublishFalse
+func writeBoolOutput(githubOutput, key string, value bool) {
+	if value {
+		writeOutput(githubOutput, key, PublishTrue)
+	} else {
+		writeOutput(githubOutput, key, PublishFalse)
+	}
 }

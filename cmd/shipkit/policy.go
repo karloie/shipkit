@@ -66,20 +66,12 @@ func runPolicy(args []string) error {
 	if policy.Skip != "" {
 		writeOutput(githubOutput, OutputSkip, policy.Skip)
 	}
-	if policy.Version != "" {
-		writeOutput(githubOutput, OutputVersion, policy.Version)
-	}
 	if policy.VersionMajorMinor != "" {
 		writeOutput(githubOutput, OutputVersionMajorMinor, policy.VersionMajorMinor)
 	}
 	if policy.Dockerfile != "" {
 		writeOutput(githubOutput, OutputDockerfile, policy.Dockerfile)
 	}
-	if policy.ReleaseTag != "" {
-		writeOutput(githubOutput, OutputReleaseTag, policy.ReleaseTag)
-	}
-	writeOutput(githubOutput, OutputSummaryMessage, policy.Message)
-
 	// Handle Docker login for docker mode
 	if input.Mode == ModeDocker && policy.Skip != PublishTrue {
 		username := os.Getenv(EnvDockerHubUsername)
@@ -97,19 +89,17 @@ func runPolicy(args []string) error {
 	}
 
 	if input.Mode == ModeGoreleaser {
-		hasCustomConfig := fileExists(FileGoReleaser) || fileExists(".goreleaser.yaml")
-		if hasCustomConfig {
-			writeOutput(githubOutput, OutputGoreleaserYmlCurrent, PublishTrue)
+		goreleaserYml := ""
+		if fileExists(FileGoReleaser) {
+			goreleaserYml = FileGoReleaser
 			fmt.Fprintln(os.Stderr, "🚀 Using .goreleaser.yml config")
+		} else if fileExists(".goreleaser.yaml") {
+			goreleaserYml = ".goreleaser.yaml"
+			fmt.Fprintln(os.Stderr, "🚀 Using .goreleaser.yaml config")
 		} else {
 			fmt.Fprintln(os.Stderr, "  ⚠️  No .goreleaser.yml found - goreleaser will use defaults or fail")
-			writeOutput(githubOutput, OutputGoreleaserYmlCurrent, PublishFalse)
 		}
-	}
-
-	// Print summary
-	if policy.Message != "" {
-		fmt.Println(policy.Message)
+		writeOutput(githubOutput, OutputGoreleaserYmlCurrent, goreleaserYml)
 	}
 
 	return nil

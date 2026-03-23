@@ -8,15 +8,8 @@ import (
 	"strings"
 )
 
-// PlanData contains the subset of plan.json fields needed by publish commands
-type PlanData struct {
-	Tag         string `json:"tag"`
-	Version     string `json:"version"`
-	DockerImage string `json:"docker_image"`
-}
-
-// loadPlanData loads plan.json if it exists, returns nil if not found
-func loadPlanData(path string) (*PlanData, error) {
+// loadPlan loads plan.json if it exists, returns nil if not found
+func loadPlan(path string) (*Plan, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -25,7 +18,7 @@ func loadPlanData(path string) (*PlanData, error) {
 		return nil, fmt.Errorf("failed to read plan file: %w", err)
 	}
 
-	var plan PlanData
+	var plan Plan
 	if err := json.Unmarshal(data, &plan); err != nil {
 		return nil, fmt.Errorf("failed to parse plan JSON: %w", err)
 	}
@@ -148,8 +141,8 @@ func runPublishDocker(args []string) error {
 		if *image == "" && plan.DockerImage != "" {
 			*image = plan.DockerImage
 		}
-		if *tag == "" && plan.Tag != "" {
-			*tag = plan.Tag
+		if *tag == "" && plan.TagRelease != "" {
+			*tag = plan.TagRelease
 		}
 	}
 

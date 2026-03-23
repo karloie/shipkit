@@ -117,7 +117,7 @@ func runDockerHubStatus(args []string) error {
 	fs := newFlagSet("docker-hub-status")
 	parseFlagsOrExit(fs, args)
 
-	hasGoreleaserDocker := fileExists(FileGoreleaserContainerfile) || fileExists(FileGoreleaserDockerfile)
+	hasGoreleaserDocker := fileExists(FileContainerfile) || fileExists(FileDockerfile)
 
 	githubOutput := os.Getenv(EnvGitHubOutput)
 

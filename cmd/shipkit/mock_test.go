@@ -71,7 +71,7 @@ func TestRunDockerHubStatusWithContainerfile(t *testing.T) {
 	defer os.Chdir(old)
 	os.Chdir(dir)
 
-	os.WriteFile("Containerfile.goreleaser", []byte("FROM scratch"), 0644)
+	os.WriteFile("Containerfile", []byte("FROM scratch"), 0644)
 	outFile := filepath.Join(dir, "github_output")
 	t.Setenv("GITHUB_OUTPUT", outFile)
 

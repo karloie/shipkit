@@ -195,7 +195,7 @@ The plan job generates `plan.json` containing computed values:
   "mode": "release",
   "version": "1.2.3",
   "tag": "v1.2.3",
-  "docker_image": "owner/project",
+  "dockerimage": "owner/project",
   "has_npm": true,
   "has_go": true,
   "build_orchestrator": "make",

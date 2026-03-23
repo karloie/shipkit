@@ -215,9 +215,9 @@ func TestPlanCommandWithWorkflowFlags(t *testing.T) {
 
 			// Check for expected outputs based on mode
 			if tt.name == "release mode with bump" {
-				// Should have publish output
-				if !strings.Contains(outputStr, "publish=") {
-					t.Errorf("missing publish output in release mode")
+				// Should have release_skip output
+				if !strings.Contains(outputStr, "release_skip=") {
+					t.Errorf("missing release_skip output in release mode")
 				}
 			}
 

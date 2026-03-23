@@ -28,7 +28,7 @@ var projectPatterns = []projectPattern{
 	{"🍃", "Spring", FileSpringProps + ",src/main/resources/" + FileSpringProps + "," + FileSpringYml + ",src/main/resources/" + FileSpringYml + "," + FileSpringYaml + ",src/main/resources/" + FileSpringYaml, false},
 	{"🐳", "Docker", FileContainerfile + "," + FileDockerfile, false},
 	{"🚀", "GoReleaser", FileGoReleaser + ",.goreleaser.yaml", false},
-	{"🚀🐳", "GoReleaser Docker", FileGoreleaserContainerfile + "," + FileGoreleaserDockerfile, false},
+	{"🚀🐳", "GoReleaser Docker", FileContainerfile + "," + FileDockerfile, false},
 }
 
 func detectProjectTypes() []projectPattern {
@@ -87,11 +87,11 @@ func getProjectPattern(name string) (projectPattern, bool) {
 
 func detectDockerFiles(fileType string) (bool, string) {
 	if fileType == "goreleaser" {
-		if fileExists(FileGoreleaserContainerfile) {
-			return true, FileGoreleaserContainerfile
+		if fileExists(FileContainerfile) {
+			return true, FileContainerfile
 		}
-		if fileExists(FileGoreleaserDockerfile) {
-			return true, FileGoreleaserDockerfile
+		if fileExists(FileDockerfile) {
+			return true, FileDockerfile
 		}
 		return false, ""
 	}

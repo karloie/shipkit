@@ -291,32 +291,18 @@ func TestPlanOutputsHasDockerForWorkflowCondition(t *testing.T) {
 			workflowShouldRunDoc: false,
 		},
 		{
-			name:                 "Dockerfile exists - run docker job",
+			name:                 "Dockerfile exists - goreleaser handles docker, standalone job skips",
 			createFiles:          []string{"Dockerfile"},
 			expectedHasDocker:    true,
-			expectedGorelDocker:  false,
-			workflowShouldRunDoc: true,
+			expectedGorelDocker:  true,
+			workflowShouldRunDoc: false, // Goreleaser handles it, so standalone job doesn't run
 		},
 		{
-			name:                 "Containerfile exists - run docker job",
+			name:                 "Containerfile exists - goreleaser handles docker, standalone job skips",
 			createFiles:          []string{"Containerfile"},
 			expectedHasDocker:    true,
-			expectedGorelDocker:  false,
-			workflowShouldRunDoc: true,
-		},
-		{
-			name:                 "only goreleaser docker files - skip standalone docker job",
-			createFiles:          []string{"Dockerfile.goreleaser"},
-			expectedHasDocker:    false,
 			expectedGorelDocker:  true,
-			workflowShouldRunDoc: false,
-		},
-		{
-			name:                 "both standalone and goreleaser - goreleaser handles it",
-			createFiles:          []string{"Dockerfile", "Containerfile.goreleaser"},
-			expectedHasDocker:    true,
-			expectedGorelDocker:  true,
-			workflowShouldRunDoc: false,
+			workflowShouldRunDoc: false, // Goreleaser handles it, so standalone job doesn't run
 		},
 	}
 
@@ -340,7 +326,7 @@ func TestPlanOutputsHasDockerForWorkflowCondition(t *testing.T) {
 
 			// Test the detection logic directly and write outputs
 			hasStandaloneDocker := fileExists(FileContainerfile) || fileExists(FileDockerfile)
-			hasGoreleaserDocker := fileExists(FileGoreleaserContainerfile) || fileExists(FileGoreleaserDockerfile)
+			hasGoreleaserDocker := fileExists(FileContainerfile) || fileExists(FileDockerfile)
 
 			// Verify detection matches expectations
 			if hasStandaloneDocker != tt.expectedHasDocker {

@@ -15,8 +15,8 @@ func parseFlagsOrExit(fs *flag.FlagSet, args []string) {
 }
 
 // loadPlanOrWarn loads plan.json and warns if it fails (non-fatal)
-func loadPlanOrWarn(path string) *PlanData {
-	plan, err := loadPlanData(path)
+func loadPlanOrWarn(path string) *Plan {
+	plan, err := loadPlan(path)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "⚠️  %v\n", err)
 		return nil

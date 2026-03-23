@@ -11,16 +11,15 @@ import (
 // is conditionally included based on the presence of actual Docker files.
 //
 // Key behaviors tested:
-// 1. Containerfile.goreleaser or Dockerfile.goreleaser triggers Docker section
-// 2. Regular Containerfile/Dockerfile does NOT trigger goreleaser Docker
-// 3. Docker section is completely omitted when no .goreleaser Docker files exist
-// 4. Preference order: Containerfile.goreleaser > Dockerfile.goreleaser
+// 1. Containerfile or Dockerfile triggers Docker section
+// 2. Docker section is completely omitted when no Docker files exist
+// 3. Preference order: Containerfile > Dockerfile
 //
 // This ensures goreleaser config only includes Docker publishing when
-// goreleaser-specific Docker files are present.
+// Docker files are present.
 
 // TestGoReleaserDockerGating verifies that Docker sections are only included
-// when actual Docker files exist (Containerfile.goreleaser or Dockerfile.goreleaser)
+// when actual Docker files exist (Containerfile or Dockerfile)
 func TestGoReleaserDockerGating(t *testing.T) {
 	tests := []struct {
 		name              string
@@ -38,61 +37,32 @@ func TestGoReleaserDockerGating(t *testing.T) {
 			expectNotInOutput: []string{"dockers:", "image_templates:", "dockerfile:"},
 		},
 		{
-			name: "Containerfile.goreleaser exists - docker section should be included",
+			name: "Containerfile exists - docker section should be included",
 			setupFiles: map[string]string{
-				"Containerfile.goreleaser": "FROM scratch\nCOPY shipkit /shipkit\n",
+				"Containerfile": "FROM scratch\nCOPY shipkit /shipkit\n",
 			},
 			expectDocker:     true,
-			expectDockerFile: "Containerfile.goreleaser",
-			expectInOutput:   []string{"dockers:", "image_templates:", "dockerfile: Containerfile.goreleaser"},
+			expectDockerFile: "Containerfile",
+			expectInOutput:   []string{"dockers:", "image_templates:", "dockerfile: Containerfile"},
 		},
 		{
-			name: "Dockerfile.goreleaser exists - docker section should be included",
+			name: "Dockerfile exists - docker section should be included",
 			setupFiles: map[string]string{
-				"Dockerfile.goreleaser": "FROM alpine\nRUN apk add --no-cache ca-certificates\n",
+				"Dockerfile": "FROM alpine\nRUN apk add --no-cache ca-certificates\n",
 			},
 			expectDocker:     true,
-			expectDockerFile: "Dockerfile.goreleaser",
-			expectInOutput:   []string{"dockers:", "image_templates:", "dockerfile: Dockerfile.goreleaser"},
+			expectDockerFile: "Dockerfile",
+			expectInOutput:   []string{"dockers:", "image_templates:", "dockerfile: Dockerfile"},
 		},
 		{
-			name: "only Containerfile (no .goreleaser) - should NOT trigger goreleaser docker",
+			name: "both Containerfile and Dockerfile - should prefer Containerfile",
 			setupFiles: map[string]string{
-				"Containerfile": "FROM scratch\n",
-			},
-			expectDocker:      false,
-			expectDockerFile:  "",
-			expectNotInOutput: []string{"dockers:", "image_templates:", "dockerfile:"},
-		},
-		{
-			name: "only Dockerfile (no .goreleaser) - should NOT trigger goreleaser docker",
-			setupFiles: map[string]string{
-				"Dockerfile": "FROM alpine\n",
-			},
-			expectDocker:      false,
-			expectDockerFile:  "",
-			expectNotInOutput: []string{"dockers:", "image_templates:", "dockerfile:"},
-		},
-		{
-			name: "both regular and .goreleaser files - should prefer .goreleaser Containerfile",
-			setupFiles: map[string]string{
-				"Containerfile":            "FROM scratch\n",
-				"Dockerfile":               "FROM alpine\n",
-				"Containerfile.goreleaser": "FROM scratch\nCOPY shipkit /shipkit\n",
+				"Containerfile": "FROM scratch\nCOPY shipkit /shipkit\n",
+				"Dockerfile":    "FROM alpine\n",
 			},
 			expectDocker:     true,
-			expectDockerFile: "Containerfile.goreleaser",
-			expectInOutput:   []string{"dockers:", "dockerfile: Containerfile.goreleaser"},
-		},
-		{
-			name: "both goreleaser variants - should prefer Containerfile.goreleaser",
-			setupFiles: map[string]string{
-				"Containerfile.goreleaser": "FROM scratch\nCOPY shipkit /shipkit\n",
-				"Dockerfile.goreleaser":    "FROM alpine\n",
-			},
-			expectDocker:     true,
-			expectDockerFile: "Containerfile.goreleaser",
-			expectInOutput:   []string{"dockers:", "dockerfile: Containerfile.goreleaser"},
+			expectDockerFile: "Containerfile",
+			expectInOutput:   []string{"dockers:", "dockerfile: Containerfile"},
 		},
 	}
 
@@ -178,31 +148,23 @@ func TestRunGoReleaserDockerDetection(t *testing.T) {
 		{
 			name:              "no docker files",
 			setupFiles:        map[string]string{"go.mod": "module test\n\ngo 1.22\n"},
-			expectNoDockerMsg: "No Containerfile.goreleaser or Dockerfile.goreleaser found - skipping Docker publishing",
+			expectNoDockerMsg: "No Containerfile or Dockerfile found - skipping Docker publishing",
 		},
 		{
-			name: "Containerfile.goreleaser present",
-			setupFiles: map[string]string{
-				"go.mod":                   "module test\n\ngo 1.22\n",
-				"Containerfile.goreleaser": "FROM scratch\n",
-			},
-			expectDockerMsg: "🐳 Detected Containerfile.goreleaser - will publish Docker image",
-		},
-		{
-			name: "Dockerfile.goreleaser present",
-			setupFiles: map[string]string{
-				"go.mod":                "module test\n\ngo 1.22\n",
-				"Dockerfile.goreleaser": "FROM alpine\n",
-			},
-			expectDockerMsg: "🐳 Detected Dockerfile.goreleaser - will publish Docker image",
-		},
-		{
-			name: "regular Containerfile should NOT trigger goreleaser docker",
+			name: "Containerfile present",
 			setupFiles: map[string]string{
 				"go.mod":        "module test\n\ngo 1.22\n",
 				"Containerfile": "FROM scratch\n",
 			},
-			expectNoDockerMsg: "No Containerfile.goreleaser or Dockerfile.goreleaser found - skipping Docker publishing",
+			expectDockerMsg: "🐳 Detected Containerfile - will publish Docker image",
+		},
+		{
+			name: "Dockerfile present",
+			setupFiles: map[string]string{
+				"go.mod":     "module test\n\ngo 1.22\n",
+				"Dockerfile": "FROM alpine\n",
+			},
+			expectDockerMsg: "🐳 Detected Dockerfile - will publish Docker image",
 		},
 	}
 

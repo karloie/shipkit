@@ -103,7 +103,7 @@ Secrets are auto-detected by mode, or specify with `-required-secrets`.
     HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
 ```
 
-**Outputs:** `latest_tag`, `next_tag`, `publish`, `dryrun`, `release_tag`, `version`, `version_major_minor`, `dockerfile`, `summary_message`, `goreleaser_config_current`, `goreleaser_config_auto`, `should_build_docker_goreleaser`
+**Outputs:** `tag_latest`, `tag_next`, `publish`, `dryrun`, `release_tag`, `version`, `version_major_minor`, `dockerfile`, `summary_message`, `goreleaser_config_current`, `goreleaser_config_auto`, `should_build_docker_goreleaser`
 
 **Using plan with a known tag (docker mode):**
 
@@ -114,7 +114,7 @@ When the version is already known (e.g., from a parent workflow), pass `-next-ta
   run: >-
     go run github.com/karloie/shipkit/cmd/shipkit@v0.1.0 plan
     -mode=docker
-    -next-tag=${{ needs.release.outputs.next_tag }}
+    -next-tag=${{ needs.release.outputs.tag_next }}
     -image=karloie/kompass
     -sha=${{ github.sha }}
   env:

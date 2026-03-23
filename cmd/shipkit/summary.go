@@ -16,8 +16,8 @@ type SummaryInputs struct {
 	Skip                    bool   `json:"skip"`
 	Tag                     string `json:"tag"`
 	TagExists               bool   `json:"tag_exists"`
-	Version                 string `json:"version"`
-	DockerImage             string `json:"docker_image"`
+	VersionClean            string `json:"version_clean"`
+	DockerImage             string `json:"dockerimage"`
 	HasGo                   bool   `json:"has_go"`
 	HasDocker               bool   `json:"has_docker"`
 	HasMaven                bool   `json:"has_maven"`
@@ -49,7 +49,7 @@ func GenerateSummary(inputs SummaryInputs) string {
 	sb.WriteString(fmt.Sprintf("| Skip | %v |\n", inputs.Skip))
 	sb.WriteString(fmt.Sprintf("| Tag | `%s` |\n", inputs.Tag))
 	sb.WriteString(fmt.Sprintf("| Tag Exists | %v |\n", inputs.TagExists))
-	sb.WriteString(fmt.Sprintf("| Version | `%s` |\n", inputs.Version))
+	sb.WriteString(fmt.Sprintf("| Version | `%s` |\n", inputs.VersionClean))
 	if inputs.DockerImage != "" {
 		sb.WriteString(fmt.Sprintf("| Docker Image | `%s` |\n", inputs.DockerImage))
 	}
@@ -246,7 +246,7 @@ func runSummary(args []string) error {
 			Skip:                    *skip,
 			Tag:                     strings.TrimSpace(*tag),
 			TagExists:               *tagExists,
-			Version:                 strings.TrimSpace(*version),
+			VersionClean:            strings.TrimSpace(*version),
 			DockerImage:             strings.TrimSpace(*dockerImage),
 			HasGo:                   *hasGo,
 			HasDocker:               *hasDocker,
