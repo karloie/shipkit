@@ -22,24 +22,25 @@ type Plan struct {
 	UseGoreleaserDocker bool   `json:"use_goreleaser_docker,omitempty"`
 
 	// Output fields (computed by runPlanClean)
-	BuildOrchestrator    string `json:"build_orchestrator"`
-	DockerFile           string `json:"docker_file"`
-	DockerImage          string `json:"docker_image"`
-	DockerTagLatest      bool   `json:"docker_tag_latest"`
-	GoreleaserConfig     string `json:"goreleaser_config"`
-	GoreleaserDockerfile string `json:"goreleaser_dockerfile,omitempty"`
-	HasDocker            bool   `json:"has_docker"`
-	HasJustfile          bool   `json:"has_justfile"`
-	HasMakefile          bool   `json:"has_makefile"`
-	HasTaskfile          bool   `json:"has_taskfile"`
-	ReleaseDocker        bool   `json:"release_docker,omitempty"`
-	ReleaseSkip          bool   `json:"release_skip"`
-	TagRelease           string `json:"tag_release"` // Effective tag for this release (NextTag || ReleaseTag)
-	TagExists            bool   `json:"tag_exists"`
-	TagLatest            string `json:"tag_latest"`
-	TagNext              string `json:"tag_next"`
-	VersionClean         string `json:"version_clean"`
-	VersionMajorMinor    string `json:"version_major_minor"`
+	BuildOrchestrator    string              `json:"build_orchestrator"`
+	BuildTargets         map[string][]string `json:"build_targets,omitempty"`         // Target name → dependencies (empty array if no deps)
+	DockerFile           string              `json:"docker_file"`
+	DockerImage          string            `json:"docker_image"`
+	DockerTagLatest      bool              `json:"docker_tag_latest"`
+	GoreleaserConfig     string            `json:"goreleaser_config"`
+	GoreleaserDockerfile string            `json:"goreleaser_dockerfile,omitempty"`
+	HasDocker            bool              `json:"has_docker"`
+	HasJustfile          bool              `json:"has_justfile"`
+	HasMakefile          bool              `json:"has_makefile"`
+	HasTaskfile          bool              `json:"has_taskfile"`
+	ReleaseDocker        bool              `json:"release_docker,omitempty"`
+	ReleaseSkip          bool              `json:"release_skip"`
+	TagRelease           string            `json:"tag_release"` // Effective tag for this release (NextTag || ReleaseTag)
+	TagExists            bool              `json:"tag_exists"`
+	TagLatest            string            `json:"tag_latest"`
+	TagNext              string            `json:"tag_next"`
+	VersionClean         string            `json:"version_clean"`
+	VersionMajorMinor    string            `json:"version_major_minor"`
 }
 
 func runPlan(args []string) error {
@@ -162,10 +163,64 @@ func runPlanClean(plan *Plan, git GitProvider, pr PRProvider) error {
 		plan.BuildOrchestrator = "convention"
 	}
 
-	// Parse Makefile if it exists to understand available targets
+	// Parse Makefile if it exists to extract ALL targets
 	if plan.HasMakefile {
 		if graph, err := ParseMakefile("Makefile"); err == nil {
-			_ = graph.GetTargets()
+			plan.BuildTargets = make(map[string][]string)
+			
+			// Extract ALL targets with their dependencies (empty array if none)
+			targets := graph.GetTargets()
+			for _, target := range targets {
+				if t, exists := graph.Targets[target]; exists {
+					if t.Dependencies == nil {
+						plan.BuildTargets[target] = []string{}
+					} else {
+						plan.BuildTargets[target] = t.Dependencies
+					}
+				}
+			}
+		}
+	}
+
+	// Parse justfile if it exists to extract ALL recipes
+	if plan.HasJustfile {
+		if graph, err := ParseJustfile("justfile"); err == nil {
+			plan.BuildTargets = make(map[string][]string)
+			
+			// Extract ALL recipes with their dependencies (empty array if none)
+			recipes := graph.GetRecipes()
+			for _, recipe := range recipes {
+				if r, exists := graph.Recipes[recipe]; exists {
+					if r.Dependencies == nil {
+						plan.BuildTargets[recipe] = []string{}
+					} else {
+						plan.BuildTargets[recipe] = r.Dependencies
+					}
+				}
+			}
+		}
+	}
+
+	// Parse Taskfile if it exists to extract ALL tasks
+	if plan.HasTaskfile {
+		taskfilePath := "Taskfile.yml"
+		if fileExists("Taskfile.yaml") {
+			taskfilePath = "Taskfile.yaml"
+		}
+		if graph, err := ParseTaskfile(taskfilePath); err == nil {
+			plan.BuildTargets = make(map[string][]string)
+			
+			// Extract ALL tasks with their dependencies (empty array if none)
+			tasks := graph.GetTasks()
+			for _, task := range tasks {
+				if t, exists := graph.Tasks[task]; exists {
+					if t.Dependencies == nil {
+						plan.BuildTargets[task] = []string{}
+					} else {
+						plan.BuildTargets[task] = t.Dependencies
+					}
+				}
+			}
 		}
 	}
 

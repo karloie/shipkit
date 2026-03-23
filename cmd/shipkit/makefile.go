@@ -45,9 +45,13 @@ func ParseMakefile(path string) (*MakeGraph, error) {
 			// Handle target lines like "target: dep1 dep2"
 			parts := strings.SplitN(line, ":", 2)
 
-			// Skip special targets (variables, conditionals)
+			// Skip special lines and directives
 			name := strings.TrimSpace(parts[0])
 			if strings.Contains(name, "=") || strings.Contains(name, "?") || strings.Contains(name, "%") {
+				continue
+			}
+			// Skip .PHONY declarations, makefilecommands starting with @, etc.
+			if strings.HasPrefix(name, ".") || strings.HasPrefix(name, "@") || strings.HasPrefix(name, "-") {
 				continue
 			}
 
@@ -60,6 +64,10 @@ func ParseMakefile(path string) (*MakeGraph, error) {
 			if len(parts) > 1 {
 				depsStr := strings.TrimSpace(parts[1])
 				// Remove inline commands (after ';')
+				// Remove inline comments (after '#')
+				if idx := strings.Index(depsStr, "#"); idx != -1 {
+					depsStr = strings.TrimSpace(depsStr[:idx])
+				}
 				if idx := strings.Index(depsStr, ";"); idx != -1 {
 					depsStr = strings.TrimSpace(depsStr[:idx])
 				}
