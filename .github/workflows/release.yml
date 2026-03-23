@@ -76,7 +76,7 @@ jobs:
 
       - uses: ./.github/actions/setup-shipkit
         with:
-          ref: ${{ inputs.tool_ref }}
+          tool_ref: ${{ inputs.tool_ref }}
 
       - name: Plan release
         id: plan
@@ -114,7 +114,7 @@ jobs:
 
       - uses: ./.github/actions/setup-shipkit
         with:
-          ref: ${{ inputs.tool_ref }}
+          tool_ref: ${{ inputs.tool_ref }}
 
       - name: Download plan data
         uses: actions/download-artifact@v4
@@ -156,7 +156,7 @@ jobs:
 
       - uses: ./.github/actions/setup-shipkit
         with:
-          ref: ${{ inputs.tool_ref }}
+          tool_ref: ${{ inputs.tool_ref }}
 
       - name: Configure Git
         run: shipkit git-config
@@ -175,7 +175,7 @@ jobs:
     steps:
       - uses: ./.github/actions/setup-shipkit
         with:
-          ref: ${{ inputs.tool_ref }}
+          tool_ref: ${{ inputs.tool_ref }}
 
       - name: Decide publish actions
         id: decide
@@ -201,7 +201,7 @@ jobs:
 
       - uses: ./.github/actions/setup-shipkit
         with:
-          ref: ${{ inputs.tool_ref }}
+          tool_ref: ${{ inputs.tool_ref }}
 
       - name: Download plan data
         uses: actions/download-artifact@v4
@@ -235,7 +235,7 @@ jobs:
 
       - uses: ./.github/actions/setup-shipkit
         with:
-          ref: ${{ inputs.tool_ref }}
+          tool_ref: ${{ inputs.tool_ref }}
 
       - name: Download plan data
         uses: actions/download-artifact@v4

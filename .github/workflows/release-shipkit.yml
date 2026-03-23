@@ -103,8 +103,8 @@ jobs:
           NEW_TAG="v${NEW_VERSION}"
           
           echo "New version: $NEW_TAG"
-          echo "tag=$NEW_TAG" >> $GITHUB_OUTPUT
-          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Create tag
         run: |
@@ -147,17 +147,18 @@ jobs:
     steps:
       - name: Generate summary
         run: |
-          echo "# 🚀 Shipkit Release" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| 🔨 Build | ${{ needs.build.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🏷️ Tag | ${{ needs.tag.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🚀 Publish | ${{ needs.publish.result }} |" >> $GITHUB_STEP_SUMMARY
-          
-          if [ "${{ needs.tag.outputs.tag }}" != "" ]; then
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Released:** ${{ needs.tag.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
-          fi
+          {
+            echo "# 🚀 Shipkit Release"
+            echo ""
+            echo "## Results"
+            echo ""
+            echo "| Job | Status |"
+            echo "|-----|--------|"
+            echo "| 🔨 Build | ${{ needs.build.result }} |"
+            echo "| 🏷️ Tag | ${{ needs.tag.result }} |"
+            echo "| 🚀 Publish | ${{ needs.publish.result }} |"
+            echo ""
+            if [ "${{ needs.tag.outputs.tag }}" != "" ]; then
+              echo "**Released:** ${{ needs.tag.outputs.tag }}"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

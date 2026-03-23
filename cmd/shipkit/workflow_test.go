@@ -249,12 +249,10 @@ func TestWorkflowInputDefaults(t *testing.T) {
 
 	workflow := string(content)
 
-	// Verify key inputs have defaults (not checking specific version values)
+	// Verify key inputs have defaults (release-shipkit.yml only has bump and dry_run)
 	requiredDefaults := map[string]bool{
-		"bump":     true, // should have default: patch
-		"tool_ref": true, // should have a default version
-		"mode":     true, // should have default: release
-		"dry_run":  true, // should have default: true
+		"bump":    true, // should have default: patch
+		"dry_run": true, // should have default: false
 	}
 
 	for input := range requiredDefaults {
@@ -320,35 +318,22 @@ func TestWorkflowFallbackLogic(t *testing.T) {
 
 	workflow := string(content)
 
-	// Verify critical fallbacks exist for push events
-	// Verify fallbacks exist (not checking specific version values)
-	requiredFallbacks := []string{
-		"tool_ref", // should have fallback in with: section
-		"mode",     // should have fallback || 'release'
+	// Verify critical patterns exist for release-shipkit.yml
+	// Check that push trigger is present (auto-release on main)
+	if !strings.Contains(workflow, "push:") {
+		t.Error("missing push trigger for auto-release on main")
+	}
+	if !strings.Contains(workflow, "branches:") || !strings.Contains(workflow, "- main") {
+		t.Error("push trigger should target main branch")
 	}
 
-	for _, param := range requiredFallbacks {
-		// Check that a fallback pattern exists: inputs.param ... || '...'
-		pattern := "inputs." + param
-		if !strings.Contains(workflow, pattern) {
-			t.Errorf("parameter %s not found in with: section", param)
-			continue
-		}
-		// Look for fallback operator ||
-		if !strings.Contains(workflow, pattern) || !strings.Contains(workflow, "||") {
-			t.Errorf("missing fallback for %s (expected || pattern)", param)
-		}
+	// Verify bump input has a fallback (for push events that don't have inputs)
+	if !strings.Contains(workflow, "inputs.bump || 'patch'") {
+		t.Error("missing fallback for bump input (expected: inputs.bump || 'patch')")
 	}
 
-	// Verify image is NOT passed as input (plan computes it internally)
-	if strings.Contains(workflow, "image: ${{ inputs.image") || strings.Contains(workflow, "image: ${{ format(") {
-		t.Error("image should not be passed to release.yml (plan computes it from git context)")
-	}
-
-	// Verify the uses: line has a static @ref (not using inputs context)
-	if strings.Contains(workflow, "uses:") && strings.Contains(workflow, "release.yml@${{") {
-		if strings.Contains(workflow, "release.yml@${{ inputs.") {
-			t.Error("uses: @ref must be static, cannot use inputs context")
-		}
+	// Verify dry_run condition uses github.event.inputs (safe for push events)
+	if strings.Contains(workflow, "if: inputs.dry_run") {
+		t.Error("should use github.event.inputs.dry_run, not inputs.dry_run (breaks on push events)")
 	}
 }

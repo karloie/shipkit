@@ -131,13 +131,13 @@ func statusBadge(result string) string {
 	result = strings.ToLower(strings.TrimSpace(result))
 	switch result {
 	case "success":
-		return "✅ Success"
+		return "✅ success"
 	case "failure":
-		return "❌ Failed"
+		return "❌ failure"
 	case "skipped":
-		return "⏭️ Skipped"
+		return "⏭️ skipped"
 	case "cancelled":
-		return "🚫 Cancelled"
+		return "🚫 cancelled"
 	default:
 		return fmt.Sprintf("⚠️ %s", result)
 	}
