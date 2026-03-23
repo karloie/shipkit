@@ -129,6 +129,19 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Validate secrets
+        run: |
+          MISSING=""
+          if [ -z "${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}" ]; then
+            MISSING="$MISSING HOMEBREW_TAP_GITHUB_TOKEN"
+          fi
+          if [ -n "$MISSING" ]; then
+            echo "❌ Missing required secrets:$MISSING"
+            echo "Configure these in Settings → Secrets → Actions"
+            exit 1
+          fi
+          echo "✅ All required secrets are configured"
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v5
         with:

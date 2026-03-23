@@ -1,5 +1,0 @@
-before:
-  hooks:
-    - go mod tidy{{if .HasNodeJS}}
-    - npm ci
-    - npm run build{{end}}
