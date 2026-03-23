@@ -255,9 +255,21 @@ func runPlan(args []string) error {
 		}
 	}
 
-	// If we're skipping, stop early
+	// If we're skipping, stop early (but write plan.json first for downstream)
 	if publish == PublishSkip {
 		fmt.Println("Info: No release markers found. Skipping release.")
+
+		// Write minimal plan data for downstream jobs
+		planData := map[string]interface{}{
+			"mode":       modeVal,
+			"skip":       true,
+			"tag":        latest,
+			"tag_exists": false,
+		}
+		planJSON, _ := json.MarshalIndent(planData, "", "  ")
+		if err := os.WriteFile("plan.json", planJSON, 0644); err == nil {
+			fmt.Fprintln(os.Stderr, "  📝 Wrote plan data to plan.json")
+		}
 
 		// Output skip results
 		logOutputs(map[string]string{
@@ -357,10 +369,10 @@ func runPlan(args []string) error {
 
 	planJSON, err := json.MarshalIndent(planData, "", "  ")
 	if err == nil {
-		if err := os.WriteFile("/tmp/plan.json", planJSON, 0644); err == nil {
-			fmt.Fprintln(os.Stderr, "  📝 Wrote plan data to /tmp/plan.json")
+		if err := os.WriteFile("plan.json", planJSON, 0644); err == nil {
+			fmt.Fprintln(os.Stderr, "  📝 Wrote plan data to plan.json")
 		} else {
-			fmt.Fprintf(os.Stderr, "  ⚠️  Warning: Failed to write /tmp/plan.json: %v\n", err)
+			fmt.Fprintf(os.Stderr, "  ⚠️  Warning: Failed to write plan.json: %v\n", err)
 		}
 	}
 

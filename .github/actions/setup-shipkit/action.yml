@@ -26,7 +26,7 @@ runs:
       run: |
         if [ -f justfile ]; then
           echo "📦 Found justfile, installing just..."
-          curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to ~/.local/bin
+          wget -qO- https://github.com/casey/just/releases/download/1.36.0/just-1.36.0-x86_64-unknown-linux-musl.tar.gz | tar xvz -C ~/.local/bin just
           echo "$HOME/.local/bin" >> $GITHUB_PATH
           just --version
         else
