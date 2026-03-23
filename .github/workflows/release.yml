@@ -1,4 +1,4 @@
-name: Reusable Release (Make-first)
+name: Reusable Release (Make/Just)
 
 on:
   workflow_call:
@@ -100,7 +100,7 @@ jobs:
           path: plan.json
           retention-days: 1
 
-  # Build: Run make ci-build (project Makefile controls what gets built)
+  # Build: Run ci-build (project Makefile or justfile controls what gets built)
   build:
     name: 🏗️ build
     runs-on: ubuntu-latest
@@ -124,10 +124,20 @@ jobs:
 
       - name: Generate (optional)
         run: |
-          if make -n ci-generate >/dev/null 2>&1; then
-            make ci-generate
+          if [ -f justfile ]; then
+            if just --list 2>/dev/null | grep -q ci-generate; then
+              just ci-generate
+            else
+              echo "⏭️  No ci-generate recipe found, skipping"
+            fi
+          elif [ -f Makefile ]; then
+            if make -n ci-generate >/dev/null 2>&1; then
+              make ci-generate
+            else
+              echo "⏭️  No ci-generate target found, skipping"
+            fi
           else
-            echo "⏭️  No ci-generate target found, skipping"
+            echo "⏭️  No build orchestrator found, skipping"
           fi
         env:
           # Pass all secrets so Makefile can use them
@@ -142,7 +152,15 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Build (required)
-        run: make ci-build
+        run: |
+          if [ -f justfile ]; then
+            just ci-build
+          elif [ -f Makefile ]; then
+            make ci-build
+          else
+            echo "❌ No build orchestrator found (Makefile or justfile)"
+            exit 1
+          fi
         env:
           # Pass all secrets so Makefile can use them
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -157,10 +175,20 @@ jobs:
 
       - name: Test (optional)
         run: |
-          if make -n ci-test >/dev/null 2>&1; then
-            make ci-test
+          if [ -f justfile ]; then
+            if just --list 2>/dev/null | grep -q ci-test; then
+              just ci-test
+            else
+              echo "⏭️  No ci-test recipe found, skipping"
+            fi
+          elif [ -f Makefile ]; then
+            if make -n ci-test >/dev/null 2>&1; then
+              make ci-test
+            else
+              echo "⏭️  No ci-test target found, skipping"
+            fi
           else
-            echo "⏭️  No ci-test target found, skipping"
+            echo "⏭️  No build orchestrator found, skipping"
           fi
         env:
           # Pass all secrets so Makefile can use them
@@ -176,10 +204,20 @@ jobs:
 
       - name: Integration Test (optional)
         run: |
-          if make -n ci-integration-test >/dev/null 2>&1; then
-            make ci-integration-test
+          if [ -f justfile ]; then
+            if just --list 2>/dev/null | grep -q ci-integration-test; then
+              just ci-integration-test
+            else
+              echo "⏭️  No ci-integration-test recipe found, skipping"
+            fi
+          elif [ -f Makefile ]; then
+            if make -n ci-integration-test >/dev/null 2>&1; then
+              make ci-integration-test
+            else
+              echo "⏭️  No ci-integration-test target found, skipping"
+            fi
           else
-            echo "⏭️  No ci-integration-test target found, skipping"
+            echo "⏭️  No build orchestrator found, skipping"
           fi
         env:
           # Pass all secrets so Makefile can use them
@@ -243,7 +281,7 @@ jobs:
             -result-build=${{ needs.build.result }} \
             -result-tag=${{ needs.tag.result }}
 
-  # Publish: Run make ci-publish (project Makefile controls what gets published)
+  # Publish: Run ci-publish via shipkit (project Makefile/justfile can override)
   publish:
     name: 🚀 publish
     runs-on: ubuntu-latest
@@ -312,9 +350,20 @@ jobs:
 
       - name: Run custom summary (if exists)
         run: |
-          if make -n ci-summary >/dev/null 2>&1; then
-            echo "Running make ci-summary..."
-            make ci-summary
+          if [ -f justfile ]; then
+            if just --list 2>/dev/null | grep -q ci-summary; then
+              echo "Running just ci-summary..."
+              just ci-summary
+            else
+              echo "No ci-summary recipe found, skipping"
+            fi
+          elif [ -f Makefile ]; then
+            if make -n ci-summary >/dev/null 2>&1; then
+              echo "Running make ci-summary..."
+              make ci-summary
+            else
+              echo "No ci-summary target found, skipping"
+            fi
           else
-            echo "No ci-summary target found, skipping"
+            echo "No build orchestrator found, skipping"
           fi
