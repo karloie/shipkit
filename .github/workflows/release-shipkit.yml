@@ -1,6 +1,9 @@
 name: Release Shipkit
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       bump:
@@ -46,7 +49,7 @@ jobs:
   tag:
     name: 🏷️ Tag
     needs: build
-    if: inputs.dry_run != true
+    if: github.event.inputs.dry_run != 'true'
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.version.outputs.tag }}
@@ -72,8 +75,9 @@ jobs:
           CURRENT_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
           echo "Current version: $CURRENT_VERSION"
           
-          # Compute next version based on bump
-          BUMP="${{ inputs.bump }}"
+          # Compute next version based on bump (default to patch on push to main)
+          BUMP="${{ inputs.bump || 'patch' }}"
+          echo "Version bump: $BUMP"
           VERSION_NO_V="${CURRENT_VERSION#v}"
           IFS='.' read -ra PARTS <<< "$VERSION_NO_V"
           MAJOR="${PARTS[0]}"
@@ -112,7 +116,7 @@ jobs:
   publish:
     name: 🚀 Publish
     needs: [build, tag]
-    if: inputs.dry_run != true
+    if: github.event.inputs.dry_run != 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
