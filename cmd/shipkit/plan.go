@@ -259,24 +259,30 @@ func runPlan(args []string) error {
 	if publish == PublishSkip {
 		fmt.Println("Info: No release markers found. Skipping release.")
 
-		// Write minimal plan data for downstream jobs
-		planData := map[string]interface{}{
-			"mode":       modeVal,
-			"skip":       true,
-			"tag":        latest,
-			"tag_exists": false,
+		// Build minimal plan - same structure as full plan
+		plan := map[string]string{
+			"mode":            modeVal,
+			"latest_tag":      latest,
+			"next_tag":        latest,
+			"tag":             latest,
+			"tag_exists":      "false",
+			"publish_skip":    "true",
+			"summary_message": "Info: No release markers found. Skipping tag and publish.",
 		}
-		planJSON, _ := json.MarshalIndent(planData, "", "  ")
+
+		// Write plan.json for downstream jobs
+		planJSON, _ := json.MarshalIndent(plan, "", "  ")
 		if err := os.WriteFile("plan.json", planJSON, 0644); err == nil {
 			fmt.Fprintln(os.Stderr, "  📝 Wrote plan data to plan.json")
 		}
 
-		// Output skip results
-		logOutputs(map[string]string{
-			"latest_tag":      latest,
-			"skip":            "true",
-			"summary_message": "Info: No release markers found. Skipping tag creation and publish.",
-		})
+		// Output same plan to GITHUB_OUTPUT
+		for key, value := range plan {
+			writeOutput(githubOutput, key, value)
+		}
+
+		// Log outputs
+		logOutputs(plan)
 		return nil
 	}
 
@@ -345,35 +351,55 @@ func runPlan(args []string) error {
 		fmt.Println("::endgroup::")
 	}
 
-	// Write plan data to JSON file for downstream jobs
-	planData := map[string]interface{}{
-		"mode":                      modeVal,
-		"tool_ref":                  "", // Will be set by workflow
-		"skip":                      skip,
-		"tag":                       tag,
-		"tag_exists":                tagExists == PublishTrue,
-		"version":                   versionClean,
-		"docker_image":              dockerImage,
-		"has_go":                    hasGo,
-		"has_docker":                hasStandaloneDocker,
-		"has_maven":                 hasMaven,
-		"has_npm":                   hasNpm,
-		"goreleaser_docker":         hasGoreleaserDocker,
-		"goreleaser_config_current": hasCustomGoreleaserConfig,
-		"build_orchestrator":        buildOrchestrator,
-		"has_makefile":              hasMakefile,
-		"has_justfile":              hasJustfile,
-		"has_taskfile":              hasTaskfile,
-		"make_targets":              makeTargets,
+	// Build complete plan map - SINGLE SOURCE OF TRUTH for everything
+	plan := map[string]string{
+		"mode":                   modeVal,
+		"latest_tag":             latest,
+		"next_tag":               next,
+		"tag":                    tag,
+		"tag_exists":             tagExists,
+		"publish":                publish,
+		"publish_skip":           fmt.Sprintf("%v", skip),
+		"version":                policy.Version,
+		"version_clean":          versionClean,
+		"version_major_minor":    policy.VersionMajorMinor,
+		"release_tag":            policy.ReleaseTag,
+		"docker_image":           dockerImage,
+		"dockerfile":             policy.Dockerfile,
+		"build_orchestrator":     buildOrchestrator,
+		"has_makefile":           fmt.Sprintf("%v", hasMakefile),
+		"has_justfile":           fmt.Sprintf("%v", hasJustfile),
+		"has_taskfile":           fmt.Sprintf("%v", hasTaskfile),
+		"has_go":                 fmt.Sprintf("%v", hasGo),
+		"has_docker":             fmt.Sprintf("%v", hasStandaloneDocker),
+		"has_maven":              fmt.Sprintf("%v", hasMaven),
+		"has_npm":                fmt.Sprintf("%v", hasNpm),
+		"goreleaser_docker":      fmt.Sprintf("%v", hasGoreleaserDocker),
+		"goreleaser_yml_current": fmt.Sprintf("%v", hasCustomGoreleaserConfig),
+		"tag_latest":             fmt.Sprintf("%v", modeVal != ModeRerelease),
+		"should_build_npm":       fmt.Sprintf("%v", shouldRunNpmBuild),
+		"should_build_go":        fmt.Sprintf("%v", shouldRunGoBuild),
+		"should_build_maven":     fmt.Sprintf("%v", shouldRunMavenBuild),
+		"should_build_docker":    fmt.Sprintf("%v", shouldRunDockerBuild),
+		"summary_message":        policy.Message,
+	}
+	if pushDocker != "" {
+		plan["push"] = pushDocker
 	}
 
-	planJSON, err := json.MarshalIndent(planData, "", "  ")
+	// Write plan.json for downstream jobs
+	planJSON, err := json.MarshalIndent(plan, "", "  ")
 	if err == nil {
 		if err := os.WriteFile("plan.json", planJSON, 0644); err == nil {
 			fmt.Fprintln(os.Stderr, "  📝 Wrote plan data to plan.json")
 		} else {
 			fmt.Fprintf(os.Stderr, "  ⚠️  Warning: Failed to write plan.json: %v\n", err)
 		}
+	}
+
+	// Write all outputs to GITHUB_OUTPUT file for GitHub Actions
+	for key, value := range plan {
+		writeOutput(githubOutput, key, value)
 	}
 
 	// Print summary with visual diagram
@@ -383,47 +409,8 @@ func runPlan(args []string) error {
 		fmt.Printf("\n%s\n", policy.Message)
 	}
 
-	// Build complete outputs map
-	allOutputs := map[string]string{
-		"latest_tag":             latest,
-		"next_tag":               next,
-		"tag_exists":             tagExists,
-		"publish":                publish,
-		"skip":                   policy.Skip,
-		"version":                policy.Version,
-		"version_major_minor":    policy.VersionMajorMinor,
-		"release_tag":            policy.ReleaseTag,
-		"docker_image":           dockerImage,
-		"version_clean":          versionClean,
-		"build_orchestrator":     buildOrchestrator,
-		"has_makefile":           fmt.Sprintf("%v", hasMakefile),
-		"has_justfile":           fmt.Sprintf("%v", hasJustfile),
-		"has_taskfile":           fmt.Sprintf("%v", hasTaskfile),
-		"dockerfile":             policy.Dockerfile,
-		"goreleaser_yml_current": fmt.Sprintf("%v", hasCustomGoreleaserConfig),
-		"goreleaser_docker":      fmt.Sprintf("%v", hasGoreleaserDocker),
-		"has_docker":             fmt.Sprintf("%v", hasStandaloneDocker),
-		"has_go":                 fmt.Sprintf("%v", hasGo),
-		"has_maven":              fmt.Sprintf("%v", hasMaven),
-		"has_npm":                fmt.Sprintf("%v", hasNpm),
-		"tag_latest":             fmt.Sprintf("%v", modeVal != ModeRerelease),
-		"should_build_npm":       fmt.Sprintf("%v", shouldRunNpmBuild),
-		"should_build_go":        fmt.Sprintf("%v", shouldRunGoBuild),
-		"should_build_maven":     fmt.Sprintf("%v", shouldRunMavenBuild),
-		"should_build_docker":    fmt.Sprintf("%v", shouldRunDockerBuild),
-		"summary_message":        policy.Message,
-	}
-	if pushDocker != "" {
-		allOutputs["push"] = pushDocker
-	}
-
-	// Write all outputs to GITHUB_OUTPUT file for GitHub Actions
-	for key, value := range allOutputs {
-		writeOutput(githubOutput, key, value)
-	}
-
 	// Log outputs in human-readable format
-	logOutputs(allOutputs)
+	logOutputs(plan)
 
 	return nil
 }
