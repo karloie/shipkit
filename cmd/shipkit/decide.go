@@ -89,8 +89,8 @@ func runDecide(args []string) error {
 	goBuild := fs.String("build-result-go", "skipped", "go-build job result")
 	mavenBuild := fs.String("build-result-maven", "skipped", "maven-build job result")
 	dockerBuild := fs.String("build-result-docker", "skipped", "docker-build job result")
-	tag := fs.String("tag-result", "skipped", "tag job result")
-	updateVersions := fs.String("update-versions-result", "skipped", "update-versions job result")
+	tag := fs.String("result-tag", "skipped", "tag job result")
+	updateVersions := fs.String("result-update-versions", "skipped", "update-versions job result")
 
 	if err := fs.Parse(args); err != nil {
 		return err

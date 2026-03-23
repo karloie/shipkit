@@ -25,17 +25,17 @@ type SummaryInputs struct {
 	GoreleaserConfigCurrent bool   `json:"goreleaser_config_current"`
 
 	// Job results
-	PlanResult           string `json:"plan_result"`
-	NpmBuildResult       string `json:"npm_build_result"`
-	GoBuildResult        string `json:"go_build_result"`
-	MavenBuildResult     string `json:"maven_build_result"`
-	DockerBuildResult    string `json:"docker_build_result"`
-	TagResult            string `json:"tag_result"`
-	UpdateVersionsResult string `json:"update_versions_result"`
-	NpmPublishResult     string `json:"npm_publish_result"`
-	MavenPublishResult   string `json:"maven_publish_result"`
-	DockerPublishResult  string `json:"docker_publish_result"`
-	GoPublishResult      string `json:"go_publish_result"`
+	ResultPlan           string `json:"result_plan"`
+	ResultBuildNpm       string `json:"result_build_npm"`
+	ResultBuildGo        string `json:"result_build_go"`
+	ResultBuildMaven     string `json:"result_build_maven"`
+	ResultBuildDocker    string `json:"result_build_docker"`
+	ResultTag            string `json:"result_tag"`
+	ResultUpdateVersions string `json:"result_update_versions"`
+	ResultPublishNpm     string `json:"result_publish_npm"`
+	ResultPublishMaven   string `json:"result_publish_maven"`
+	ResultPublishDocker  string `json:"result_publish_docker"`
+	ResultPublishGo      string `json:"result_publish_go"`
 }
 
 // GenerateSummary creates a markdown summary of the release
@@ -85,38 +85,38 @@ func GenerateSummary(inputs SummaryInputs) string {
 	sb.WriteString("|-----|--------|\n")
 
 	// Only show jobs that actually ran
-	if inputs.PlanResult != "" && inputs.PlanResult != "skipped" {
-		sb.WriteString(fmt.Sprintf("| 🚢 Plan | %s |\n", statusBadge(inputs.PlanResult)))
+	if inputs.ResultPlan != "" && inputs.ResultPlan != "skipped" {
+		sb.WriteString(fmt.Sprintf("| 🚢 Plan | %s |\n", statusBadge(inputs.ResultPlan)))
 	}
-	if jobRan(inputs.NpmBuildResult) {
-		sb.WriteString(fmt.Sprintf("| 🏗️ npm Build | %s |\n", statusBadge(inputs.NpmBuildResult)))
+	if jobRan(inputs.ResultBuildNpm) {
+		sb.WriteString(fmt.Sprintf("| 🏗️ npm Build | %s |\n", statusBadge(inputs.ResultBuildNpm)))
 	}
-	if jobRan(inputs.GoBuildResult) {
-		sb.WriteString(fmt.Sprintf("| 🏗️ Go Build | %s |\n", statusBadge(inputs.GoBuildResult)))
+	if jobRan(inputs.ResultBuildGo) {
+		sb.WriteString(fmt.Sprintf("| 🏗️ Go Build | %s |\n", statusBadge(inputs.ResultBuildGo)))
 	}
-	if jobRan(inputs.MavenBuildResult) {
-		sb.WriteString(fmt.Sprintf("| 🏗️ Maven Build | %s |\n", statusBadge(inputs.MavenBuildResult)))
+	if jobRan(inputs.ResultBuildMaven) {
+		sb.WriteString(fmt.Sprintf("| 🏗️ Maven Build | %s |\n", statusBadge(inputs.ResultBuildMaven)))
 	}
-	if jobRan(inputs.DockerBuildResult) {
-		sb.WriteString(fmt.Sprintf("| 🏗️ Docker Build | %s |\n", statusBadge(inputs.DockerBuildResult)))
+	if jobRan(inputs.ResultBuildDocker) {
+		sb.WriteString(fmt.Sprintf("| 🏗️ Docker Build | %s |\n", statusBadge(inputs.ResultBuildDocker)))
 	}
-	if jobRan(inputs.TagResult) {
-		sb.WriteString(fmt.Sprintf("| 🏷️ Tag | %s |\n", statusBadge(inputs.TagResult)))
+	if jobRan(inputs.ResultTag) {
+		sb.WriteString(fmt.Sprintf("| 🏷️ Tag | %s |\n", statusBadge(inputs.ResultTag)))
 	}
-	if jobRan(inputs.UpdateVersionsResult) {
-		sb.WriteString(fmt.Sprintf("| 📝 Update Versions | %s |\n", statusBadge(inputs.UpdateVersionsResult)))
+	if jobRan(inputs.ResultUpdateVersions) {
+		sb.WriteString(fmt.Sprintf("| 📝 Update Versions | %s |\n", statusBadge(inputs.ResultUpdateVersions)))
 	}
-	if jobRan(inputs.NpmPublishResult) {
-		sb.WriteString(fmt.Sprintf("| 🚀 npm Publish | %s |\n", statusBadge(inputs.NpmPublishResult)))
+	if jobRan(inputs.ResultPublishNpm) {
+		sb.WriteString(fmt.Sprintf("| 🚀 npm Publish | %s |\n", statusBadge(inputs.ResultPublishNpm)))
 	}
-	if jobRan(inputs.MavenPublishResult) {
-		sb.WriteString(fmt.Sprintf("| 🚀 Maven Publish | %s |\n", statusBadge(inputs.MavenPublishResult)))
+	if jobRan(inputs.ResultPublishMaven) {
+		sb.WriteString(fmt.Sprintf("| 🚀 Maven Publish | %s |\n", statusBadge(inputs.ResultPublishMaven)))
 	}
-	if jobRan(inputs.DockerPublishResult) {
-		sb.WriteString(fmt.Sprintf("| 🚀 Docker Publish | %s |\n", statusBadge(inputs.DockerPublishResult)))
+	if jobRan(inputs.ResultPublishDocker) {
+		sb.WriteString(fmt.Sprintf("| 🚀 Docker Publish | %s |\n", statusBadge(inputs.ResultPublishDocker)))
 	}
-	if jobRan(inputs.GoPublishResult) {
-		sb.WriteString(fmt.Sprintf("| 🚀 Go Publish | %s |\n", statusBadge(inputs.GoPublishResult)))
+	if jobRan(inputs.ResultPublishGo) {
+		sb.WriteString(fmt.Sprintf("| 🚀 Go Publish | %s |\n", statusBadge(inputs.ResultPublishGo)))
 	}
 	sb.WriteString("\n")
 
@@ -165,20 +165,20 @@ func determineOverallStatus(inputs SummaryInputs) string {
 	}
 
 	// Check if any publish job succeeded
-	anyPublished := inputs.GoPublishResult == "success" ||
-		inputs.DockerPublishResult == "success" ||
-		inputs.NpmPublishResult == "success" ||
-		inputs.MavenPublishResult == "success"
+	anyPublished := inputs.ResultPublishGo == "success" ||
+		inputs.ResultPublishDocker == "success" ||
+		inputs.ResultPublishNpm == "success" ||
+		inputs.ResultPublishMaven == "success"
 
 	if anyPublished {
 		return fmt.Sprintf("## ✅ Overall Status: **SUCCESS**\n\nRelease `%s` completed successfully!\n", inputs.Tag)
 	}
 
-	if inputs.PlanResult == "failure" {
+	if inputs.ResultPlan == "failure" {
 		return "## ❌ Overall Status: **FAILED**\n\nRelease failed during planning phase.\n"
 	}
 
-	if inputs.TagResult == "failure" {
+	if inputs.ResultTag == "failure" {
 		return "## ❌ Overall Status: **FAILED**\n\nRelease failed during tag creation.\n"
 	}
 
@@ -210,17 +210,17 @@ func runSummary(args []string) error {
 	goreleaserConfigCurrent := fs.Bool("goreleaser-config-current", false, "has custom goreleaser config")
 
 	// Job results
-	planResult := fs.String("plan-result", "", "plan job result")
-	npmBuildResult := fs.String("build-result-npm", "", "npm-build job result")
-	goBuildResult := fs.String("build-result-go", "", "go-build job result")
-	mavenBuildResult := fs.String("build-result-maven", "", "maven-build job result")
-	dockerBuildResult := fs.String("build-result-docker", "", "docker-build job result")
-	tagResult := fs.String("tag-result", "", "tag job result")
-	updateVersionsResult := fs.String("update-versions-result", "", "update-versions job result")
-	npmPublishResult := fs.String("publish-result-npm", "", "npm-publish job result")
-	mavenPublishResult := fs.String("publish-result-maven", "", "maven-publish job result")
-	dockerPublishResult := fs.String("publish-result-docker", "", "docker-publish job result")
-	goPublishResult := fs.String("publish-result-go", "", "go-publish job result")
+	resultPlan := fs.String("result-plan", "", "plan job result")
+	resultBuildNpm := fs.String("result-build-npm", "", "npm-build job result")
+	resultBuildGo := fs.String("result-build-go", "", "go-build job result")
+	resultBuildMaven := fs.String("result-build-maven", "", "maven-build job result")
+	resultBuildDocker := fs.String("result-build-docker", "", "docker-build job result")
+	resultTag := fs.String("result-tag", "", "tag job result")
+	resultUpdateVersions := fs.String("result-update-versions", "", "update-versions job result")
+	resultPublishNpm := fs.String("result-publish-npm", "", "npm-publish job result")
+	resultPublishMaven := fs.String("result-publish-maven", "", "maven-publish job result")
+	resultPublishDocker := fs.String("result-publish-docker", "", "docker-publish job result")
+	resultPublishGo := fs.String("result-publish-go", "", "go-publish job result")
 
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -259,17 +259,17 @@ func runSummary(args []string) error {
 			HasNpm:                  *hasNpm,
 			GoreleaserDocker:        *goreleaserDocker,
 			GoreleaserConfigCurrent: *goreleaserConfigCurrent,
-			PlanResult:              strings.TrimSpace(*planResult),
-			NpmBuildResult:          strings.TrimSpace(*npmBuildResult),
-			GoBuildResult:           strings.TrimSpace(*goBuildResult),
-			MavenBuildResult:        strings.TrimSpace(*mavenBuildResult),
-			DockerBuildResult:       strings.TrimSpace(*dockerBuildResult),
-			TagResult:               strings.TrimSpace(*tagResult),
-			UpdateVersionsResult:    strings.TrimSpace(*updateVersionsResult),
-			NpmPublishResult:        strings.TrimSpace(*npmPublishResult),
-			MavenPublishResult:      strings.TrimSpace(*mavenPublishResult),
-			DockerPublishResult:     strings.TrimSpace(*dockerPublishResult),
-			GoPublishResult:         strings.TrimSpace(*goPublishResult),
+			ResultPlan:              strings.TrimSpace(*resultPlan),
+			ResultBuildNpm:          strings.TrimSpace(*resultBuildNpm),
+			ResultBuildGo:           strings.TrimSpace(*resultBuildGo),
+			ResultBuildMaven:        strings.TrimSpace(*resultBuildMaven),
+			ResultBuildDocker:       strings.TrimSpace(*resultBuildDocker),
+			ResultTag:               strings.TrimSpace(*resultTag),
+			ResultUpdateVersions:    strings.TrimSpace(*resultUpdateVersions),
+			ResultPublishNpm:        strings.TrimSpace(*resultPublishNpm),
+			ResultPublishMaven:      strings.TrimSpace(*resultPublishMaven),
+			ResultPublishDocker:     strings.TrimSpace(*resultPublishDocker),
+			ResultPublishGo:         strings.TrimSpace(*resultPublishGo),
 		}
 	}
 
@@ -280,38 +280,38 @@ func runSummary(args []string) error {
 		if *toolRef != "" {
 			inputs.ToolRef = strings.TrimSpace(*toolRef)
 		}
-		if *planResult != "" {
-			inputs.PlanResult = strings.TrimSpace(*planResult)
+		if *resultPlan != "" {
+			inputs.ResultPlan = strings.TrimSpace(*resultPlan)
 		}
-		if *npmBuildResult != "" {
-			inputs.NpmBuildResult = strings.TrimSpace(*npmBuildResult)
+		if *resultBuildNpm != "" {
+			inputs.ResultBuildNpm = strings.TrimSpace(*resultBuildNpm)
 		}
-		if *goBuildResult != "" {
-			inputs.GoBuildResult = strings.TrimSpace(*goBuildResult)
+		if *resultBuildGo != "" {
+			inputs.ResultBuildGo = strings.TrimSpace(*resultBuildGo)
 		}
-		if *mavenBuildResult != "" {
-			inputs.MavenBuildResult = strings.TrimSpace(*mavenBuildResult)
+		if *resultBuildMaven != "" {
+			inputs.ResultBuildMaven = strings.TrimSpace(*resultBuildMaven)
 		}
-		if *dockerBuildResult != "" {
-			inputs.DockerBuildResult = strings.TrimSpace(*dockerBuildResult)
+		if *resultBuildDocker != "" {
+			inputs.ResultBuildDocker = strings.TrimSpace(*resultBuildDocker)
 		}
-		if *tagResult != "" {
-			inputs.TagResult = strings.TrimSpace(*tagResult)
+		if *resultTag != "" {
+			inputs.ResultTag = strings.TrimSpace(*resultTag)
 		}
-		if *updateVersionsResult != "" {
-			inputs.UpdateVersionsResult = strings.TrimSpace(*updateVersionsResult)
+		if *resultUpdateVersions != "" {
+			inputs.ResultUpdateVersions = strings.TrimSpace(*resultUpdateVersions)
 		}
-		if *npmPublishResult != "" {
-			inputs.NpmPublishResult = strings.TrimSpace(*npmPublishResult)
+		if *resultPublishNpm != "" {
+			inputs.ResultPublishNpm = strings.TrimSpace(*resultPublishNpm)
 		}
-		if *mavenPublishResult != "" {
-			inputs.MavenPublishResult = strings.TrimSpace(*mavenPublishResult)
+		if *resultPublishMaven != "" {
+			inputs.ResultPublishMaven = strings.TrimSpace(*resultPublishMaven)
 		}
-		if *dockerPublishResult != "" {
-			inputs.DockerPublishResult = strings.TrimSpace(*dockerPublishResult)
+		if *resultPublishDocker != "" {
+			inputs.ResultPublishDocker = strings.TrimSpace(*resultPublishDocker)
 		}
-		if *goPublishResult != "" {
-			inputs.GoPublishResult = strings.TrimSpace(*goPublishResult)
+		if *resultPublishGo != "" {
+			inputs.ResultPublishGo = strings.TrimSpace(*resultPublishGo)
 		}
 	}
 
