@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -322,6 +323,38 @@ func runPlan(args []string) error {
 	writeBoolOutput(githubOutput, "should_build_maven", shouldRunMavenBuild)
 	writeBoolOutput(githubOutput, "should_build_docker", shouldRunDockerBuild)
 
+	// Determine tag for plan data
+	tag := next
+	if tag == "" {
+		tag = policy.ReleaseTag
+	}
+
+	// Write plan data to JSON file for downstream jobs
+	planData := map[string]interface{}{
+		"mode":                      modeVal,
+		"tool_ref":                  "", // Will be set by workflow
+		"skip":                      skip,
+		"tag":                       tag,
+		"tag_exists":                tagExists == PublishTrue,
+		"version":                   versionClean,
+		"docker_image":              dockerImage,
+		"has_go":                    hasGo,
+		"has_docker":                hasStandaloneDocker,
+		"has_maven":                 hasMaven,
+		"has_npm":                   hasNpm,
+		"goreleaser_docker":         hasGoreleaserDocker,
+		"goreleaser_config_current": hasCustomGoreleaserConfig,
+	}
+
+	planJSON, err := json.MarshalIndent(planData, "", "  ")
+	if err == nil {
+		if err := os.WriteFile("/tmp/plan.json", planJSON, 0644); err == nil {
+			fmt.Fprintln(os.Stderr, "  📝 Wrote plan data to /tmp/plan.json")
+		} else {
+			fmt.Fprintf(os.Stderr, "  ⚠️  Warning: Failed to write /tmp/plan.json: %v\n", err)
+		}
+	}
+
 	fmt.Println("::endgroup::")
 
 	// Handle Docker login for docker mode
@@ -355,10 +388,6 @@ func runPlan(args []string) error {
 	}
 
 	// Print summary with visual diagram
-	tag := next
-	if tag == "" {
-		tag = policy.ReleaseTag
-	}
 	printReleaseDiagram(modeVal, latest, tag, policy.Skip == PublishTrue, hasGoreleaserDocker, hasCustomGoreleaserConfig)
 
 	if policy.Message != "" {

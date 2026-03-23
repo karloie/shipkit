@@ -85,10 +85,10 @@ func runDecide(args []string) error {
 	goreleaserDocker := fs.Bool("goreleaser-docker", false, "goreleaser handles docker from plan")
 
 	// Job results
-	npmBuild := fs.String("npm-build-result", "skipped", "npm-build job result")
-	goBuild := fs.String("go-build-result", "skipped", "go-build job result")
-	mavenBuild := fs.String("maven-build-result", "skipped", "maven-build job result")
-	dockerBuild := fs.String("docker-build-result", "skipped", "docker-build job result")
+	npmBuild := fs.String("build-result-npm", "skipped", "npm-build job result")
+	goBuild := fs.String("build-result-go", "skipped", "go-build job result")
+	mavenBuild := fs.String("build-result-maven", "skipped", "maven-build job result")
+	dockerBuild := fs.String("build-result-docker", "skipped", "docker-build job result")
 	tag := fs.String("tag-result", "skipped", "tag job result")
 	updateVersions := fs.String("update-versions-result", "skipped", "update-versions job result")
 
@@ -123,10 +123,10 @@ func runDecide(args []string) error {
 		"should-run-go-build":     fmt.Sprintf("%v", inputs.ShouldRunGoBuild),
 		"should-run-maven-build":  fmt.Sprintf("%v", inputs.ShouldRunMavenBuild),
 		"should-run-docker-build": fmt.Sprintf("%v", inputs.ShouldRunDockerBuild),
-		"npm-build-result":        inputs.NpmBuild,
-		"go-build-result":         inputs.GoBuild,
-		"maven-build-result":      inputs.MavenBuild,
-		"docker-build-result":     inputs.DockerBuild,
+		"build-result-npm":        inputs.NpmBuild,
+		"build-result-go":         inputs.GoBuild,
+		"build-result-maven":      inputs.MavenBuild,
+		"build-result-docker":     inputs.DockerBuild,
 		"tag-result":              inputs.Tag,
 		"update-versions-result":  inputs.UpdateVersions,
 	})

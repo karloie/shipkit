@@ -35,6 +35,8 @@ func main() {
 		err = runPlan(os.Args[2:])
 	case "decide":
 		err = runDecide(os.Args[2:])
+	case "summary":
+		err = runSummary(os.Args[2:])
 	case "assets-delete":
 		err = runAssetsDelete(os.Args[2:])
 	case "docker-hub-status":
