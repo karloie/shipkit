@@ -28,6 +28,7 @@ type PolicyInput struct {
 	SHA             string
 	RequiredSecrets []string
 	ResolveLatest   bool
+	DryRun          bool
 }
 
 func runPolicy(args []string) error {
@@ -147,8 +148,10 @@ func computeReleasePolicy(input PolicyInput, env EnvProvider, git GitProvider) (
 		return ReleasePolicy{}, fmt.Errorf("next-tag is required when publish=true")
 	}
 
-	if err := validateRequiredSecrets(input.RequiredSecrets, env); err != nil {
-		return ReleasePolicy{}, err
+	if !input.DryRun {
+		if err := validateRequiredSecrets(input.RequiredSecrets, env); err != nil {
+			return ReleasePolicy{}, err
+		}
 	}
 
 	version, err := parseTagVersion(resolvedTag)
@@ -209,8 +212,10 @@ func computeTagBasedPolicy(input PolicyInput, env EnvProvider, git GitProvider) 
 	}
 
 	if publishMode == PublishTrue {
-		if err := validateRequiredSecrets(input.RequiredSecrets, env); err != nil {
-			return ReleasePolicy{}, err
+		if !input.DryRun {
+			if err := validateRequiredSecrets(input.RequiredSecrets, env); err != nil {
+				return ReleasePolicy{}, err
+			}
 		}
 	}
 

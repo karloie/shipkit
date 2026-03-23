@@ -35,6 +35,10 @@ func loadPlanData(path string) (*PlanData, error) {
 
 // runPublishGoreleaser executes goreleaser to publish releases
 func runPublishGoreleaser(args []string) error {
+	// Log raw args BEFORE parsing
+	logInputs(map[string]string{
+		"raw_args": strings.Join(args, " "),
+	})
 	fs := newFlagSet("publish-goreleaser")
 	config := fs.String("config", ".goreleaser.yml", "GoReleaser config")
 	planFile := fs.String("plan-file", "plan.json", "Plan file path")
@@ -108,6 +112,10 @@ func runPublishGoreleaser(args []string) error {
 
 // runPublishDocker builds and publishes Docker images
 func runPublishDocker(args []string) error {
+	// Log raw args BEFORE parsing
+	logInputs(map[string]string{
+		"raw_args": strings.Join(args, " "),
+	})
 	fs := newFlagSet("publish-docker")
 	planFile := fs.String("plan-file", "plan.json", "Plan file path")
 	image := fs.String("image", "", "Image name")

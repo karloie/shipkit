@@ -17,6 +17,11 @@ func writeBoolOutput(githubOutput, key string, value bool) {
 }
 
 func runPlan(args []string) error {
+	// Log raw args BEFORE parsing (so we see them even if parsing fails)
+	logInputs(map[string]string{
+		"raw_args": strings.Join(args, " "),
+	})
+
 	fs := newFlagSet("plan")
 
 	// Version flags
@@ -42,6 +47,25 @@ func runPlan(args []string) error {
 	useGoreleaser := fs.Bool("use-goreleaser", true, "Enable goreleaser")
 	parseFlagsOrExit(fs, args)
 
+	// Log all inputs RAW (before any processing)
+	logInputs(map[string]string{
+		"mode":             *mode,
+		"bump":             *bump,
+		"next-tag":         *nextTag,
+		"latest-tag":       *latestTag,
+		"image":            *image,
+		"owner":            *owner,
+		"repo":             *repo,
+		"sha":              *sha,
+		"required-secrets": *requiredSecrets,
+		"dry-run":          fmt.Sprintf("%v", *dryRun),
+		"use-npm":          fmt.Sprintf("%v", *useNpm),
+		"use-maven":        fmt.Sprintf("%v", *useMaven),
+		"use-docker":       fmt.Sprintf("%v", *useDocker),
+		"use-go":           fmt.Sprintf("%v", *useGo),
+		"use-goreleaser":   fmt.Sprintf("%v", *useGoreleaser),
+	})
+
 	// Trim all flag values once for cleaner code
 	modeVal := strings.TrimSpace(*mode)
 	imageVal := strings.TrimSpace(*image)
@@ -51,25 +75,6 @@ func runPlan(args []string) error {
 	nextTagVal := strings.TrimSpace(*nextTag)
 	latestTagVal := strings.TrimSpace(*latestTag)
 	secretsVal := strings.TrimSpace(*requiredSecrets)
-
-	// Log all inputs
-	logInputs(map[string]string{
-		"mode":             modeVal,
-		"bump":             strings.TrimSpace(*bump),
-		"next-tag":         nextTagVal,
-		"latest-tag":       latestTagVal,
-		"image":            imageVal,
-		"owner":            ownerVal,
-		"repo":             repoVal,
-		"sha":              shaVal,
-		"required-secrets": secretsVal,
-		"dry-run":          fmt.Sprintf("%v", *dryRun),
-		"use-npm":          fmt.Sprintf("%v", *useNpm),
-		"use-maven":        fmt.Sprintf("%v", *useMaven),
-		"use-docker":       fmt.Sprintf("%v", *useDocker),
-		"use-go":           fmt.Sprintf("%v", *useGo),
-		"use-goreleaser":   fmt.Sprintf("%v", *useGoreleaser),
-	})
 
 	// Auto-enable resolve-latest-tag for rerelease mode
 	if modeVal == ModeRerelease && !*resolveLatestTag {
@@ -250,19 +255,16 @@ func runPlan(args []string) error {
 		}
 	}
 
-	// Write version outputs
-	writeOutput(githubOutput, OutputTagLatest, latest)
-	if next != "" {
-		writeOutput(githubOutput, OutputTagNext, next)
-	}
-	writeOutput(githubOutput, OutputTagExists, tagExists)
-	writeOutput(githubOutput, OutputPublish, publish)
-
-	// If we're skipping, output that and stop
+	// If we're skipping, stop early
 	if publish == PublishSkip {
-		writeOutput(githubOutput, OutputSkip, PublishTrue)
-		writeOutput(githubOutput, OutputSummaryMessage, "Info: No release markers found. Skipping tag creation and publish.")
 		fmt.Println("Info: No release markers found. Skipping release.")
+
+		// Output skip results
+		logOutputs(map[string]string{
+			"latest_tag":      latest,
+			"skip":            "true",
+			"summary_message": "Info: No release markers found. Skipping tag creation and publish.",
+		})
 		return nil
 	}
 
@@ -279,6 +281,7 @@ func runPlan(args []string) error {
 		SHA:             shaVal,
 		RequiredSecrets: parseCSV(secrets),
 		ResolveLatest:   *resolveLatestTag,
+		DryRun:          *dryRun,
 	}
 
 	policy, err := computeReleasePolicy(input, &EnvProviderReal{}, git)
@@ -286,58 +289,7 @@ func runPlan(args []string) error {
 		return err
 	}
 
-	// Write policy outputs
-	if policy.Skip != "" {
-		writeOutput(githubOutput, OutputSkip, policy.Skip)
-	}
-	if policy.Version != "" {
-		writeOutput(githubOutput, OutputVersion, policy.Version)
-	}
-	if policy.VersionMajorMinor != "" {
-		writeOutput(githubOutput, OutputVersionMajorMinor, policy.VersionMajorMinor)
-	}
-	if policy.Dockerfile != "" {
-		writeOutput(githubOutput, OutputDockerfile, policy.Dockerfile)
-	}
-	if policy.ReleaseTag != "" {
-		writeOutput(githubOutput, OutputReleaseTag, policy.ReleaseTag)
-	}
-	writeOutput(githubOutput, OutputSummaryMessage, policy.Message)
-
-	// Output custom goreleaser config status
-	writeBoolOutput(githubOutput, OutputGoreleaserYmlCurrent, hasCustomGoreleaserConfig)
-
-	// Output goreleaser docker status
-	writeBoolOutput(githubOutput, OutputGoreleaserDocker, hasGoreleaserDocker)
-
-	// Output standalone docker status
-	writeBoolOutput(githubOutput, OutputHasDocker, hasStandaloneDocker)
-
-	// Output go project status
-	writeBoolOutput(githubOutput, OutputHasGo, hasGo)
-
-	// Output maven project status
-	writeBoolOutput(githubOutput, OutputHasMaven, hasMaven)
-
-	// Output npm project status
-	writeBoolOutput(githubOutput, OutputHasNpm, hasNpm)
-
-	// Output build orchestrator information
-	writeOutput(githubOutput, "build_orchestrator", buildOrchestrator)
-	writeBoolOutput(githubOutput, "has_makefile", hasMakefile)
-	writeBoolOutput(githubOutput, "has_justfile", hasJustfile)
-	writeBoolOutput(githubOutput, "has_taskfile", hasTaskfile)
-
-	// Output tag_latest flag (true unless rerelease mode)
-	writeBoolOutput(githubOutput, OutputTagLatestFlag, modeVal != ModeRerelease)
-
-	// Output computed docker image
-	writeOutput(githubOutput, OutputDockerImage, dockerImage)
-
-	// Output computed clean version (without 'v' prefix)
-	if versionClean != "" {
-		writeOutput(githubOutput, OutputVersionClean, versionClean)
-	}
+	fmt.Println("::endgroup::")
 
 	// Precalculate "should run" decisions (testable logic in Go)
 	skip := policy.Skip == PublishTrue
@@ -346,16 +298,39 @@ func runPlan(args []string) error {
 	shouldRunMavenBuild := !skip && hasMaven && *useMaven
 	shouldRunDockerBuild := !skip && !hasGoreleaserDocker && hasStandaloneDocker && *useDocker
 
-	// Output should_run_* decisions
-	writeBoolOutput(githubOutput, "should_build_npm", shouldRunNpmBuild)
-	writeBoolOutput(githubOutput, "should_build_go", shouldRunGoBuild)
-	writeBoolOutput(githubOutput, "should_build_maven", shouldRunMavenBuild)
-	writeBoolOutput(githubOutput, "should_build_docker", shouldRunDockerBuild)
-
 	// Determine tag for plan data
 	tag := next
 	if tag == "" {
 		tag = policy.ReleaseTag
+	}
+
+	// Handle Docker login for docker mode
+	pushDocker := ""
+	if modeVal == ModeDocker && policy.Skip != PublishTrue {
+		username := os.Getenv(EnvDockerHubUsername)
+		dockerToken := os.Getenv(EnvDockerHubToken)
+
+		if username != "" && dockerToken != "" {
+			if err := dockerLogin(username, dockerToken); err != nil {
+				return fmt.Errorf("docker login failed: %w", err)
+			}
+			pushDocker = PublishTrue
+		} else {
+			fmt.Fprintln(os.Stderr, "⚠️  Warning: Missing DockerHub credentials - will build locally without pushing")
+			pushDocker = PublishFalse
+		}
+	}
+
+	// Check for GoReleaser config in release/rerelease modes
+	if (modeVal == ModeRelease || modeVal == ModeRerelease) && policy.Skip != PublishTrue {
+		fmt.Println("::group::GoReleaser config")
+		hasCustomGoreleaserConfig = fileExists(FileGoReleaser) || fileExists(".goreleaser.yaml")
+		if hasCustomGoreleaserConfig {
+			fmt.Fprintln(os.Stderr, "  🚀 Using .goreleaser.yml config")
+		} else {
+			fmt.Fprintln(os.Stderr, "  ⚠️  No .goreleaser.yml found - goreleaser will use defaults or fail")
+		}
+		fmt.Println("::endgroup::")
 	}
 
 	// Write plan data to JSON file for downstream jobs
@@ -389,38 +364,6 @@ func runPlan(args []string) error {
 		}
 	}
 
-	fmt.Println("::endgroup::")
-
-	// Handle Docker login for docker mode
-	if modeVal == ModeDocker && policy.Skip != PublishTrue {
-		username := os.Getenv(EnvDockerHubUsername)
-		dockerToken := os.Getenv(EnvDockerHubToken)
-
-		if username != "" && dockerToken != "" {
-			if err := dockerLogin(username, dockerToken); err != nil {
-				return fmt.Errorf("docker login failed: %w", err)
-			}
-			writeOutput(githubOutput, "push", PublishTrue)
-		} else {
-			fmt.Fprintln(os.Stderr, "⚠️  Warning: Missing DockerHub credentials - will build locally without pushing")
-			writeOutput(githubOutput, "push", PublishFalse)
-		}
-	}
-
-	// Check for GoReleaser config in release/rerelease modes
-	if (modeVal == ModeRelease || modeVal == ModeRerelease) && policy.Skip != PublishTrue {
-		fmt.Println("::group::GoReleaser config")
-		hasCustomConfig := fileExists(FileGoReleaser) || fileExists(".goreleaser.yaml")
-		if hasCustomConfig {
-			writeOutput(githubOutput, OutputGoreleaserYmlCurrent, PublishTrue)
-			fmt.Fprintln(os.Stderr, "  🚀 Using .goreleaser.yml config")
-		} else {
-			fmt.Fprintln(os.Stderr, "  ⚠️  No .goreleaser.yml found - goreleaser will use defaults or fail")
-			writeOutput(githubOutput, OutputGoreleaserYmlCurrent, PublishFalse)
-		}
-		fmt.Println("::endgroup::")
-	}
-
 	// Print summary with visual diagram
 	printReleaseDiagram(modeVal, latest, tag, policy.Skip == PublishTrue, hasGoreleaserDocker, hasCustomGoreleaserConfig)
 
@@ -428,22 +371,47 @@ func runPlan(args []string) error {
 		fmt.Printf("\n%s\n", policy.Message)
 	}
 
-	// Log all outputs
-	logOutputs(map[string]string{
-		"latest_tag":          latest,
-		"next_tag":            next,
-		"tag_exists":          tagExists,
-		"publish":             publish,
-		"skip":                policy.Skip,
-		"version":             policy.Version,
-		"version_major_minor": policy.VersionMajorMinor,
-		"release_tag":         policy.ReleaseTag,
-		"docker_image":        dockerImage,
-		"version_clean":       versionClean,
-		"build_orchestrator":  buildOrchestrator,
-		"dockerfile":          policy.Dockerfile,
-		"summary_message":     policy.Message,
-	})
+	// Build complete outputs map
+	allOutputs := map[string]string{
+		"latest_tag":             latest,
+		"next_tag":               next,
+		"tag_exists":             tagExists,
+		"publish":                publish,
+		"skip":                   policy.Skip,
+		"version":                policy.Version,
+		"version_major_minor":    policy.VersionMajorMinor,
+		"release_tag":            policy.ReleaseTag,
+		"docker_image":           dockerImage,
+		"version_clean":          versionClean,
+		"build_orchestrator":     buildOrchestrator,
+		"has_makefile":           fmt.Sprintf("%v", hasMakefile),
+		"has_justfile":           fmt.Sprintf("%v", hasJustfile),
+		"has_taskfile":           fmt.Sprintf("%v", hasTaskfile),
+		"dockerfile":             policy.Dockerfile,
+		"goreleaser_yml_current": fmt.Sprintf("%v", hasCustomGoreleaserConfig),
+		"goreleaser_docker":      fmt.Sprintf("%v", hasGoreleaserDocker),
+		"has_docker":             fmt.Sprintf("%v", hasStandaloneDocker),
+		"has_go":                 fmt.Sprintf("%v", hasGo),
+		"has_maven":              fmt.Sprintf("%v", hasMaven),
+		"has_npm":                fmt.Sprintf("%v", hasNpm),
+		"tag_latest":             fmt.Sprintf("%v", modeVal != ModeRerelease),
+		"should_build_npm":       fmt.Sprintf("%v", shouldRunNpmBuild),
+		"should_build_go":        fmt.Sprintf("%v", shouldRunGoBuild),
+		"should_build_maven":     fmt.Sprintf("%v", shouldRunMavenBuild),
+		"should_build_docker":    fmt.Sprintf("%v", shouldRunDockerBuild),
+		"summary_message":        policy.Message,
+	}
+	if pushDocker != "" {
+		allOutputs["push"] = pushDocker
+	}
+
+	// Write all outputs to GITHUB_OUTPUT file for GitHub Actions
+	for key, value := range allOutputs {
+		writeOutput(githubOutput, key, value)
+	}
+
+	// Log outputs in human-readable format
+	logOutputs(allOutputs)
 
 	return nil
 }

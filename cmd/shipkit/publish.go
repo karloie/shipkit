@@ -9,6 +9,10 @@ import (
 
 // runPublish executes the publish command using Make
 func runPublish(args []string) error {
+	// Log raw args BEFORE parsing
+	logInputs(map[string]string{
+		"raw_args": strings.Join(args, " "),
+	})
 	fs := newFlagSet("publish")
 
 	target := fs.String("target", "publish", "Make target")

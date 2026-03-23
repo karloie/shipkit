@@ -44,6 +44,11 @@ func jobOk(result string) bool {
 }
 
 func runDecide(args []string) error {
+	// Log raw args BEFORE parsing
+	logInputs(map[string]string{
+		"raw_args": strings.Join(args, " "),
+	})
+
 	fs := newFlagSet("decide")
 
 	mode := fs.String("mode", DefaultMode, "Release mode")

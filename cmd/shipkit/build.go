@@ -11,6 +11,11 @@ import (
 
 // runBuild executes the build command using Make
 func runBuild(args []string) error {
+	// Log raw args BEFORE parsing
+	logInputs(map[string]string{
+		"raw_args": strings.Join(args, " "),
+	})
+
 	fs := newFlagSet("build")
 
 	target := fs.String("target", "build", "Make target")

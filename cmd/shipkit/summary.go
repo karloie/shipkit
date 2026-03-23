@@ -174,6 +174,10 @@ func determineOverallStatus(inputs SummaryInputs) string {
 }
 
 func runSummary(args []string) error {
+	// Log raw args BEFORE parsing
+	logInputs(map[string]string{
+		"raw_args": strings.Join(args, " "),
+	})
 	fs := newFlagSet("summary")
 
 	// Makefile override support

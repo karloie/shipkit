@@ -74,9 +74,6 @@ func main() {
 }
 
 func writeOutput(outputFile, key, value string) {
-	// Log the output to stderr for visibility in GitHub Actions
-	fmt.Fprintf(os.Stderr, "  📤 %s=%s\n", key, value)
-
 	if outputFile == "" {
 		fmt.Printf("%s=%s\n", key, value)
 		return
