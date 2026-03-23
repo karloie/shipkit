@@ -115,7 +115,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       docker_image: ${{ steps.plan.outputs.docker_image }}
-      should_build_goreleaser_docker: ${{ steps.plan.outputs.should_build_goreleaser_docker }}
+      should_build_docker_goreleaser: ${{ steps.plan.outputs.should_build_docker_goreleaser }}
       goreleaser_config_current: ${{ steps.plan.outputs.goreleaser_config_current }}
       goreleaser_config_auto: ${{ steps.plan.outputs.goreleaser_config_auto }}
       has_docker: ${{ steps.plan.outputs.has_docker }}
@@ -248,10 +248,10 @@ jobs:
       needs.plan.outputs.tag_exists != 'true' &&
       inputs.mode == 'release' &&
       inputs.dry_run != true &&
-      (needs.npm-build.result == 'success' || needs.npm-build.result == 'skipped') &&
-      (needs.go-build.result == 'success' || needs.go-build.result == 'skipped') &&
-      (needs.maven-build.result == 'success' || needs.maven-build.result == 'skipped') &&
-      (needs.docker-build.result == 'success' || needs.docker-build.result == 'skipped')
+      (needs.build.result-npm == 'success' || needs.build.result-npm == 'skipped') &&
+      (needs.build.result-go == 'success' || needs.build.result-go == 'skipped') &&
+      (needs.build.result-maven == 'success' || needs.build.result-maven == 'skipped') &&
+      (needs.build.result-docker == 'success' || needs.build.result-docker == 'skipped')
     uses: ./.github/workflows/git-tag.yml
     with:
       mode: ${{ inputs.mode }}
@@ -266,10 +266,10 @@ jobs:
       needs.plan.outputs.skip != 'true' &&
       inputs.dry_run != true &&
       needs.tag.result == 'success' &&
-      (needs.npm-build.result == 'success' || needs.npm-build.result == 'skipped') &&
-      (needs.go-build.result == 'success' || needs.go-build.result == 'skipped') &&
-      (needs.maven-build.result == 'success' || needs.maven-build.result == 'skipped') &&
-      (needs.docker-build.result == 'success' || needs.docker-build.result == 'skipped')
+      (needs.build.result-npm == 'success' || needs.build.result-npm == 'skipped') &&
+      (needs.build.result-go == 'success' || needs.build.result-go == 'skipped') &&
+      (needs.build.result-maven == 'success' || needs.build.result-maven == 'skipped') &&
+      (needs.build.result-docker == 'success' || needs.build.result-docker == 'skipped')
     uses: ./.github/workflows/git-version-files.yml
     with:
       mode: ${{ inputs.mode }}
@@ -306,15 +306,15 @@ jobs:
             -mode=${{ inputs.mode }} \
             -dry-run=${{ inputs.dry_run }} \
             -use-goreleaser=${{ inputs.use_goreleaser }} \
-            -goreleaser-docker=${{ needs.plan.outputs.should_build_goreleaser_docker }} \
-            -should-run-npm-build=${{ needs.plan.outputs.should_build_npm }} \
-            -should-run-go-build=${{ needs.plan.outputs.should_build_go }} \
-            -should-run-maven-build=${{ needs.plan.outputs.should_build_maven }} \
-            -should-run-docker-build=${{ needs.plan.outputs.should_build_docker }} \
-            -build-result-npm=${{ needs.npm-build.result }} \
-            -build-result-go=${{ needs.go-build.result }} \
-            -build-result-maven=${{ needs.maven-build.result }} \
-            -build-result-docker=${{ needs.docker-build.result }} \
+            -should-build-docker-goreleaser=${{ needs.plan.outputs.should_build_docker_goreleaser }} \
+            -should-build-npm=${{ needs.plan.outputs.should_build_npm }} \
+            -should-build-go=${{ needs.plan.outputs.should_build_go }} \
+            -should-build-maven=${{ needs.plan.outputs.should_build_maven }} \
+            -should-build-docker=${{ needs.plan.outputs.should_build_docker }} \
+            -build-result-npm=${{ needs.build.result-npm }} \
+            -build-result-go=${{ needs.build.result-go }} \
+            -build-result-maven=${{ needs.build.result-maven }} \
+            -build-result-docker=${{ needs.build.result-docker }} \
             -tag-result=${{ needs.tag.result }} \
             -update-versions-result=${{ needs.update-versions.result }}
 
@@ -406,10 +406,10 @@ jobs:
             -tool-ref="${{ inputs.tool_ref }}" \
             -plan-result="${{ needs.plan.result }}" \
             -tag-result="${{ needs.tag.result }}" \
-            -build-result-npm="${{ needs.npm-build.result }}" \
-            -build-result-go="${{ needs.go-build.result }}" \
-            -build-result-maven="${{ needs.maven-build.result }}" \
-            -build-result-docker="${{ needs.docker-build.result }}" \
+            -build-result-npm="${{ needs.build.result-npm }}" \
+            -build-result-go="${{ needs.build.result-go }}" \
+            -build-result-maven="${{ needs.build.result-maven }}" \
+            -build-result-docker="${{ needs.build.result-docker }}" \
             -update-versions-result="${{ needs.update-versions.result }}" \
             -publish-result-npm="${{ needs.npm-publish.result }}" \
             -publish-result-maven="${{ needs.maven-publish.result }}" \

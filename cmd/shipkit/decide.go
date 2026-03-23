@@ -78,11 +78,11 @@ func runDecide(args []string) error {
 	useGoreleaser := fs.Bool("use-goreleaser", true, "use goreleaser")
 
 	// Plan outputs (what should run)
-	shouldRunNpmBuild := fs.Bool("should-run-npm-build", false, "should run npm-build from plan")
-	shouldRunGoBuild := fs.Bool("should-run-go-build", false, "should run go-build from plan")
-	shouldRunMavenBuild := fs.Bool("should-run-maven-build", false, "should run maven-build from plan")
-	shouldRunDockerBuild := fs.Bool("should-run-docker-build", false, "should run docker-build from plan")
-	goreleaserDocker := fs.Bool("goreleaser-docker", false, "goreleaser handles docker from plan")
+	shouldRunNpmBuild := fs.Bool("should-build-npm", false, "should run npm-build from plan")
+	shouldRunGoBuild := fs.Bool("should-build-go", false, "should run go-build from plan")
+	shouldRunMavenBuild := fs.Bool("should-build-maven", false, "should run maven-build from plan")
+	shouldRunDockerBuild := fs.Bool("should-build-docker", false, "should run docker-build from plan")
+	goreleaserDocker := fs.Bool("should-build-docker-goreleaser", false, "goreleaser handles docker from plan")
 
 	// Job results
 	npmBuild := fs.String("build-result-npm", "skipped", "npm-build job result")
@@ -115,20 +115,20 @@ func runDecide(args []string) error {
 
 	// Log inputs
 	logInputs(map[string]string{
-		"mode":                    inputs.Mode,
-		"dry-run":                 fmt.Sprintf("%v", inputs.DryRun),
-		"use-goreleaser":          fmt.Sprintf("%v", inputs.UseGoreleaser),
-		"goreleaser-docker":       fmt.Sprintf("%v", inputs.GoreleaserDocker),
-		"should-run-npm-build":    fmt.Sprintf("%v", inputs.ShouldRunNpmBuild),
-		"should-run-go-build":     fmt.Sprintf("%v", inputs.ShouldRunGoBuild),
-		"should-run-maven-build":  fmt.Sprintf("%v", inputs.ShouldRunMavenBuild),
-		"should-run-docker-build": fmt.Sprintf("%v", inputs.ShouldRunDockerBuild),
-		"build-result-npm":        inputs.NpmBuild,
-		"build-result-go":         inputs.GoBuild,
-		"build-result-maven":      inputs.MavenBuild,
-		"build-result-docker":     inputs.DockerBuild,
-		"tag-result":              inputs.Tag,
-		"update-versions-result":  inputs.UpdateVersions,
+		"mode":                           inputs.Mode,
+		"dry-run":                        fmt.Sprintf("%v", inputs.DryRun),
+		"use-goreleaser":                 fmt.Sprintf("%v", inputs.UseGoreleaser),
+		"should-build-docker-goreleaser": fmt.Sprintf("%v", inputs.GoreleaserDocker),
+		"should-build-npm":               fmt.Sprintf("%v", inputs.ShouldRunNpmBuild),
+		"should-build-go":                fmt.Sprintf("%v", inputs.ShouldRunGoBuild),
+		"should-build-maven":             fmt.Sprintf("%v", inputs.ShouldRunMavenBuild),
+		"should-build-docker":            fmt.Sprintf("%v", inputs.ShouldRunDockerBuild),
+		"build-result-npm":               inputs.NpmBuild,
+		"build-result-go":                inputs.GoBuild,
+		"build-result-maven":             inputs.MavenBuild,
+		"build-result-docker":            inputs.DockerBuild,
+		"tag-result":                     inputs.Tag,
+		"update-versions-result":         inputs.UpdateVersions,
 	})
 
 	fmt.Println("::group::Decide publish actions")

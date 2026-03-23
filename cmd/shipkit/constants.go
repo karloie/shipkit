@@ -85,7 +85,7 @@ const (
 	OutputSummaryMessage       = "summary_message"
 	OutputGoreleaserYmlCurrent = "goreleaser_config_current"
 	OutputGoreleaserYmlNew     = "goreleaser_config_auto"
-	OutputGoreleaserDocker     = "should_build_goreleaser_docker"
+	OutputGoreleaserDocker     = "should_build_docker_goreleaser"
 	OutputHasDocker            = "has_docker"
 	OutputHasGo                = "has_go"
 	OutputHasMaven             = "has_maven"

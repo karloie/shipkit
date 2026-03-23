@@ -206,7 +206,7 @@ func runSummary(args []string) error {
 	hasDocker := fs.Bool("has-docker", false, "has docker")
 	hasMaven := fs.Bool("has-maven", false, "has maven")
 	hasNpm := fs.Bool("has-npm", false, "has npm")
-	goreleaserDocker := fs.Bool("goreleaser-docker", false, "goreleaser handles docker")
+	goreleaserDocker := fs.Bool("should-build-docker-goreleaser", false, "goreleaser handles docker")
 	goreleaserConfigCurrent := fs.Bool("goreleaser-config-current", false, "has custom goreleaser config")
 
 	// Job results
