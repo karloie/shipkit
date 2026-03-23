@@ -16,6 +16,13 @@ func runPublish(args []string) error {
 	visualize := fs.Bool("visualize", true, "Generate Mermaid diagram")
 	parseFlagsOrExit(fs, args)
 
+	// Log inputs
+	logInputs(map[string]string{
+		"target":    *target,
+		"makefile":  *makefile,
+		"visualize": fmt.Sprintf("%v", *visualize),
+	})
+
 	// Determine which target to use (ci- prefix or regular)
 	actualTarget, err := selectPublishTarget(*makefile, *target)
 	if err != nil {
@@ -115,6 +122,13 @@ func runPublish(args []string) error {
 	}
 
 	fmt.Fprintf(os.Stderr, "✅ Publish completed successfully\n")
+
+	// Log outputs
+	logOutputs(map[string]string{
+		"status": "success",
+		"target": actualTarget,
+	})
+
 	return nil
 }
 

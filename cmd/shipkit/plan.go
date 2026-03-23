@@ -428,5 +428,22 @@ func runPlan(args []string) error {
 		fmt.Printf("\n%s\n", policy.Message)
 	}
 
+	// Log all outputs
+	logOutputs(map[string]string{
+		"latest_tag":          latest,
+		"next_tag":            next,
+		"tag_exists":          tagExists,
+		"publish":             publish,
+		"skip":                policy.Skip,
+		"version":             policy.Version,
+		"version_major_minor": policy.VersionMajorMinor,
+		"release_tag":         policy.ReleaseTag,
+		"docker_image":        dockerImage,
+		"version_clean":       versionClean,
+		"build_orchestrator":  buildOrchestrator,
+		"dockerfile":          policy.Dockerfile,
+		"summary_message":     policy.Message,
+	})
+
 	return nil
 }

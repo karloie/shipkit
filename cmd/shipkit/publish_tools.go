@@ -44,6 +44,16 @@ func runPublishGoreleaser(args []string) error {
 	clean := fs.Bool("clean", true, "Clean dist/")
 	parseFlagsOrExit(fs, args)
 
+	// Log inputs
+	logInputs(map[string]string{
+		"config":       *config,
+		"plan-file":    *planFile,
+		"snapshot":     fmt.Sprintf("%v", *snapshot),
+		"skip-publish": fmt.Sprintf("%v", *skipPublish),
+		"skip-docker":  fmt.Sprintf("%v", *skipDocker),
+		"clean":        fmt.Sprintf("%v", *clean),
+	})
+
 	_ = *planFile // Reserved for future use
 
 	// Check if goreleaser is installed
@@ -87,6 +97,12 @@ func runPublishGoreleaser(args []string) error {
 	}
 
 	fmt.Fprintf(os.Stderr, "✅ GoReleaser publish completed successfully\n")
+
+	// Log outputs
+	logOutputs(map[string]string{
+		"status": "success",
+	})
+
 	return nil
 }
 
@@ -104,6 +120,20 @@ func runPublishDocker(args []string) error {
 	updateReadme := fs.Bool("update-readme", true, "Update Docker Hub README")
 	readmePath := fs.String("readme", "README.md", "README path")
 	parseFlagsOrExit(fs, args)
+
+	// Log inputs
+	logInputs(map[string]string{
+		"plan-file":     *planFile,
+		"image":         *image,
+		"tag":           *tag,
+		"tag-latest":    fmt.Sprintf("%v", *tagLatest),
+		"platform":      *platform,
+		"dockerfile":    *dockerfile,
+		"context":       *context,
+		"push":          fmt.Sprintf("%v", *push),
+		"update-readme": fmt.Sprintf("%v", *updateReadme),
+		"readme":        *readmePath,
+	})
 
 	plan := loadPlanOrWarn(*planFile)
 	if plan != nil {
@@ -192,5 +222,14 @@ func runPublishDocker(args []string) error {
 	}
 
 	fmt.Fprintf(os.Stderr, "✅ Docker publish completed successfully\n")
+
+	// Log outputs
+	logOutputs(map[string]string{
+		"status": "success",
+		"image":  *image,
+		"tag":    *tag,
+		"pushed": fmt.Sprintf("%v", *push),
+	})
+
 	return nil
 }

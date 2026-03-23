@@ -80,5 +80,10 @@ func runDecide(args []string) error {
 
 	writeBoolOutput(githubOutput, "should_publish", outputs.ShouldPublish)
 
+	// Log outputs
+	logOutputs(map[string]string{
+		"should_publish": fmt.Sprintf("%v", outputs.ShouldPublish),
+	})
+
 	return nil
 }

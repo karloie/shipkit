@@ -95,22 +95,26 @@ func writeOutput(outputFile, key, value string) {
 	fmt.Fprintf(f, "%s=%s\n", key, value)
 }
 
-func logInput(key, value string) {
-	if value == "" {
-		return
-	}
-	fmt.Fprintf(os.Stderr, "  📥 %s=%s\n", key, value)
-}
-
 func logInputs(inputs map[string]string) {
 	if len(inputs) == 0 {
 		return
 	}
-	fmt.Fprintln(os.Stderr, "::group::Inputs")
+	fmt.Fprintln(os.Stderr, "INPUT:")
 	for key, value := range inputs {
-		logInput(key, value)
+		fmt.Fprintf(os.Stderr, " - %s=%s\n", key, value)
 	}
-	fmt.Fprintln(os.Stderr, "::endgroup::")
+	fmt.Fprintln(os.Stderr, "")
+}
+
+func logOutputs(outputs map[string]string) {
+	if len(outputs) == 0 {
+		return
+	}
+	fmt.Fprintln(os.Stderr, "OUTPUT:")
+	for key, value := range outputs {
+		fmt.Fprintf(os.Stderr, " - %s=%s\n", key, value)
+	}
+	fmt.Fprintln(os.Stderr, "")
 }
 
 func printVersion() {

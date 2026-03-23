@@ -81,15 +81,6 @@ jobs:
       - name: Plan release
         id: plan
         run: |
-          echo "=== Workflow Inputs ==="
-          echo "mode: ${{ inputs.mode }}"
-          echo "event_name: ${{ inputs.event_name }}"
-          echo "bump: ${{ inputs.bump }}"
-          echo "tool_ref: ${{ inputs.tool_ref }}"
-          echo "image: ${{ inputs.image }}"
-          echo "dry_run: ${{ inputs.dry_run }}"
-          echo "sha: ${{ github.sha }}"
-          echo ""
           shipkit plan \
             -mode=${{ inputs.mode }} \
             -bump=${{ inputs.bump }} \
