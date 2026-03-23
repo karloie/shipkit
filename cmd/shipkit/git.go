@@ -17,12 +17,9 @@ func configureGitUser(userName, userEmail string) error {
 
 func runGitConfig(args []string) error {
 	fs := newFlagSet("git-config")
-	userName := fs.String("user-name", "github-actions[bot]", "Git user name")
-	userEmail := fs.String("user-email", "github-actions[bot]@users.noreply.github.com", "Git user email")
-
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
+	userName := fs.String("user-name", "github-actions[bot]", "Git user")
+	userEmail := fs.String("user-email", "github-actions[bot]@users.noreply.github.com", "Git email")
+	parseFlagsOrExit(fs, args)
 
 	logInputs(map[string]string{
 		"user-name":  *userName,
@@ -39,11 +36,8 @@ func runGitConfig(args []string) error {
 
 func runGitTag(args []string) error {
 	fs := newFlagSet("git-tag")
-	tag := fs.String("tag", "", "Tag name (required)")
-
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
+	tag := fs.String("tag", "", "Tag name")
+	parseFlagsOrExit(fs, args)
 
 	if *tag == "" {
 		return fmt.Errorf("tag is required")
@@ -95,11 +89,8 @@ func createGitTag(tag string) error {
 
 func runGitTagCleanup(args []string) error {
 	fs := newFlagSet("git-tag-cleanup")
-	tag := fs.String("tag", "", "Tag name to delete (required)")
-
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
+	tag := fs.String("tag", "", "Tag to delete")
+	parseFlagsOrExit(fs, args)
 
 	if *tag == "" {
 		return fmt.Errorf("tag is required")
@@ -124,9 +115,7 @@ func runGitTagCleanup(args []string) error {
 
 func runDockerHubStatus(args []string) error {
 	fs := newFlagSet("docker-hub-status")
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
+	parseFlagsOrExit(fs, args)
 
 	hasGoreleaserDocker := fileExists(FileGoreleaserContainerfile) || fileExists(FileGoreleaserDockerfile)
 

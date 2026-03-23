@@ -33,6 +33,14 @@ func main() {
 	switch os.Args[1] {
 	case "plan":
 		err = runPlan(os.Args[2:])
+	case "build":
+		err = runBuild(os.Args[2:])
+	case "publish":
+		err = runPublish(os.Args[2:])
+	case "publish-goreleaser":
+		err = runPublishGoreleaser(os.Args[2:])
+	case "publish-docker":
+		err = runPublishDocker(os.Args[2:])
 	case "decide":
 		err = runDecide(os.Args[2:])
 	case "summary":
@@ -50,6 +58,7 @@ func main() {
 	case "git-tag-cleanup":
 		err = runGitTagCleanup(os.Args[2:])
 	case "goreleaser":
+		// Deprecated: use publish-goreleaser
 		err = runGoReleaser(os.Args[2:])
 	case "verify-version":
 		err = runVerifyVersion(os.Args[2:])
@@ -120,6 +129,12 @@ func printHelp() {
 	fmt.Fprintln(os.Stderr, "Subcommands:")
 	fmt.Fprintln(os.Stderr, "  version               Compute next release version")
 	fmt.Fprintln(os.Stderr, "  plan                  Plan release workflow")
+	fmt.Fprintln(os.Stderr, "  build                 Execute build using Make/just/task")
+	fmt.Fprintln(os.Stderr, "  decide                Validate build results and decide on publishing")
+	fmt.Fprintln(os.Stderr, "  publish               Execute publish using Make/just/task")
+	fmt.Fprintln(os.Stderr, "  publish-goreleaser    Publish release using GoReleaser")
+	fmt.Fprintln(os.Stderr, "  publish-docker        Build and publish Docker images")
+	fmt.Fprintln(os.Stderr, "  summary               Generate release summary")
 	fmt.Fprintln(os.Stderr, "  goreleaser            Generate GoReleaser config")
 	fmt.Fprintln(os.Stderr, "  docker-hub-readme     Update Docker Hub README")
 	fmt.Fprintln(os.Stderr, "  docker-hub-status     Check Docker Hub repository status")

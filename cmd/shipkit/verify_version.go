@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"encoding/xml"
-	"flag"
 	"fmt"
 	"os"
 	"os/exec"
@@ -12,15 +11,12 @@ import (
 )
 
 func runVerifyVersion(args []string) error {
-	fs := flag.NewFlagSet("verify-version", flag.ExitOnError)
-	fileType := fs.String("type", "", "File type: npm or maven")
-	version := fs.String("version", "", "Clean version (e.g. 1.2.3)")
-	tag := fs.String("tag", "", "Tag (e.g. v1.2.3) - 'v' prefix will be stripped if version not provided")
-	fix := fs.Bool("fix", false, "Fix version if it doesn't match")
-
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
+	fs := newFlagSet("verify-version")
+	fileType := fs.String("type", "", "File type")
+	version := fs.String("version", "", "Version")
+	tag := fs.String("tag", "", "Tag")
+	fix := fs.Bool("fix", false, "Fix version")
+	parseFlagsOrExit(fs, args)
 
 	if *fileType == "" {
 		return fmt.Errorf("-type is required (npm or maven)")

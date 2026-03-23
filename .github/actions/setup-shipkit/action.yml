@@ -1,0 +1,22 @@
+name: 'Setup Shipkit'
+description: 'Install shipkit CLI tool'
+inputs:
+  tool_ref:
+    description: 'Shipkit version/ref to install'
+    required: false
+    default: 'main'
+  go_version:
+    description: 'Go version to use'
+    required: false
+    default: '1.21'
+runs:
+  using: 'composite'
+  steps:
+    - uses: actions/setup-go@v5
+      with:
+        go-version: ${{ inputs.go_version }}
+        cache: false
+    
+    - name: Install shipkit
+      shell: bash
+      run: go install github.com/karloie/shipkit/cmd/shipkit@${{ inputs.tool_ref }}

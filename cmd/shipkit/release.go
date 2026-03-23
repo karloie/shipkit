@@ -11,13 +11,11 @@ import (
 
 func runAssetsDelete(args []string) error {
 	fs := newFlagSet("assets-delete")
-	owner := fs.String("owner", "", "GitHub repository owner (required)")
-	repo := fs.String("repo", "", "GitHub repository name (required)")
-	tag := fs.String("tag", "", "Release tag (required)")
-	token := fs.String("token", os.Getenv(EnvGitHubToken), "GitHub token (or set GITHUB_TOKEN env)")
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
+	owner := fs.String("owner", "", "Repo owner")
+	repo := fs.String("repo", "", "Repo name")
+	tag := fs.String("tag", "", "Release tag")
+	token := fs.String("token", os.Getenv(EnvGitHubToken), "GitHub token")
+	parseFlagsOrExit(fs, args)
 	if *owner == "" || *repo == "" || *tag == "" || *token == "" {
 		return fmt.Errorf("owner, repo, tag, and token are required")
 	}

@@ -26,20 +26,16 @@ type GoReleaserConfig struct {
 
 func runGoReleaser(args []string) error {
 	fs := newFlagSet("goreleaser")
-
-	projectName := fs.String("project", "", "Project name (required)")
-	binaryName := fs.String("binary", "", "Binary name (defaults to project name)")
-	mainPath := fs.String("main", "", "Main package path (defaults to ./cmd/{project})")
-	repoOwner := fs.String("owner", "", "Repository owner (required)")
-	repoName := fs.String("repo", "", "Repository name (defaults to project name)")
-	description := fs.String("description", "", "Project description (required)")
-	license := fs.String("license", DefaultLicense, "License type")
-	dockerImage := fs.String("docker-image", "", "Docker image name (e.g. owner/project, auto-detected if not provided)")
-	outputFile := fs.String("output", FileGoReleaser, "Output file path")
-
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
+	projectName := fs.String("project", "", "Project name")
+	binaryName := fs.String("binary", "", "Binary name")
+	mainPath := fs.String("main", "", "Main path")
+	repoOwner := fs.String("owner", "", "Repo owner")
+	repoName := fs.String("repo", "", "Repo name")
+	description := fs.String("description", "", "Description")
+	license := fs.String("license", DefaultLicense, "License")
+	dockerImage := fs.String("docker-image", "", "Docker image")
+	outputFile := fs.String("output", FileGoReleaser, "Output file")
+	parseFlagsOrExit(fs, args)
 
 	if *repoOwner == "" {
 		return fmt.Errorf("owner is required")
