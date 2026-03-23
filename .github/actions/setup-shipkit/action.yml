@@ -20,3 +20,15 @@ runs:
     - name: Install shipkit
       shell: bash
       run: go install github.com/karloie/shipkit/cmd/shipkit@${{ inputs.tool_ref }}
+    
+    - name: Install just (if justfile exists)
+      shell: bash
+      run: |
+        if [ -f justfile ]; then
+          echo "📦 Found justfile, installing just..."
+          curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to ~/.local/bin
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          just --version
+        else
+          echo "⏭️  No justfile found, skipping just installation"
+        fi
