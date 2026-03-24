@@ -75,6 +75,8 @@ func main() {
 		err = runGitHubRelease(os.Args[2:])
 	case "github-changelog":
 		err = runGitHubChangelog(os.Args[2:])
+	case "goreleaser":
+		err = runGoreleaserUtil(os.Args[2:])
 
 	default:
 		err = fmt.Errorf("unknown subcommand: %s", os.Args[1])
