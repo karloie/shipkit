@@ -104,7 +104,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: plan-data
-          path: plan.json
+          path: /tmp/shipkit/plan.json
           retention-days: 1
 
   # Generate: Run ci-generate (optional, code generation step)
@@ -127,7 +127,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: plan-data
-          path: .
+          path: /tmp/shipkit
 
       - name: Run ci-generate
         run: |
@@ -166,7 +166,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: plan-data
-          path: .
+          path: /tmp/shipkit
 
       - name: Run ci-build
         run: |
@@ -209,7 +209,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: plan-data
-          path: .
+          path: /tmp/shipkit
 
       - name: Run ci-test
         run: |
@@ -252,7 +252,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: plan-data
-          path: .
+          path: /tmp/shipkit
 
       - name: Run ci-integration-test
         run: |
@@ -348,7 +348,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: plan-data
-          path: .
+          path: /tmp/shipkit
 
       - name: Run release
         run: shipkit release
@@ -382,7 +382,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: plan-data
-          path: .
+          path: /tmp/shipkit
 
       - name: Generate release summary
         run: |
