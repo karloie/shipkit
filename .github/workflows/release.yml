@@ -1,4 +1,4 @@
-name: Reusable Release (Make/Just)
+name: Reusable * (Make/Just)
 
 on:
   workflow_call:
@@ -109,7 +109,7 @@ jobs:
 
   # Generate: Run ci-generate (optional, code generation step)
   generate:
-    name: 📦 generate
+    name: 📦 gen
     runs-on: ubuntu-latest
     needs: plan
     if: needs.plan.outputs.has_ci_generate == 'true'
@@ -231,7 +231,7 @@ jobs:
 
   # Integration Test: Run ci-integration-test (optional, heavier test suite)
   integration-test:
-    name: 🔬 integration-test
+    name: 🔬 int-test
     runs-on: ubuntu-latest
     needs: [plan, test]
     if: |
@@ -322,7 +322,7 @@ jobs:
 
   # Release: Run ci-release via shipkit (project Makefile/justfile controls release)
   release:
-    name: 🚀 release
+    name: 🚀 ship
     runs-on: ubuntu-latest
     needs: [plan, decide, tag]
     if: |
@@ -361,7 +361,7 @@ jobs:
 
   # Summary: Generate release summary
   summary:
-    name: 📊 summary
+    name: 📊 sum
     runs-on: ubuntu-latest
     if: always()
     needs: [plan, build, test, integration-test, decide, tag, release]
