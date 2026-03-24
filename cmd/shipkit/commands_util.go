@@ -713,24 +713,34 @@ func getRepoOwner() string {
 
 // runInstall installs build tools (goreleaser, node, etc.)
 func runInstall(args []string) error {
-	if len(args) == 0 {
-		return fmt.Errorf("usage: shipkit install <tool>\nAvailable tools: goreleaser")
+	fs := newFlagSet("install")
+	force := fs.Bool("force", false, "Force reinstall even if tool exists")
+
+	if err := fs.Parse(args); err != nil {
+		return err
 	}
 
-	tool := args[0]
+	if fs.NArg() == 0 {
+		return fmt.Errorf("usage: shipkit install [--force] <tool>\nAvailable tools: goreleaser")
+	}
+
+	tool := fs.Arg(0)
 
 	logInputs(map[string]string{
-		"tool": tool,
+		"tool":  tool,
+		"force": fmt.Sprintf("%t", *force),
 	})
 
 	// Check if tool is already installed
-	if path, err := exec.LookPath(tool); err == nil {
-		fmt.Printf("✓ %s already installed: %s\n", tool, path)
-		logOutputs(map[string]string{
-			"status": "already_installed",
-			"path":   path,
-		})
-		return nil
+	if !*force {
+		if path, err := exec.LookPath(tool); err == nil {
+			fmt.Printf("✓ %s already installed: %s\n", tool, path)
+			logOutputs(map[string]string{
+				"status": "already_installed",
+				"path":   path,
+			})
+			return nil
+		}
 	}
 
 	// Install based on tool
