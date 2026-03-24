@@ -39,7 +39,7 @@ func TestPlanOrchestrator(t *testing.T) {
 					t.Error("Makefile should exist but was not found")
 				}
 				// Read and parse plan.json to verify dependencies
-				planData, err := os.ReadFile("plan.json")
+				planData, err := os.ReadFile(getPlanPath())
 				if err != nil {
 					t.Fatalf("failed to read plan.json: %v", err)
 				}
@@ -931,7 +931,7 @@ func TestPlanBuildTargetsExtraction(t *testing.T) {
 				}
 
 				// Read and parse plan.json to check BuildTargets
-				planData, err := os.ReadFile("plan.json")
+				planData, err := os.ReadFile(getPlanPath())
 				if err != nil {
 					t.Fatalf("failed to read plan.json: %v", err)
 				}
@@ -982,7 +982,7 @@ func TestPlanBuildTargetsExtraction(t *testing.T) {
 			},
 			validateFunc: func(t *testing.T, outputs map[string]string) {
 				// Read and parse plan.json
-				planData, err := os.ReadFile("plan.json")
+				planData, err := os.ReadFile(getPlanPath())
 				if err != nil {
 					t.Fatalf("failed to read plan.json: %v", err)
 				}
@@ -1055,7 +1055,7 @@ ci-build: build ## CI build depends on build
 			},
 			validateFunc: func(t *testing.T, outputs map[string]string) {
 				// Read and parse plan.json
-				planData, err := os.ReadFile("plan.json")
+				planData, err := os.ReadFile(getPlanPath())
 				if err != nil {
 					t.Fatalf("failed to read plan.json: %v", err)
 				}
@@ -1125,7 +1125,7 @@ ci-build: build ## CI build depends on build
 				"has_justfile":       "true",
 			},
 			validateFunc: func(t *testing.T, outputs map[string]string) {
-				planData, err := os.ReadFile("plan.json")
+				planData, err := os.ReadFile(getPlanPath())
 				if err != nil {
 					t.Fatalf("failed to read plan.json: %v", err)
 				}
@@ -1171,7 +1171,7 @@ ci-build: build ## CI build depends on build
 			},
 			validateFunc: func(t *testing.T, outputs map[string]string) {
 				// Read and parse plan.json
-				planData, err := os.ReadFile("plan.json")
+				planData, err := os.ReadFile(getPlanPath())
 				if err != nil {
 					t.Fatalf("failed to read plan.json: %v", err)
 				}
@@ -1244,7 +1244,7 @@ ci-all: build test lint ## Run all CI checks (build, test, lint)
 			},
 			validateFunc: func(t *testing.T, outputs map[string]string) {
 				// Read and parse plan.json
-				planData, err := os.ReadFile("plan.json")
+				planData, err := os.ReadFile(getPlanPath())
 				if err != nil {
 					t.Fatalf("failed to read plan.json: %v", err)
 				}
@@ -1332,7 +1332,7 @@ ci-full-pipeline: compile-binary run-test-suite check-code-quality ## CI pipelin
 				"has_makefile":       "true",
 			},
 			validateFunc: func(t *testing.T, outputs map[string]string) {
-				planData, err := os.ReadFile("plan.json")
+				planData, err := os.ReadFile(getPlanPath())
 				if err != nil {
 					t.Fatalf("failed to read plan.json: %v", err)
 				}

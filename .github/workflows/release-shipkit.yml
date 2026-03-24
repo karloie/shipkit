@@ -76,7 +76,7 @@ jobs:
           mkdir -p ~/.local/bin
           go build -o /tmp/shipkit ./cmd/shipkit
           mv /tmp/shipkit ~/.local/bin/shipkit
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           shipkit --version || echo "Shipkit installed to ~/.local/bin"
 
       - name: Compute version
