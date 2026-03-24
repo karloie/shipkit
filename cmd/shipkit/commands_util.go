@@ -743,7 +743,7 @@ func runInstall(args []string) error {
 		if _, err := exec.LookPath("go"); err != nil {
 			return fmt.Errorf("go is not installed (required to install goreleaser)")
 		}
-		cmd = exec.Command("go", "install", "github.com/goreleaser/goreleaser@latest")
+		cmd = exec.Command("go", "install", "github.com/goreleaser/goreleaser/v2@latest")
 
 	default:
 		return fmt.Errorf("unknown tool: %s\nAvailable tools: goreleaser", tool)
