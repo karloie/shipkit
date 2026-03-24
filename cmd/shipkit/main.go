@@ -57,9 +57,6 @@ func main() {
 		err = runGitTag(os.Args[2:])
 	case "git-tag-cleanup":
 		err = runGitTagCleanup(os.Args[2:])
-	case "goreleaser":
-		// Deprecated: use publish-goreleaser
-		err = runGoReleaser(os.Args[2:])
 	case "verify-version":
 		err = runVerifyVersion(os.Args[2:])
 	case "version":
@@ -136,7 +133,6 @@ func printHelp() {
 	fmt.Fprintln(os.Stderr, "  publish-goreleaser    Publish release using GoReleaser")
 	fmt.Fprintln(os.Stderr, "  publish-docker        Build and publish Docker images")
 	fmt.Fprintln(os.Stderr, "  summary               Generate release summary")
-	fmt.Fprintln(os.Stderr, "  goreleaser            Generate GoReleaser config")
 	fmt.Fprintln(os.Stderr, "  docker-hub-readme     Update Docker Hub README")
 	fmt.Fprintln(os.Stderr, "  docker-hub-status     Check Docker Hub repository status")
 	fmt.Fprintln(os.Stderr, "  git-config            Configure git for release")

@@ -230,36 +230,18 @@ func runSummary(args []string) error {
 	makefile := fs.String("makefile", "Makefile", "Path to Makefile")
 	useMake := fs.Bool("use-make", true, "Check for ci-summary target in Makefile")
 
-	// File-based input (preferred)
-	planFile := fs.String("plan-file", "", "Path to plan.json file from plan job")
-	_ = makefile
-	_ = useMake
+	// Plan file input (required)
+	planFile := fs.String("plan-file", "", "Path to plan.json file from plan job (required)")
+	
+	// Optional overrides
+	toolRef := fs.String("tool-ref", "", "tool reference (optional, uses plan default if empty)")
 
-	// Direct JSON input (fallback)
-	jsonInput := fs.String("json", "", "JSON string with all summary inputs")
-
-	// Plan outputs (fallback individual flags)
-	mode := fs.String("mode", "", "release mode")
-	toolRef := fs.String("tool-ref", "", "tool reference")
-	skip := fs.Bool("skip", false, "release was skipped")
-	tag := fs.String("tag", "", "release tag")
-	tagExists := fs.Bool("tag-exists", false, "tag already exists")
-	version := fs.String("version", "", "version")
-	dockerImage := fs.String("docker-image", "", "docker image")
-	hasGo := fs.Bool("has-go", false, "has go project")
-	hasDocker := fs.Bool("has-docker", false, "has docker")
-	useDocker := fs.Bool("use-docker", true, "use docker")
-	useGoreleaser := fs.Bool("use-goreleaser", true, "use goreleaser")
-	useGoreleaserDocker := fs.Bool("use-goreleaser-docker", false, "use goreleaser docker")
-	goreleaserDocker := fs.Bool("goreleaser-docker", false, "goreleaser handles docker")
-	goreleaserConfigCurrent := fs.Bool("goreleaser-config-current", false, "has custom goreleaser config")
-	buildOrchestrator := fs.String("build-orchestrator", "", "build orchestrator (make, just, task)")
-
-	// Job results
+	// Job results (required)
 	resultPlan := fs.String("result-plan", "", "plan job result")
 	resultBuild := fs.String("result-build", "", "build job result")
 	resultTag := fs.String("result-tag", "", "tag job result")
 	resultPublish := fs.String("result-publish", "", "publish job result")
+	
 	parseFlagsOrExit(fs, args)
 
 	// Check for Makefile ci-summary target first
@@ -270,68 +252,32 @@ func runSummary(args []string) error {
 		}
 	}
 
+	// Require plan-file
+	if *planFile == "" {
+		return fmt.Errorf("plan-file is required")
+	}
+
+	// Load plan data
+	data, err := os.ReadFile(*planFile)
+	if err != nil {
+		return fmt.Errorf("failed to read plan file: %w", err)
+	}
+	
 	var inputs SummaryInputs
-
-	// Load plan data from file if provided
-	if *planFile != "" {
-		data, err := os.ReadFile(*planFile)
-		if err != nil {
-			return fmt.Errorf("failed to read plan file: %w", err)
-		}
-		if err := json.Unmarshal(data, &inputs); err != nil {
-			return fmt.Errorf("failed to parse plan JSON: %w", err)
-		}
-		// Job results will be set from flags below
-	} else if *jsonInput != "" {
-		// Fallback: direct JSON input
-		if err := json.Unmarshal([]byte(*jsonInput), &inputs); err != nil {
-			return fmt.Errorf("failed to parse JSON input: %w", err)
-		}
-	} else {
-		// Fallback: individual flags for plan outputs
-		inputs = SummaryInputs{
-			Mode:                    strings.TrimSpace(*mode),
-			ToolRef:                 strings.TrimSpace(*toolRef),
-			Skip:                    *skip,
-			Tag:                     strings.TrimSpace(*tag),
-			TagExists:               *tagExists,
-			VersionClean:            strings.TrimSpace(*version),
-			DockerImage:             strings.TrimSpace(*dockerImage),
-			HasGo:                   *hasGo,
-			HasDocker:               *hasDocker,
-			UseDocker:               *useDocker,
-			UseGoreleaser:           *useGoreleaser,
-			UseGoreleaserDocker:     *useGoreleaserDocker,
-			GoreleaserDocker:        *goreleaserDocker,
-			GoreleaserConfigCurrent: *goreleaserConfigCurrent,
-			BuildOrchestrator:       strings.TrimSpace(*buildOrchestrator),
-			ResultPlan:              strings.TrimSpace(*resultPlan),
-			ResultBuild:             strings.TrimSpace(*resultBuild),
-			ResultTag:               strings.TrimSpace(*resultTag),
-			ResultPublish:           strings.TrimSpace(*resultPublish),
-		}
+	if err := json.Unmarshal(data, &inputs); err != nil {
+		return fmt.Errorf("failed to parse plan JSON: %w", err)
 	}
 
-	// If plan file was loaded, override job results from flags
-	if *planFile != "" || *jsonInput != "" {
-		// Parse job result flags (only if plan file was used)
-		// Override tool_ref if provided (plan.json has empty string)
-		if *toolRef != "" {
-			inputs.ToolRef = strings.TrimSpace(*toolRef)
-		}
-		if *resultPlan != "" {
-			inputs.ResultPlan = strings.TrimSpace(*resultPlan)
-		}
-		if *resultBuild != "" {
-			inputs.ResultBuild = strings.TrimSpace(*resultBuild)
-		}
-		if *resultTag != "" {
-			inputs.ResultTag = strings.TrimSpace(*resultTag)
-		}
-		if *resultPublish != "" {
-			inputs.ResultPublish = strings.TrimSpace(*resultPublish)
-		}
+	// Override tool_ref if provided
+	if *toolRef != "" {
+		inputs.ToolRef = strings.TrimSpace(*toolRef)
 	}
+
+	// Set job results from flags
+	inputs.ResultPlan = strings.TrimSpace(*resultPlan)
+	inputs.ResultBuild = strings.TrimSpace(*resultBuild)
+	inputs.ResultTag = strings.TrimSpace(*resultTag)
+	inputs.ResultPublish = strings.TrimSpace(*resultPublish)
 
 	summary := GenerateSummary(inputs)
 

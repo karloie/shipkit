@@ -59,11 +59,11 @@ jobs:
     name: 📋 plan
     runs-on: ubuntu-latest
     outputs:
-      dockerimage: ${{ steps.plan.outputs.dockerimage }}
+      docker_image: ${{ steps.plan.outputs.docker_image }}
       tag_next: ${{ steps.plan.outputs.tag_next }}
-      release_tag: ${{ steps.plan.outputs.release_tag }}
-      publish_skip: ${{ steps.plan.outputs.publish_skip }}
-      tag: ${{ steps.plan.outputs.tag_next || steps.plan.outputs.release_tag }}
+      tag_release: ${{ steps.plan.outputs.tag_release }}
+      release_skip: ${{ steps.plan.outputs.release_skip }}
+      tag: ${{ steps.plan.outputs.tag_next || steps.plan.outputs.tag_release }}
       tag_exists: ${{ steps.plan.outputs.tag_exists }}
       tag_latest: ${{ steps.plan.outputs.tag_latest }}
       version_clean: ${{ steps.plan.outputs.version_clean }}
@@ -238,7 +238,7 @@ jobs:
     needs: [plan, build]
     if: |
       always() &&
-      needs.plan.outputs.publish_skip != 'true' &&
+      needs.plan.outputs.release_skip != 'true' &&
       needs.plan.outputs.tag_exists != 'true' &&
       inputs.mode == 'release' &&
       inputs.dry_run != true &&

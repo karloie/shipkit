@@ -42,11 +42,14 @@ func ParseJustfile(path string) (*JustGraph, error) {
 
 		// Check if this is a recipe line (not indented and contains ':')
 		if !strings.HasPrefix(line, "\t") && !strings.HasPrefix(line, " ") && strings.Contains(line, ":") {
-			// Handle recipe lines like "recipe: dep1 dep2"
+			// Handle recipe lines like "recipe: dep1 dep2" or "@recipe: dep1 dep2"
 			parts := strings.SplitN(line, ":", 2)
 
 			// Skip variable assignments
 			name := strings.TrimSpace(parts[0])
+			// Strip @ prefix (just suppresses echo in just)
+			name = strings.TrimPrefix(name, "@")
+			name = strings.TrimSpace(name)
 			if strings.Contains(name, "=") || strings.Contains(name, ":=") {
 				continue
 			}

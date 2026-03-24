@@ -341,3 +341,33 @@ func verifyRequiredOutputs(t *testing.T, outputs map[string]string) {
 		}
 	}
 }
+
+// TestToOutputMap_Outputs verifies plan outputs are correctly marshaled
+func TestToOutputMap_Outputs(t *testing.T) {
+	plan := &Plan{
+		TagRelease:  "v1.2.3",
+		DockerImage: "karloie/bastille",
+		ReleaseSkip: true,
+	}
+
+	outputs := plan.ToOutputMap()
+
+	// Verify outputs match JSON field names
+	tests := []struct {
+		name     string
+		key      string
+		expected string
+	}{
+		{"tag_release", "tag_release", "v1.2.3"},
+		{"docker_image", "docker_image", "karloie/bastille"},
+		{"release_skip", "release_skip", "true"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if outputs[tt.key] != tt.expected {
+				t.Errorf("Expected %s='%s', got '%s'", tt.key, tt.expected, outputs[tt.key])
+			}
+		})
+	}
+}
