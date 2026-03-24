@@ -61,6 +61,21 @@ func main() {
 		err = runVerifyVersion(os.Args[2:])
 	case "version":
 		err = runVersion(os.Args[2:])
+
+	// Utility commands (read from plan.json)
+	case "env":
+		err = runEnv(os.Args[2:])
+	case "go-build":
+		err = runGoBuild(os.Args[2:])
+	case "docker":
+		err = runDockerUtil(os.Args[2:])
+	case "checksums":
+		err = runChecksums(os.Args[2:])
+	case "github-release":
+		err = runGitHubRelease(os.Args[2:])
+	case "github-changelog":
+		err = runGitHubChangelog(os.Args[2:])
+
 	default:
 		err = fmt.Errorf("unknown subcommand: %s", os.Args[1])
 	}
@@ -87,28 +102,6 @@ func writeOutput(outputFile, key, value string) {
 		return
 	}
 	fmt.Fprintf(f, "%s=%s\n", key, value)
-}
-
-func logInputs(inputs map[string]string) {
-	if len(inputs) == 0 {
-		return
-	}
-	fmt.Fprintln(os.Stderr, "INPUT:")
-	for key, value := range inputs {
-		fmt.Fprintf(os.Stderr, " - %s=%s\n", key, value)
-	}
-	fmt.Fprintln(os.Stderr, "")
-}
-
-func logOutputs(outputs map[string]string) {
-	if len(outputs) == 0 {
-		return
-	}
-	fmt.Fprintln(os.Stderr, "OUTPUT:")
-	for key, value := range outputs {
-		fmt.Fprintf(os.Stderr, " - %s=%s\n", key, value)
-	}
-	fmt.Fprintln(os.Stderr, "")
 }
 
 func printVersion() {
@@ -138,6 +131,14 @@ func printHelp() {
 	fmt.Fprintln(os.Stderr, "  git-config            Configure git for release")
 	fmt.Fprintln(os.Stderr, "  git-tag               Create and push git tag")
 	fmt.Fprintln(os.Stderr, "  git-tag-cleanup       Delete tag on release failure")
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "Utility Commands (opt-in helpers):")
+	fmt.Fprintln(os.Stderr, "  env                   Export plan.json as environment variables")
+	fmt.Fprintln(os.Stderr, "  go-build              Build Go binary with version from plan.json")
+	fmt.Fprintln(os.Stderr, "  docker                Build/push Docker images with version tags")
+	fmt.Fprintln(os.Stderr, "  checksums             Generate checksums for artifacts")
+	fmt.Fprintln(os.Stderr, "  github-release        Create GitHub release with artifacts")
+	fmt.Fprintln(os.Stderr, "  github-changelog      Generate changelog from git history")
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Options:")
 	fmt.Fprintln(os.Stderr, "  -v, --version         Show version information")
