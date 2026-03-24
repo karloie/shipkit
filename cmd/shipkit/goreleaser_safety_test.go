@@ -84,7 +84,6 @@ func TestGoReleaserNoDockerFilesPreventsBuildFailure(t *testing.T) {
 				Description:  "Test application",
 				License:      "MIT",
 				DockerImage:  "test-owner/test-app",
-				HasNodeJS:    false,
 				HasChangelog: false,
 				HasDocker:    hasDocker,
 				DockerFile:   dockerFile,
@@ -189,7 +188,6 @@ func TestGoReleaserConfigValidatesDockerPresence(t *testing.T) {
 				Description:  "Test",
 				License:      "MIT",
 				DockerImage:  "owner/test",
-				HasNodeJS:    false,
 				HasChangelog: false,
 				HasDocker:    sc.hasDocker,
 				DockerFile:   sc.dockerFile,
@@ -242,7 +240,6 @@ func TestGoReleaserDockerGatingPreventsFailure(t *testing.T) {
 			Description:  "Test",
 			License:      "MIT",
 			DockerImage:  "owner/test",
-			HasNodeJS:    false,
 			HasChangelog: false,
 			HasDocker:    true,                     // ← Force docker ON without file
 			DockerFile:   "nonexistent.dockerfile", // ← File doesn't exist
@@ -289,7 +286,6 @@ func TestGoReleaserDockerGatingPreventsFailure(t *testing.T) {
 			Description:  "Test",
 			License:      "MIT",
 			DockerImage:  "owner/test",
-			HasNodeJS:    false,
 			HasChangelog: false,
 			HasDocker:    hasDocker,  // ← Correctly set to false
 			DockerFile:   dockerFile, // ← Empty string

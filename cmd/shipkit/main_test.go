@@ -54,19 +54,6 @@ require (
 		t.Fatal(err)
 	}
 
-	// Test detection
-	detected := detectProjectTypesWithLogging(false)
-
-	// Check Go
-	if !hasProjectType(detected, "Go") {
-		t.Error("Kompass should detect Go project")
-	}
-
-	// Check Node.js
-	if !hasProjectType(detected, "Node") {
-		t.Error("Kompass should detect Node.js project")
-	}
-
 	// Check project name
 	projectName := detectProjectName()
 	if projectName != "kompass" {
@@ -85,7 +72,6 @@ func TestKompassGoReleaserConfig(t *testing.T) {
 		Description:  "Kubernetes service mesh monitoring",
 		License:      "MIT",
 		DockerImage:  "karloie/kompass",
-		HasNodeJS:    true,
 		HasChangelog: false,
 		HasDocker:    false,
 		DockerFile:   "",
@@ -107,10 +93,8 @@ func TestKompassGoReleaserConfig(t *testing.T) {
 
 	configStr := string(content)
 
-	// Check Node.js hooks
+	// Check config contents
 	expectations := []string{
-		"npm ci",
-		"npm run build",
 		"kompass",
 		"./cmd/kompass",
 		"karloie/kompass",
@@ -151,19 +135,6 @@ require (
 
 	// No package.json
 
-	// Test detection
-	detected := detectProjectTypesWithLogging(false)
-
-	// Check Go
-	if !hasProjectType(detected, "Go") {
-		t.Error("Bastille should detect Go project")
-	}
-
-	// Check NO Node.js
-	if hasProjectType(detected, "Node") {
-		t.Error("Bastille should NOT detect Node.js project without package.json")
-	}
-
 	// Check project name
 	projectName := detectProjectName()
 	if projectName != "bastille" {
@@ -182,7 +153,6 @@ func TestBastilleGoReleaserConfig(t *testing.T) {
 		Description:  "Security management tool",
 		License:      "MIT",
 		DockerImage:  "karloie/bastille",
-		HasNodeJS:    false,
 		HasChangelog: false,
 		HasDocker:    false,
 		DockerFile:   "",
@@ -359,39 +329,6 @@ func TestBastilleReleaseWorkflowParams(t *testing.T) {
 	// Check values
 	if params["image"] != "karloie/bastille" {
 		t.Errorf("image = %q, want %q", params["image"], "karloie/bastille")
-	}
-}
-
-// Edge cases
-func TestMixedProjectWithoutNodeModules(t *testing.T) {
-	// Project with package.json but incomplete setup
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatal(err)
-	}
-	defer os.Chdir(oldWd)
-
-	goMod := `module github.com/test/project
-
-go 1.21.0
-`
-	if err := os.WriteFile("go.mod", []byte(goMod), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	packageJSON := `{
-  "name": "test-project",
-  "version": "1.0.0"
-}`
-	if err := os.WriteFile("package.json", []byte(packageJSON), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	// Should still detect Node.js
-	detected := detectProjectTypesWithLogging(false)
-	if !hasProjectType(detected, "Node") {
-		t.Error("Should detect Node.js even without node_modules")
 	}
 }
 

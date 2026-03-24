@@ -3,8 +3,6 @@ version: 2
 before:
   hooks:
     - go mod tidy
-    - npm ci
-    - npm run build
 
 
 builds:

@@ -1,21 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
 )
-
-// DecideInputs contains all inputs for the decide command
-type DecideInputs struct {
-	// Workflow inputs
-	Mode   string
-	DryRun bool
-
-	// Job results (success or skipped = ok)
-	Build string // Single build result from `shipkit build`
-	Tag   string
-}
 
 // DecideOutputs contains the decision outputs
 type DecideOutputs struct {
@@ -23,13 +13,18 @@ type DecideOutputs struct {
 }
 
 // Decide makes publish decision based on build success
-func Decide(inputs DecideInputs) DecideOutputs {
+func Decide(plan *Plan) DecideOutputs {
 	outputs := DecideOutputs{}
 
+	// Initialize JobResults map if nil
+	if plan.JobResults == nil {
+		plan.JobResults = make(map[string]string)
+	}
+
 	// Build & tag must pass (or be skipped)
-	buildPassed := jobOk(inputs.Build)
-	tagPassed := jobOk(inputs.Tag)
-	allOk := buildPassed && tagPassed && !inputs.DryRun
+	buildPassed := jobOk(plan.JobResults["build"])
+	tagPassed := jobOk(plan.JobResults["tag"])
+	allOk := buildPassed && tagPassed && !plan.DryRun
 
 	// Single publish decision: everything passed
 	outputs.ShouldRelease = allOk
@@ -49,33 +44,48 @@ func runDecide(args []string) error {
 		"raw_args": strings.Join(args, " "),
 	})
 
+	// Load plan.json if it exists
+	var plan Plan
+	data, err := os.ReadFile("plan.json")
+	if err == nil {
+		if err := json.Unmarshal(data, &plan); err != nil {
+			return fmt.Errorf("failed to parse plan.json: %w", err)
+		}
+	}
+
+	// Initialize JobResults map if needed
+	if plan.JobResults == nil {
+		plan.JobResults = make(map[string]string)
+	}
+
 	fs := newFlagSet("decide")
 
-	mode := fs.String("mode", DefaultMode, "Release mode")
-	dryRun := fs.Bool("dry-run", false, "Dry run")
+	mode := fs.String("mode", plan.Mode, "Release mode")
+	dryRun := fs.Bool("dry-run", plan.DryRun, "Dry run")
 	build := fs.String("result-build", "skipped", "Build result")
 	tag := fs.String("result-tag", "skipped", "Tag result")
 	parseFlagsOrExit(fs, args)
 
-	inputs := DecideInputs{
-		Mode:   strings.TrimSpace(*mode),
-		DryRun: *dryRun,
-		Build:  strings.TrimSpace(*build),
-		Tag:    strings.TrimSpace(*tag),
+	// Override plan with CLI args
+	if *mode != "" {
+		plan.Mode = strings.TrimSpace(*mode)
 	}
+	plan.DryRun = *dryRun
+	plan.JobResults["build"] = strings.TrimSpace(*build)
+	plan.JobResults["tag"] = strings.TrimSpace(*tag)
 
 	// Log inputs
 	logInputs(map[string]string{
-		"mode":         inputs.Mode,
-		"dry-run":      fmt.Sprintf("%v", inputs.DryRun),
-		"result-build": inputs.Build,
-		"result-tag":   inputs.Tag,
+		"mode":         plan.Mode,
+		"dry-run":      fmt.Sprintf("%v", plan.DryRun),
+		"result-build": plan.JobResults["build"],
+		"result-tag":   plan.JobResults["tag"],
 	})
 
 	fmt.Println("::group::Decide release actions")
 	defer fmt.Println("::endgroup::")
 
-	outputs := Decide(inputs)
+	outputs := Decide(&plan)
 
 	// Write outputs
 	githubOutput := os.Getenv("GITHUB_OUTPUT")

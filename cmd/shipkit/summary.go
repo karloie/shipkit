@@ -107,7 +107,7 @@ func GenerateSummary(inputs SummaryInputs) string {
 				sb.WriteString(fmt.Sprintf("| `%s` | %s |\n", target, depsStr))
 			}
 			sb.WriteString("\n")
-			
+
 			// Show CI hooks section
 			sb.WriteString("### CI Hooks\n\n")
 			ciHooks := []string{"ci-generate", "ci-build", "ci-test", "ci-integration-test", "ci-release", "ci-summary"}
@@ -232,7 +232,7 @@ func runSummary(args []string) error {
 
 	// Plan file input (required)
 	planFile := fs.String("plan-file", "", "Path to plan.json file from plan job (required)")
-	
+
 	// Optional overrides
 	toolRef := fs.String("tool-ref", "", "tool reference (optional, uses plan default if empty)")
 
@@ -241,7 +241,7 @@ func runSummary(args []string) error {
 	resultBuild := fs.String("result-build", "", "build job result")
 	resultTag := fs.String("result-tag", "", "tag job result")
 	resultPublish := fs.String("result-release", "", "publish job result")
-	
+
 	parseFlagsOrExit(fs, args)
 
 	// Check for Makefile ci-summary target first
@@ -262,7 +262,7 @@ func runSummary(args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to read plan file: %w", err)
 	}
-	
+
 	var inputs SummaryInputs
 	if err := json.Unmarshal(data, &inputs); err != nil {
 		return fmt.Errorf("failed to parse plan JSON: %w", err)

@@ -18,7 +18,6 @@ type GoReleaserConfig struct {
 	Description  string
 	License      string
 	DockerImage  string
-	HasNodeJS    bool
 	HasChangelog bool
 	HasDocker    bool
 	DockerFile   string
@@ -87,13 +86,6 @@ func runGoReleaser(args []string) error {
 
 	// Detect project types and features
 	fmt.Println("::group::Detect")
-	detected := detectProjectTypes()
-
-	// Check for Node.js
-	hasNodeJS := hasProjectType(detected, "Node")
-	if !hasNodeJS {
-		fmt.Fprintln(os.Stderr, "  No package.json found - skipping Node.js build steps")
-	}
 
 	// Check for changelog opt-in
 	hasChangelog := fileExists(".goreleaser-changelog")
@@ -120,7 +112,6 @@ func runGoReleaser(args []string) error {
 		Description:  *description,
 		License:      *license,
 		DockerImage:  *dockerImage,
-		HasNodeJS:    hasNodeJS,
 		HasChangelog: hasChangelog,
 		HasDocker:    hasDocker,
 		DockerFile:   dockerFile,

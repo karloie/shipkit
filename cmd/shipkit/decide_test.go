@@ -7,16 +7,18 @@ import (
 func TestDecide(t *testing.T) {
 	tests := []struct {
 		name     string
-		inputs   DecideInputs
+		plan     *Plan
 		expected DecideOutputs
 	}{
 		{
 			name: "build and tag success - should publish",
-			inputs: DecideInputs{
+			plan: &Plan{
 				Mode:   ModeRelease,
 				DryRun: false,
-				Build:  "success",
-				Tag:    "success",
+				JobResults: map[string]string{
+					"build": "success",
+					"tag":   "success",
+				},
 			},
 			expected: DecideOutputs{
 				ShouldRelease: true,
@@ -24,11 +26,13 @@ func TestDecide(t *testing.T) {
 		},
 		{
 			name: "dry run mode - no publish",
-			inputs: DecideInputs{
+			plan: &Plan{
 				Mode:   ModeRelease,
 				DryRun: true,
-				Build:  "success",
-				Tag:    "success",
+				JobResults: map[string]string{
+					"build": "success",
+					"tag":   "success",
+				},
 			},
 			expected: DecideOutputs{
 				ShouldRelease: false,
@@ -36,11 +40,13 @@ func TestDecide(t *testing.T) {
 		},
 		{
 			name: "build failed - no publish",
-			inputs: DecideInputs{
+			plan: &Plan{
 				Mode:   ModeRelease,
 				DryRun: false,
-				Build:  "failure",
-				Tag:    "success",
+				JobResults: map[string]string{
+					"build": "failure",
+					"tag":   "success",
+				},
 			},
 			expected: DecideOutputs{
 				ShouldRelease: false,
@@ -48,11 +54,13 @@ func TestDecide(t *testing.T) {
 		},
 		{
 			name: "tag failed - no publish",
-			inputs: DecideInputs{
+			plan: &Plan{
 				Mode:   ModeRelease,
 				DryRun: false,
-				Build:  "success",
-				Tag:    "failure",
+				JobResults: map[string]string{
+					"build": "success",
+					"tag":   "failure",
+				},
 			},
 			expected: DecideOutputs{
 				ShouldRelease: false,
@@ -60,11 +68,13 @@ func TestDecide(t *testing.T) {
 		},
 		{
 			name: "skipped jobs are OK",
-			inputs: DecideInputs{
+			plan: &Plan{
 				Mode:   ModeRelease,
 				DryRun: false,
-				Build:  "skipped",
-				Tag:    "skipped",
+				JobResults: map[string]string{
+					"build": "skipped",
+					"tag":   "skipped",
+				},
 			},
 			expected: DecideOutputs{
 				ShouldRelease: true,
@@ -72,11 +82,13 @@ func TestDecide(t *testing.T) {
 		},
 		{
 			name: "build skipped, tag success",
-			inputs: DecideInputs{
+			plan: &Plan{
 				Mode:   ModeRelease,
 				DryRun: false,
-				Build:  "skipped",
-				Tag:    "success",
+				JobResults: map[string]string{
+					"build": "skipped",
+					"tag":   "success",
+				},
 			},
 			expected: DecideOutputs{
 				ShouldRelease: true,
@@ -84,11 +96,13 @@ func TestDecide(t *testing.T) {
 		},
 		{
 			name: "build success, tag skipped",
-			inputs: DecideInputs{
+			plan: &Plan{
 				Mode:   ModeRelease,
 				DryRun: false,
-				Build:  "success",
-				Tag:    "skipped",
+				JobResults: map[string]string{
+					"build": "success",
+					"tag":   "skipped",
+				},
 			},
 			expected: DecideOutputs{
 				ShouldRelease: true,
@@ -96,11 +110,13 @@ func TestDecide(t *testing.T) {
 		},
 		{
 			name: "empty results treated as failure",
-			inputs: DecideInputs{
+			plan: &Plan{
 				Mode:   ModeRelease,
 				DryRun: false,
-				Build:  "",
-				Tag:    "",
+				JobResults: map[string]string{
+					"build": "",
+					"tag":   "",
+				},
 			},
 			expected: DecideOutputs{
 				ShouldRelease: false,
@@ -108,11 +124,13 @@ func TestDecide(t *testing.T) {
 		},
 		{
 			name: "case insensitive success",
-			inputs: DecideInputs{
+			plan: &Plan{
 				Mode:   ModeRelease,
 				DryRun: false,
-				Build:  "SUCCESS",
-				Tag:    "Success",
+				JobResults: map[string]string{
+					"build": "SUCCESS",
+					"tag":   "Success",
+				},
 			},
 			expected: DecideOutputs{
 				ShouldRelease: true,
@@ -120,11 +138,13 @@ func TestDecide(t *testing.T) {
 		},
 		{
 			name: "whitespace is trimmed",
-			inputs: DecideInputs{
+			plan: &Plan{
 				Mode:   ModeRelease,
 				DryRun: false,
-				Build:  " success ",
-				Tag:    " success ",
+				JobResults: map[string]string{
+					"build": " success ",
+					"tag":   " success ",
+				},
 			},
 			expected: DecideOutputs{
 				ShouldRelease: true,
@@ -134,7 +154,7 @@ func TestDecide(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := Decide(tt.inputs)
+			result := Decide(tt.plan)
 
 			if result.ShouldRelease != tt.expected.ShouldRelease {
 				t.Errorf("ShouldRelease: got %v, want %v", result.ShouldRelease, tt.expected.ShouldRelease)

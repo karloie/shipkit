@@ -45,8 +45,8 @@ func main() {
 		err = runDecide(os.Args[2:])
 	case "summary":
 		err = runSummary(os.Args[2:])
-// 	case "assets-delete":
-// 		err = runAssetsDelete(os.Args[2:])
+		// 	case "assets-delete":
+		// 		err = runAssetsDelete(os.Args[2:])
 	case "docker-hub-status":
 		err = runDockerHubStatus(os.Args[2:])
 	case "docker-hub-readme":

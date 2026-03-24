@@ -68,11 +68,11 @@ func TestPlanWritesDockerfileOutput(t *testing.T) {
 	}
 
 	// Simulate what plan.go does
-	writeOutput(outFile, OutputDockerfile, p.Dockerfile)
+	writeOutput(outFile, OutputDockerFile, p.Dockerfile)
 
 	content, _ := os.ReadFile(outFile)
-	if !strings.Contains(string(content), "dockerfile=") {
-		t.Fatalf("GITHUB_OUTPUT missing dockerfile entry, got: %s", content)
+	if !strings.Contains(string(content), "docker_file=") {
+		t.Fatalf("GITHUB_OUTPUT missing docker_file entry, got: %s", content)
 	}
 }
 
@@ -127,50 +127,6 @@ func TestGoReleaserTemplateChangelogDisable(t *testing.T) {
 	}
 	if !strings.Contains(s, "disable:") {
 		t.Error("generated config must use 'disable: true' for changelog")
-	}
-}
-
-// Regression: goreleaser subcommand detects Node using "Node" not "Node.js".
-// Before fix: hasProjectType(detected, "Node.js") never matched because detect.go
-// registers the type as "Node", so npm hooks were omitted from generated config.
-func TestGoReleaserNodeJSDetection(t *testing.T) {
-	tmpDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatal(err)
-	}
-	defer os.Chdir(oldWd)
-
-	// Create package.json to trigger Node detection
-	if err := os.WriteFile("package.json", []byte(`{"name":"web","scripts":{"build":"vite build"}}`), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	detected := detectProjectTypesWithLogging(false)
-	hasNode := hasProjectType(detected, "Node")
-	if !hasNode {
-		t.Fatal("Node project type should be detected when package.json is present")
-	}
-
-	// Verify the goreleaser config includes npm hooks when Node is detected
-	outputPath := filepath.Join(tmpDir, "out.yml")
-	err := generateGoReleaserConfig(GoReleaserConfig{
-		ProjectName: "myapp",
-		BinaryName:  "myapp",
-		MainPath:    "./cmd/myapp",
-		RepoOwner:   "owner",
-		RepoName:    "myapp",
-		Description: "test",
-		License:     "MIT",
-		DockerImage: "owner/myapp",
-		HasNodeJS:   hasNode,
-	}, outputPath)
-	if err != nil {
-		t.Fatalf("generateGoReleaserConfig failed: %v", err)
-	}
-	content, _ := os.ReadFile(outputPath)
-	if !strings.Contains(string(content), "npm") {
-		t.Error("generated config must include npm hooks when Node project is detected")
 	}
 }
 
@@ -343,9 +299,9 @@ func TestPlanOutputsHasDockerForWorkflowCondition(t *testing.T) {
 				writeOutput(outFile, OutputHasDocker, ReleaseFalse)
 			}
 			if hasGoreleaserDocker {
-				writeOutput(outFile, OutputGoreleaserDocker, ReleaseTrue)
+				writeOutput(outFile, OutputReleaseDocker, ReleaseTrue)
 			} else {
-				writeOutput(outFile, OutputGoreleaserDocker, ReleaseFalse)
+				writeOutput(outFile, OutputReleaseDocker, ReleaseFalse)
 			}
 
 			// Read outputs
@@ -367,29 +323,30 @@ func TestPlanOutputsHasDockerForWorkflowCondition(t *testing.T) {
 			}
 
 			if tt.expectedGorelDocker {
-				if !strings.Contains(outputs, "should_build_docker_goreleaser=true") {
-					t.Errorf("expected should_build_docker_goreleaser=true in output, got:\n%s", outputs)
+				if !strings.Contains(outputs, "release_docker=true") {
+					t.Errorf("expected release_docker=true in output, got:\n%s", outputs)
 				}
 			} else {
-				if !strings.Contains(outputs, "should_build_docker_goreleaser=false") {
-					t.Errorf("expected should_build_docker_goreleaser=false in output, got:\n%s", outputs)
+				if !strings.Contains(outputs, "release_docker=false") {
+					t.Errorf("expected release_docker=false in output, got:\n%s", outputs)
 				}
 			}
 
 			// Simulate workflow condition logic
 			hasDocker := strings.Contains(outputs, "has_docker=true")
 			hasDockerEmpty := !strings.Contains(outputs, "has_docker=") // Missing output (old versions)
-			goreleaserDocker := strings.Contains(outputs, "should_build_docker_goreleaser=true")
+			releaseDocker := strings.Contains(outputs, "release_docker=true")
 			skip := false // For this test, assume not skipped
 
-			// Workflow condition (backward compatible):
-			// if: needs.plan.outputs.skip != 'true' && needs.plan.outputs.should_build_docker_goreleaser != 'true' && (needs.plan.outputs.has_docker == 'true' || needs.plan.outputs.has_docker == '')
+			// Workflow condition:
+			// Standalone docker job runs if: not skipped, NOT releasing via goreleaser docker, and has docker files
+			// if: needs.plan.outputs.skip != 'true' && needs.plan.outputs.release_docker != 'true' && (needs.plan.outputs.has_docker == 'true' || needs.plan.outputs.has_docker == '')
 			// Empty/missing has_docker (from old versions) is treated as true for backward compatibility
-			workflowWouldRun := !skip && !goreleaserDocker && (hasDocker || hasDockerEmpty)
+			workflowWouldRun := !skip && !releaseDocker && (hasDocker || hasDockerEmpty)
 
 			if workflowWouldRun != tt.workflowShouldRunDoc {
-				t.Errorf("workflow docker job would run=%v, expected=%v (skip=%v, should_build_docker_goreleaser=%v, has_docker=%v, has_docker_empty=%v)",
-					workflowWouldRun, tt.workflowShouldRunDoc, skip, goreleaserDocker, hasDocker, hasDockerEmpty)
+				t.Errorf("workflow docker job would run=%v, expected=%v (skip=%v, release_docker=%v, has_docker=%v, has_docker_empty=%v)",
+					workflowWouldRun, tt.workflowShouldRunDoc, skip, releaseDocker, hasDocker, hasDockerEmpty)
 			}
 		})
 	}

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"os"
 	"testing"
 )
 
@@ -43,8 +42,6 @@ func TestGetProjectPattern(t *testing.T) {
 		wantFound bool
 		wantName  string
 	}{
-		{"found go", "Go", true, "Go"},
-		{"found nodejs", "Node", true, "Node"},
 		{"found docker", "Docker", true, "Docker"},
 		{"found goreleaser", "GoReleaser", true, "GoReleaser"},
 		{"not found", "NonExistent", false, ""},
@@ -120,131 +117,5 @@ func TestDetectProjectTypesCaching(t *testing.T) {
 			t.Errorf("detectProjectTypes returned different project names at index %d: %s, %s, %s",
 				i, first[i].Name, second[i].Name, third[i].Name)
 		}
-	}
-}
-
-func TestNodeJSDetectionWithPackageJson(t *testing.T) {
-	// With package.json
-	packageJSON := `{
-		"name": "test-client-project",
-		"version": "1.0.0",
-		"description": "Test client application with Node.js"
-	}`
-
-	// Create test file
-	if err := os.WriteFile("package.json", []byte(packageJSON), 0644); err != nil {
-		t.Fatalf("failed to create package.json: %v", err)
-	}
-	defer os.Remove("package.json")
-
-	// Check description
-	description := detectProjectDescription()
-	if description != "Test client application with Node.js" {
-		t.Errorf("detectProjectDescription() = %q, want %q", description, "Test client application with Node.js")
-	}
-
-	// Check Node.js
-	detected := detectProjectTypesWithLogging(false)
-	hasNodeJS := false
-	for _, p := range detected {
-		if p.Name == "Node" {
-			hasNodeJS = true
-			break
-		}
-	}
-
-	if !hasNodeJS {
-		t.Error("Expected Node.js to be detected when package.json exists")
-	}
-}
-
-func TestNodeJSDetectionWithoutPackageJson(t *testing.T) {
-	// Without package.json
-	os.Remove("package.json")
-
-	// Check description
-	description := detectProjectDescription()
-	if description != "" {
-		t.Errorf("detectProjectDescription() = %q, want empty string when no package.json", description)
-	}
-
-	// Check not detected
-	detected := detectProjectTypesWithLogging(false)
-	hasNodeJS := false
-	for _, p := range detected {
-		if p.Name == "Node" {
-			hasNodeJS = true
-			break
-		}
-	}
-
-	// Validate behavior
-	if hasNodeJS && fileExists("package.json") {
-		t.Log("Note: Node.js detected because package.json exists in project")
-	} else if hasNodeJS && !fileExists("package.json") {
-		t.Error("Node.js should NOT be detected when package.json doesn't exist")
-	}
-}
-
-func TestNodeJSDetectionInvalidPackageJson(t *testing.T) {
-	// Invalid JSON
-	invalidJSON := `{invalid json}`
-
-	if err := os.WriteFile("package.json", []byte(invalidJSON), 0644); err != nil {
-		t.Fatalf("failed to create package.json: %v", err)
-	}
-	defer os.Remove("package.json")
-
-	// Empty on invalid
-	description := detectProjectDescription()
-	if description != "" {
-		t.Errorf("detectProjectDescription() should return empty string for invalid JSON, got %q", description)
-	}
-
-	// Still detected
-	detected := detectProjectTypesWithLogging(false)
-	hasNodeJS := false
-	for _, p := range detected {
-		if p.Name == "Node" {
-			hasNodeJS = true
-			break
-		}
-	}
-
-	if !hasNodeJS {
-		t.Error("Node.js should be detected when package.json exists, even if invalid")
-	}
-}
-
-func TestNodeJSDetectionEmptyDescription(t *testing.T) {
-	// No description field
-	packageJSON := `{
-		"name": "test-project",
-		"version": "1.0.0"
-	}`
-
-	if err := os.WriteFile("package.json", []byte(packageJSON), 0644); err != nil {
-		t.Fatalf("failed to create package.json: %v", err)
-	}
-	defer os.Remove("package.json")
-
-	// Empty when missing
-	description := detectProjectDescription()
-	if description != "" {
-		t.Errorf("detectProjectDescription() should return empty string when description missing, got %q", description)
-	}
-
-	// Still detected
-	detected := detectProjectTypesWithLogging(false)
-	hasNodeJS := false
-	for _, p := range detected {
-		if p.Name == "Node" {
-			hasNodeJS = true
-			break
-		}
-	}
-
-	if !hasNodeJS {
-		t.Error("Node.js should be detected even when description is missing from package.json")
 	}
 }

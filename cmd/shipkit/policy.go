@@ -64,13 +64,13 @@ func runPolicy(args []string) error {
 
 	githubOutput := os.Getenv(EnvGitHubOutput)
 	if policy.Skip != "" {
-		writeOutput(githubOutput, OutputSkip, policy.Skip)
+		writeOutput(githubOutput, OutputReleaseSkip, policy.Skip)
 	}
 	if policy.VersionMajorMinor != "" {
 		writeOutput(githubOutput, OutputVersionMajorMinor, policy.VersionMajorMinor)
 	}
 	if policy.Dockerfile != "" {
-		writeOutput(githubOutput, OutputDockerfile, policy.Dockerfile)
+		writeOutput(githubOutput, OutputDockerFile, policy.Dockerfile)
 	}
 	// Handle Docker login for docker mode
 	if input.Mode == ModeDocker && policy.Skip != ReleaseTrue {
@@ -99,7 +99,7 @@ func runPolicy(args []string) error {
 		} else {
 			fmt.Fprintln(os.Stderr, "  ⚠️  No .goreleaser.yml found - goreleaser will use defaults or fail")
 		}
-		writeOutput(githubOutput, OutputGoreleaserYmlCurrent, goreleaserYml)
+		writeOutput(githubOutput, OutputGoreleaserConfig, goreleaserYml)
 	}
 
 	return nil

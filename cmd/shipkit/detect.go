@@ -23,9 +23,6 @@ var (
 
 // Project detection patterns in priority order
 var projectPatterns = []projectPattern{
-	{"🐹", "Go", FileGo, false},
-	{"📦", "Node", FileNode, false},
-	{"🍃", "Spring", FileSpringProps + ",src/main/resources/" + FileSpringProps + "," + FileSpringYml + ",src/main/resources/" + FileSpringYml + "," + FileSpringYaml + ",src/main/resources/" + FileSpringYaml, false},
 	{"🐳", "Docker", FileContainerfile + "," + FileDockerfile, false},
 	{"🚀", "GoReleaser", FileGoReleaser + ",.goreleaser.yaml", false},
 	{"🚀🐳", "GoReleaser Docker", FileContainerfile + "," + FileDockerfile, false},

@@ -32,7 +32,6 @@ func TestGoReleaserConfigMatrix(t *testing.T) {
 				Description:  "Minimal config",
 				License:      "MIT",
 				DockerImage:  "owner/minimal",
-				HasNodeJS:    false,
 				HasChangelog: false,
 				HasDocker:    false,
 			},
@@ -55,33 +54,6 @@ func TestGoReleaserConfigMatrix(t *testing.T) {
 			maxLineCount: 90,
 		},
 		{
-			name: "nodejs only",
-			config: GoReleaserConfig{
-				ProjectName:  "nodejs-app",
-				BinaryName:   "nodejs-app",
-				MainPath:     "./cmd/nodejs-app",
-				RepoOwner:    "owner",
-				RepoName:     "nodejs-app",
-				Description:  "NodeJS config",
-				License:      "Apache-2.0",
-				DockerImage:  "owner/nodejs-app",
-				HasNodeJS:    true,
-				HasChangelog: false,
-				HasDocker:    false,
-			},
-			mustContain: []string{
-				"npm ci",
-				"npm run build",
-				"disable: true",
-			},
-			mustNotContain: []string{
-				"dockers:",
-				"use: github",
-			},
-			minLineCount: 60,
-			maxLineCount: 95,
-		},
-		{
 			name: "changelog only",
 			config: GoReleaserConfig{
 				ProjectName:  "changelog-app",
@@ -92,7 +64,6 @@ func TestGoReleaserConfigMatrix(t *testing.T) {
 				Description:  "Changelog config",
 				License:      "GPL-3.0",
 				DockerImage:  "owner/changelog-app",
-				HasNodeJS:    false,
 				HasChangelog: true,
 				HasDocker:    false,
 			},
@@ -119,7 +90,6 @@ func TestGoReleaserConfigMatrix(t *testing.T) {
 				Description:  "Docker config",
 				License:      "MIT",
 				DockerImage:  "owner/docker-app",
-				HasNodeJS:    false,
 				HasChangelog: false,
 				HasDocker:    true,
 				DockerFile:   "Containerfile.goreleaser",
@@ -149,7 +119,6 @@ func TestGoReleaserConfigMatrix(t *testing.T) {
 				Description:  "Docker config with Dockerfile",
 				License:      "BSD-3-Clause",
 				DockerImage:  "owner/docker-app2",
-				HasNodeJS:    false,
 				HasChangelog: false,
 				HasDocker:    true,
 				DockerFile:   "Dockerfile.goreleaser",
@@ -165,60 +134,6 @@ func TestGoReleaserConfigMatrix(t *testing.T) {
 			maxLineCount: 105,
 		},
 		{
-			name: "nodejs + changelog",
-			config: GoReleaserConfig{
-				ProjectName:  "nodejs-changelog",
-				BinaryName:   "nodejs-changelog",
-				MainPath:     "./cmd/nodejs-changelog",
-				RepoOwner:    "owner",
-				RepoName:     "nodejs-changelog",
-				Description:  "NodeJS with changelog",
-				License:      "MIT",
-				DockerImage:  "owner/nodejs-changelog",
-				HasNodeJS:    true,
-				HasChangelog: true,
-				HasDocker:    false,
-			},
-			mustContain: []string{
-				"npm ci",
-				"npm run build",
-				"use: github",
-			},
-			mustNotContain: []string{
-				"dockers:",
-				"disable: true",
-			},
-			minLineCount: 60,
-			maxLineCount: 95,
-		},
-		{
-			name: "nodejs + docker",
-			config: GoReleaserConfig{
-				ProjectName:  "nodejs-docker",
-				BinaryName:   "nodejs-docker",
-				MainPath:     "./cmd/nodejs-docker",
-				RepoOwner:    "owner",
-				RepoName:     "nodejs-docker",
-				Description:  "NodeJS with Docker",
-				License:      "MIT",
-				DockerImage:  "owner/nodejs-docker",
-				HasNodeJS:    true,
-				HasChangelog: false,
-				HasDocker:    true,
-				DockerFile:   "Containerfile.goreleaser",
-			},
-			mustContain: []string{
-				"npm ci",
-				"dockers:",
-				"disable: true",
-			},
-			mustNotContain: []string{
-				"use: github",
-			},
-			minLineCount: 80,
-			maxLineCount: 115,
-		},
-		{
 			name: "changelog + docker",
 			config: GoReleaserConfig{
 				ProjectName:  "changelog-docker",
@@ -229,7 +144,6 @@ func TestGoReleaserConfigMatrix(t *testing.T) {
 				Description:  "Changelog with Docker",
 				License:      "MIT",
 				DockerImage:  "owner/changelog-docker",
-				HasNodeJS:    false,
 				HasChangelog: true,
 				HasDocker:    true,
 				DockerFile:   "Dockerfile.goreleaser",
@@ -256,14 +170,11 @@ func TestGoReleaserConfigMatrix(t *testing.T) {
 				Description:  "All features enabled",
 				License:      "Apache-2.0",
 				DockerImage:  "maximal-owner/maximal",
-				HasNodeJS:    true,
 				HasChangelog: true,
 				HasDocker:    true,
 				DockerFile:   "Containerfile.goreleaser",
 			},
 			mustContain: []string{
-				"npm ci",
-				"npm run build",
 				"dockers:",
 				"use: github",
 			},
@@ -354,7 +265,6 @@ func TestGoReleaserConfigEdgeCases(t *testing.T) {
 				Description:  "", // empty description
 				License:      "MIT",
 				DockerImage:  "owner/test",
-				HasNodeJS:    false,
 				HasChangelog: false,
 				HasDocker:    false,
 			},
@@ -375,7 +285,6 @@ func TestGoReleaserConfigEdgeCases(t *testing.T) {
 				Description:  "Test with special chars: @#$%",
 				License:      "MIT",
 				DockerImage:  "owner/test",
-				HasNodeJS:    false,
 				HasChangelog: false,
 				HasDocker:    false,
 			},
@@ -396,7 +305,6 @@ func TestGoReleaserConfigEdgeCases(t *testing.T) {
 				Description:  "Root main",
 				License:      "MIT",
 				DockerImage:  "owner/test",
-				HasNodeJS:    false,
 				HasChangelog: false,
 				HasDocker:    false,
 			},
@@ -417,7 +325,6 @@ func TestGoReleaserConfigEdgeCases(t *testing.T) {
 				Description:  "Test",
 				License:      "AGPL-3.0-only",
 				DockerImage:  "owner/test",
-				HasNodeJS:    false,
 				HasChangelog: false,
 				HasDocker:    false,
 			},
@@ -487,7 +394,6 @@ func TestGoReleaserConfigCombinations(t *testing.T) {
 				Description:  "Test",
 				License:      "MIT",
 				DockerImage:  "owner/test",
-				HasNodeJS:    combo.nodejs,
 				HasChangelog: combo.changelog,
 				HasDocker:    combo.docker,
 				DockerFile:   "Containerfile.goreleaser",
@@ -504,17 +410,6 @@ func TestGoReleaserConfigCombinations(t *testing.T) {
 			}
 
 			output := string(content)
-
-			// Verify nodejs flag behavior
-			if combo.nodejs {
-				if !strings.Contains(output, "npm ci") {
-					t.Error("HasNodeJS=true should include npm ci")
-				}
-			} else {
-				if strings.Contains(output, "npm ci") {
-					t.Error("HasNodeJS=false should not include npm ci")
-				}
-			}
 
 			// Verify changelog flag behavior (opt-in: create .goreleaser-changelog to enable)
 			if combo.changelog {

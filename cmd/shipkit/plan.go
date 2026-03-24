@@ -41,6 +41,9 @@ type Plan struct {
 	TagNext              string              `json:"tag_next"`
 	VersionClean         string              `json:"version_clean"`
 	VersionMajorMinor    string              `json:"version_major_minor"`
+
+	// Runtime results (from workflow execution)
+	JobResults map[string]string `json:"job_results,omitempty"` // job_name -> "success"|"failure"|"skipped"
 }
 
 func runPlan(args []string) error {

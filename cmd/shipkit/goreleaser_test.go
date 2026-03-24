@@ -20,7 +20,6 @@ func TestGenerateGoReleaserConfig(t *testing.T) {
 		Description:  "Test application",
 		License:      "MIT",
 		DockerImage:  "test-owner/test-project",
-		HasNodeJS:    false,
 		HasChangelog: false,
 		HasDocker:    false,
 	}
@@ -53,41 +52,6 @@ func TestGenerateGoReleaserConfig(t *testing.T) {
 	}
 }
 
-func TestGenerateGoReleaserConfigWithNodeJS(t *testing.T) {
-	tmpDir := t.TempDir()
-	outputPath := filepath.Join(tmpDir, "test.goreleaser.yml")
-
-	config := GoReleaserConfig{
-		ProjectName:  "nodejs-project",
-		BinaryName:   "nodejs-binary",
-		MainPath:     "./cmd/nodejs",
-		RepoOwner:    "owner",
-		RepoName:     "repo",
-		Description:  "Node.js + Go application",
-		License:      "Apache-2.0",
-		DockerImage:  "owner/nodejs-project",
-		HasNodeJS:    true,
-		HasChangelog: true,
-		HasDocker:    false,
-	}
-
-	err := generateGoReleaserConfig(config, outputPath)
-	if err != nil {
-		t.Fatalf("generateGoReleaserConfig() with Node.js failed: %v", err)
-	}
-
-	content, err := os.ReadFile(outputPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	contentStr := string(content)
-	// Check for Node.js hooks
-	if !strings.Contains(contentStr, "npm") {
-		t.Error("config with HasNodeJS should contain npm commands")
-	}
-}
-
 func TestGenerateGoReleaserConfigWithDocker(t *testing.T) {
 	tmpDir := t.TempDir()
 	outputPath := filepath.Join(tmpDir, "test.goreleaser.yml")
@@ -101,7 +65,6 @@ func TestGenerateGoReleaserConfigWithDocker(t *testing.T) {
 		Description:  "Dockerized application",
 		License:      "MIT",
 		DockerImage:  "owner/docker-project",
-		HasNodeJS:    false,
 		HasChangelog: false,
 		HasDocker:    true,
 		DockerFile:   "Dockerfile.goreleaser",
@@ -160,28 +123,10 @@ func TestGoReleaserConfigSnapshots(t *testing.T) {
 				Description:  "Test application",
 				License:      "MIT",
 				DockerImage:  "test-owner/test-project",
-				HasNodeJS:    false,
 				HasChangelog: false,
 				HasDocker:    false,
 			},
 			goldenFile: "goreleaser_basic.golden.yml",
-		},
-		{
-			name: "with_nodejs",
-			config: GoReleaserConfig{
-				ProjectName:  "nodejs-project",
-				BinaryName:   "nodejs-binary",
-				MainPath:     "./cmd/nodejs",
-				RepoOwner:    "owner",
-				RepoName:     "repo",
-				Description:  "Node.js + Go application",
-				License:      "Apache-2.0",
-				DockerImage:  "owner/nodejs-project",
-				HasNodeJS:    true,
-				HasChangelog: true,
-				HasDocker:    false,
-			},
-			goldenFile: "goreleaser_with_nodejs.golden.yml",
 		},
 		{
 			name: "with_docker",
@@ -194,7 +139,6 @@ func TestGoReleaserConfigSnapshots(t *testing.T) {
 				Description:  "Dockerized application",
 				License:      "MIT",
 				DockerImage:  "owner/docker-project",
-				HasNodeJS:    false,
 				HasChangelog: false,
 				HasDocker:    true,
 				DockerFile:   "Dockerfile.goreleaser",
@@ -212,7 +156,6 @@ func TestGoReleaserConfigSnapshots(t *testing.T) {
 				Description:  "Full featured application",
 				License:      "GPL-3.0",
 				DockerImage:  "full-owner/full-project",
-				HasNodeJS:    true,
 				HasChangelog: true,
 				HasDocker:    true,
 				DockerFile:   "Containerfile.goreleaser",
