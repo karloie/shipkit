@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -340,7 +341,8 @@ func runPlanClean(plan *Plan, git GitProvider, pr PRProvider) error {
 
 		// Write plan.json for downstream jobs
 		planJSON, _ := json.MarshalIndent(plan, "", "  ")
-		os.WriteFile("plan.json", planJSON, 0644)
+		os.MkdirAll(getTempDir(), 0755)
+		os.WriteFile(filepath.Join(getTempDir(), "plan.json"), planJSON, 0644)
 
 		// Output to GITHUB_OUTPUT
 		outputMap := plan.ToOutputMap()
@@ -423,7 +425,8 @@ func runPlanClean(plan *Plan, git GitProvider, pr PRProvider) error {
 	// Write plan.json for downstream jobs
 	planJSON, err := json.MarshalIndent(plan, "", "  ")
 	if err == nil {
-		os.WriteFile("plan.json", planJSON, 0644)
+		os.MkdirAll(getTempDir(), 0755)
+		os.WriteFile(filepath.Join(getTempDir(), "plan.json"), planJSON, 0644)
 	}
 
 	// Write all outputs to GITHUB_OUTPUT file for GitHub Actions
@@ -475,7 +478,8 @@ func outputPartialPlanOnError(githubOutput string, p *Plan, err error) error {
 
 	// Write partial plan.json
 	if planJSON, jsonErr := json.MarshalIndent(p, "", "  "); jsonErr == nil {
-		os.WriteFile("plan.json", planJSON, 0644)
+		os.MkdirAll(getTempDir(), 0755)
+		os.WriteFile(filepath.Join(getTempDir(), "plan.json"), planJSON, 0644)
 
 		// Write outputs
 		outputMap := p.ToOutputMap()

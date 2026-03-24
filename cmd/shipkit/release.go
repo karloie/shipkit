@@ -25,7 +25,7 @@ func runRelease(args []string) error {
 	orchestratorFile := *makefile
 
 	// Try to load plan.json to get orchestrator
-	plan, err := loadPlan("plan.json")
+	plan, err := loadPlan(getPlanPath())
 	if err == nil && plan != nil && plan.BuildOrchestrator != "" {
 		orchestrator = plan.BuildOrchestrator
 		// Update file path based on orchestrator

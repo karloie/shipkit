@@ -5,7 +5,28 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 )
+
+// getTempDir returns the shipkit temp directory
+func getTempDir() string {
+	return filepath.Join(os.TempDir(), "shipkit")
+}
+
+// getPlanPath returns the path to plan.json (checks temp dir first, then current dir)
+func getPlanPath() string {
+	tempPath := filepath.Join(getTempDir(), "plan.json")
+	if _, err := os.Stat(tempPath); err == nil {
+		return tempPath
+	}
+	// Fall back to current directory for backwards compatibility
+	return "plan.json"
+}
+
+// getGoreleaserTempPath returns the temp path for generated goreleaser config
+func getGoreleaserTempPath() string {
+	return filepath.Join(getTempDir(), ".goreleaser.yml")
+}
 
 // parseFlagsOrExit parses flags and exits on error
 func parseFlagsOrExit(fs *flag.FlagSet, args []string) {

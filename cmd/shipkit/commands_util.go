@@ -11,7 +11,7 @@ import (
 // runEnv exports plan.json fields as environment variables
 func runEnv(args []string) error {
 	// Load plan.json
-	plan, err := loadPlan("plan.json")
+	plan, err := loadPlan(getPlanPath())
 	if err != nil {
 		return fmt.Errorf("failed to load plan.json: %w", err)
 	}
@@ -59,7 +59,7 @@ func runGoBuild(args []string) error {
 	}
 
 	// Load plan.json
-	plan, err := loadPlan("plan.json")
+	plan, err := loadPlan(getPlanPath())
 	if err != nil {
 		return fmt.Errorf("failed to load plan.json: %w", err)
 	}
@@ -136,7 +136,7 @@ func runDockerUtil(args []string) error {
 	parseFlagsOrExit(fs, args)
 
 	// Load plan.json
-	plan, err := loadPlan("plan.json")
+	plan, err := loadPlan(getPlanPath())
 	if err != nil {
 		return fmt.Errorf("failed to load plan.json: %w", err)
 	}
@@ -375,7 +375,7 @@ func runGitHubRelease(args []string) error {
 	artifacts := fs.Args()
 
 	// Load plan.json
-	plan, err := loadPlan("plan.json")
+	plan, err := loadPlan(getPlanPath())
 	if err != nil {
 		return fmt.Errorf("failed to load plan.json: %w", err)
 	}
@@ -468,7 +468,7 @@ func runGitHubRelease(args []string) error {
 // runGitHubChangelog generates changelog from git history
 func runGitHubChangelog(args []string) error {
 	// Load plan.json
-	plan, err := loadPlan("plan.json")
+	plan, err := loadPlan(getPlanPath())
 	if err != nil {
 		return fmt.Errorf("failed to load plan.json: %w", err)
 	}
@@ -540,7 +540,7 @@ func runGoreleaserUtil(args []string) error {
 	}
 
 	// Load plan.json
-	plan, err := loadPlan("plan.json")
+	plan, err := loadPlan(getPlanPath())
 	if err != nil {
 		return fmt.Errorf("failed to load plan.json: %w", err)
 	}
@@ -557,22 +557,34 @@ func runGoreleaserUtil(args []string) error {
 		"image":    plan.DockerImage,
 	})
 
-	// Check if .goreleaser.yml exists
+	// Determine config path
 	configPath := ".goreleaser.yml"
+	useGeneratedConfig := false
+	
+	// Check if user has a committed config
 	_, err = os.Stat(configPath)
 	configExists := err == nil
 
-	// Generate config if requested and missing
+	// Generate config if requested and user doesn't have one
 	if *generate && !configExists {
-		if err := generateGoreleaserConfig(plan, *homebrew); err != nil {
+		// Write to /tmp to avoid dirty git state
+		os.MkdirAll(getTempDir(), 0755)
+		configPath = getGoreleaserTempPath()
+		useGeneratedConfig = true
+		
+		if err := generateGoreleaserConfigToPath(plan, *homebrew, configPath); err != nil {
 			return fmt.Errorf("failed to generate .goreleaser.yml: %w", err)
 		}
 		fmt.Println("✅ Generated .goreleaser.yml")
 	}
 
 	// Run goreleaser
-	logCommand("goreleaser", "release", "--clean")
-	cmd := exec.Command("goreleaser", "release", "--clean")
+	goreleaserArgs := []string{"release", "--clean"}
+	if useGeneratedConfig {
+		goreleaserArgs = append(goreleaserArgs, "--config", configPath)
+	}
+	logCommand("goreleaser", goreleaserArgs...)
+	cmd := exec.Command("goreleaser", goreleaserArgs...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
@@ -586,8 +598,8 @@ func runGoreleaserUtil(args []string) error {
 	return nil
 }
 
-// generateGoreleaserConfig creates a minimal .goreleaser.yml
-func generateGoreleaserConfig(plan *Plan, includeHomebrew bool) error {
+// generateGoreleaserConfigToPath creates a minimal .goreleaser.yml at the specified path
+func generateGoreleaserConfigToPath(plan *Plan, includeHomebrew bool, path string) error {
 	repoName := getRepoName()
 	owner := getRepoOwner()
 
@@ -652,8 +664,8 @@ homebrew_casks:
 		config += homebrewConfig
 	}
 
-	// Write config file
-	return os.WriteFile(".goreleaser.yml", []byte(config), 0644)
+	// Write config file to specified path
+	return os.WriteFile(path, []byte(config), 0644)
 }
 
 // getRepoOwner gets the repository owner from git

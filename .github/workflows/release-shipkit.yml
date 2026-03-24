@@ -72,7 +72,12 @@ jobs:
           go-version-file: go.mod
 
       - name: Build shipkit
-        run: go build -o shipkit ./cmd/shipkit
+        run: |
+          mkdir -p ~/.local/bin
+          go build -o /tmp/shipkit ./cmd/shipkit
+          mv /tmp/shipkit ~/.local/bin/shipkit
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          shipkit --version || echo "Shipkit installed to ~/.local/bin"
 
       - name: Compute version
         id: version
