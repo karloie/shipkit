@@ -339,6 +339,11 @@ jobs:
         with:
           tool_ref: ${{ inputs.tool_ref }}
 
+      - name: Set up Go (for go install tools)
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
       - name: Download plan data
         uses: actions/download-artifact@v4
         with:
