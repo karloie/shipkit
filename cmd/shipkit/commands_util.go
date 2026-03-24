@@ -774,7 +774,7 @@ func runInstall(args []string) error {
 			goPath = filepath.Join(os.Getenv("HOME"), "go")
 		}
 		goBin := filepath.Join(goPath, "bin", tool)
-		
+
 		logWarning(fmt.Sprintf("%s installed but not in PATH. Add to PATH: %s", tool, filepath.Join(goPath, "bin")))
 		logOutputs(map[string]string{
 			"status":   "installed_not_in_path",

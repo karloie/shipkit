@@ -359,7 +359,7 @@ func TestToOutputMap_Outputs(t *testing.T) {
 		expected string
 	}{
 		{"tag_release", "tag_release", "v1.2.3"},
-		{"docker_image", "docker_image", "karloie/bastille"},
+		{"container_image", "container_image", "karloie/bastille"},
 		{"release_skip", "release_skip", "true"},
 	}
 

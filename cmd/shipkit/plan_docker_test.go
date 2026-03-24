@@ -96,7 +96,7 @@ func TestPlanDocker(t *testing.T) {
 			},
 			mockLatest: "v1.2.2",
 			expectation: map[string]string{
-				"docker_image": "myorg/myapp",
+				"container_image": "myorg/myapp",
 			},
 		},
 		{
