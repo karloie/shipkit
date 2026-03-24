@@ -23,24 +23,24 @@ type Plan struct {
 
 	// Output fields (computed by runPlanClean)
 	BuildOrchestrator    string              `json:"build_orchestrator"`
-	BuildTargets         map[string][]string `json:"build_targets,omitempty"`         // Target name → dependencies (empty array if no deps)
+	BuildTargets         map[string][]string `json:"build_targets,omitempty"` // Target name → dependencies (empty array if no deps)
 	DockerFile           string              `json:"docker_file"`
-	DockerImage          string            `json:"docker_image"`
-	DockerTagLatest      bool              `json:"docker_tag_latest"`
-	GoreleaserConfig     string            `json:"goreleaser_config"`
-	GoreleaserDockerfile string            `json:"goreleaser_dockerfile,omitempty"`
-	HasDocker            bool              `json:"has_docker"`
-	HasJustfile          bool              `json:"has_justfile"`
-	HasMakefile          bool              `json:"has_makefile"`
-	HasTaskfile          bool              `json:"has_taskfile"`
-	ReleaseDocker        bool              `json:"release_docker,omitempty"`
-	ReleaseSkip          bool              `json:"release_skip"`
-	TagRelease           string            `json:"tag_release"` // Effective tag for this release (NextTag || ReleaseTag)
-	TagExists            bool              `json:"tag_exists"`
-	TagLatest            string            `json:"tag_latest"`
-	TagNext              string            `json:"tag_next"`
-	VersionClean         string            `json:"version_clean"`
-	VersionMajorMinor    string            `json:"version_major_minor"`
+	DockerImage          string              `json:"docker_image"`
+	DockerTagLatest      bool                `json:"docker_tag_latest"`
+	GoreleaserConfig     string              `json:"goreleaser_config"`
+	GoreleaserDockerfile string              `json:"goreleaser_dockerfile,omitempty"`
+	HasDocker            bool                `json:"has_docker"`
+	HasJustfile          bool                `json:"has_justfile"`
+	HasMakefile          bool                `json:"has_makefile"`
+	HasTaskfile          bool                `json:"has_taskfile"`
+	ReleaseDocker        bool                `json:"release_docker,omitempty"`
+	ReleaseSkip          bool                `json:"release_skip"`
+	TagRelease           string              `json:"tag_release"` // Effective tag for this release (NextTag || ReleaseTag)
+	TagExists            bool                `json:"tag_exists"`
+	TagLatest            string              `json:"tag_latest"`
+	TagNext              string              `json:"tag_next"`
+	VersionClean         string              `json:"version_clean"`
+	VersionMajorMinor    string              `json:"version_major_minor"`
 }
 
 func runPlan(args []string) error {
@@ -167,7 +167,7 @@ func runPlanClean(plan *Plan, git GitProvider, pr PRProvider) error {
 	if plan.HasMakefile {
 		if graph, err := ParseMakefile("Makefile"); err == nil {
 			plan.BuildTargets = make(map[string][]string)
-			
+
 			// Extract ALL targets with their dependencies (empty array if none)
 			targets := graph.GetTargets()
 			for _, target := range targets {
@@ -186,7 +186,7 @@ func runPlanClean(plan *Plan, git GitProvider, pr PRProvider) error {
 	if plan.HasJustfile {
 		if graph, err := ParseJustfile("justfile"); err == nil {
 			plan.BuildTargets = make(map[string][]string)
-			
+
 			// Extract ALL recipes with their dependencies (empty array if none)
 			recipes := graph.GetRecipes()
 			for _, recipe := range recipes {
@@ -209,7 +209,7 @@ func runPlanClean(plan *Plan, git GitProvider, pr PRProvider) error {
 		}
 		if graph, err := ParseTaskfile(taskfilePath); err == nil {
 			plan.BuildTargets = make(map[string][]string)
-			
+
 			// Extract ALL tasks with their dependencies (empty array if none)
 			tasks := graph.GetTasks()
 			for _, task := range tasks {
