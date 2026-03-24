@@ -71,7 +71,7 @@ const (
 	OutputDockerFile        = "docker_file"
 	OutputGoreleaserConfig  = "goreleaser_config"
 	OutputHasDocker         = "has_docker"
-	OutputDockerImage       = "docker_image"
+	OutputDockerImage       = "container_image"
 	OutputVersionClean      = "version_clean"
 	OutputReleaseDocker     = "release_docker"
 )

@@ -25,7 +25,7 @@ type Plan struct {
 	BuildOrchestrator    string              `json:"build_orchestrator"`
 	BuildTargets         map[string][]string `json:"build_targets,omitempty"` // Target name → dependencies (empty array if no deps)
 	DockerFile           string              `json:"docker_file"`
-	DockerImage          string              `json:"docker_image"`
+	DockerImage          string              `json:"container_image"`
 	DockerTagLatest      bool                `json:"docker_tag_latest"`
 	GoreleaserConfig     string              `json:"goreleaser_config"`
 	GoreleaserDockerfile string              `json:"goreleaser_dockerfile,omitempty"`

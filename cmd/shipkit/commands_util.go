@@ -248,6 +248,22 @@ func runDockerUtil(args []string) error {
 		if plan.DryRun {
 			logWarning("Dry run - skipping push")
 		} else {
+			// Docker login before pushing
+			username := os.Getenv("DOCKERHUB_USERNAME")
+			token := os.Getenv("DOCKERHUB_TOKEN")
+			if username != "" && token != "" {
+				logCommand("docker", "login", "-u", username, "-p", "***")
+				loginCmd := exec.Command("docker", "login", "-u", username, "--password-stdin")
+				loginCmd.Stdin = strings.NewReader(token)
+				loginCmd.Stdout = os.Stdout
+				loginCmd.Stderr = os.Stderr
+				if err := loginCmd.Run(); err != nil {
+					logError(fmt.Sprintf("docker login failed: %v", err))
+					return err
+				}
+				logSuccess("Docker login successful")
+			}
+
 			for _, tag := range tags {
 				pushCmd := []string{"push", tag}
 				logCommand("docker", pushCmd...)
@@ -693,4 +709,77 @@ func getRepoOwner() string {
 	}
 
 	return "unknown"
+}
+
+// runInstall installs build tools (goreleaser, node, etc.)
+func runInstall(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("usage: shipkit install <tool>\nAvailable tools: goreleaser")
+	}
+
+	tool := args[0]
+
+	logInputs(map[string]string{
+		"tool": tool,
+	})
+
+	// Check if tool is already installed
+	if path, err := exec.LookPath(tool); err == nil {
+		fmt.Printf("✓ %s already installed: %s\n", tool, path)
+		logOutputs(map[string]string{
+			"status": "already_installed",
+			"path":   path,
+		})
+		return nil
+	}
+
+	// Install based on tool
+	fmt.Printf("📦 Installing %s...\n", tool)
+
+	var cmd *exec.Cmd
+	switch tool {
+	case "goreleaser":
+		// Check if go is available
+		if _, err := exec.LookPath("go"); err != nil {
+			return fmt.Errorf("go is not installed (required to install goreleaser)")
+		}
+		cmd = exec.Command("go", "install", "github.com/goreleaser/goreleaser@latest")
+
+	default:
+		return fmt.Errorf("unknown tool: %s\nAvailable tools: goreleaser", tool)
+	}
+
+	logCommand(cmd.Path, cmd.Args[1:]...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		logError(fmt.Sprintf("%s installation failed: %v", tool, err))
+		return err
+	}
+
+	// Verify installation
+	if path, err := exec.LookPath(tool); err == nil {
+		logSuccess(fmt.Sprintf("Installed %s: %s", tool, path))
+		logOutputs(map[string]string{
+			"status": "installed",
+			"path":   path,
+		})
+		return nil
+	} else {
+		// Installation succeeded but tool not in PATH
+		// This can happen when go bin is not in PATH yet
+		goPath := os.Getenv("GOPATH")
+		if goPath == "" {
+			goPath = filepath.Join(os.Getenv("HOME"), "go")
+		}
+		goBin := filepath.Join(goPath, "bin", tool)
+		
+		logWarning(fmt.Sprintf("%s installed but not in PATH. Add to PATH: %s", tool, filepath.Join(goPath, "bin")))
+		logOutputs(map[string]string{
+			"status":   "installed_not_in_path",
+			"location": goBin,
+		})
+		return nil
+	}
 }

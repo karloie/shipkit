@@ -59,7 +59,7 @@ jobs:
     name: 📋 plan
     runs-on: ubuntu-latest
     outputs:
-      docker_image: ${{ steps.plan.outputs.docker_image }}
+      container_image: ${{ steps.plan.outputs.container_image }}
       tag_next: ${{ steps.plan.outputs.tag_next }}
       tag_release: ${{ steps.plan.outputs.tag_release }}
       release_skip: ${{ steps.plan.outputs.release_skip }}
