@@ -38,7 +38,7 @@ func runEnv(args []string) error {
 	fmt.Printf("export BUILD_VERSION=%s\n", version)
 	fmt.Printf("export BUILD_COMMIT=%s\n", commit)
 	fmt.Printf("export BUILD_DATE=%s\n", date)
-	fmt.Printf("export DOCKER_IMAGE=%s\n", plan.DockerImage)
+	fmt.Printf("export CONTAINER_IMAGE=%s\n", plan.DockerImage)
 	fmt.Printf("export DRY_RUN=%t\n", plan.DryRun)
 	fmt.Printf("export BUILD_MODE=%s\n", plan.Mode)
 

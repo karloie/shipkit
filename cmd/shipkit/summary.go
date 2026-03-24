@@ -57,23 +57,6 @@ func GenerateSummary(inputs SummaryInputs) string {
 	}
 	sb.WriteString("\n")
 
-	// Workflow control section
-	sb.WriteString("## ⚙️ Workflow Control\n\n")
-	sb.WriteString("| Feature | Enabled |\n")
-	sb.WriteString("|---------|---------|\n")
-	sb.WriteString(fmt.Sprintf("| Use Docker | %s |\n", checkmark(inputs.UseDocker)))
-	sb.WriteString(fmt.Sprintf("| Use GoReleaser | %s |\n", checkmark(inputs.UseGoreleaser)))
-	sb.WriteString(fmt.Sprintf("| Use GoReleaser Docker | %s |\n", checkmark(inputs.UseGoreleaserDocker)))
-	sb.WriteString("\n")
-
-	// Detection section
-	sb.WriteString("## 🔍 Detected Projects\n\n")
-	sb.WriteString("| Project Type | Detected | GoReleaser Handles |\n")
-	sb.WriteString("|--------------|----------|-------------------|\n")
-	sb.WriteString(fmt.Sprintf("| Go | %s | - |\n", checkmark(inputs.HasGo)))
-	sb.WriteString(fmt.Sprintf("| Docker | %s | %s |\n", checkmark(inputs.HasDocker), checkmark(inputs.GoreleaserDocker)))
-	sb.WriteString("\n")
-
 	// Build orchestrator section
 	if inputs.BuildOrchestrator != "" {
 		sb.WriteString("## 🔨 Build Orchestrator\n\n")
@@ -127,15 +110,6 @@ func GenerateSummary(inputs SummaryInputs) string {
 			sb.WriteString("\n")
 		}
 	}
-
-	// GoReleaser config section
-	sb.WriteString("## 🚀 GoReleaser Configuration\n\n")
-	if inputs.GoreleaserConfigCurrent {
-		sb.WriteString("✅ Using **custom** .goreleaser.yml config\n")
-	} else {
-		sb.WriteString("🔧 Will **auto-generate** GoReleaser config (no .goreleaser.yml found)\n")
-	}
-	sb.WriteString("\n")
 
 	// Execution section
 	sb.WriteString("## ⚙️ Execution Results\n\n")

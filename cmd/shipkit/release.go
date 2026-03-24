@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// runRelease executes the publish command using Make
+// runRelease executes the publish command using Make/just/task
 func runRelease(args []string) error {
 	// Log raw args BEFORE parsing
 	logInputs(map[string]string{
@@ -15,32 +15,70 @@ func runRelease(args []string) error {
 	})
 	fs := newFlagSet("publish")
 
-	target := fs.String("target", "publish", "Make target")
+	target := fs.String("target", "release", "Make target")
 	makefile := fs.String("makefile", "Makefile", "Makefile path")
 	visualize := fs.Bool("visualize", true, "Generate Mermaid diagram")
 	parseFlagsOrExit(fs, args)
 
+	// Detect build orchestrator from plan.json or fallback to auto-detection
+	orchestrator := "make" // default
+	orchestratorFile := *makefile
+
+	// Try to load plan.json to get orchestrator
+	plan, err := loadPlan("plan.json")
+	if err == nil && plan != nil && plan.BuildOrchestrator != "" {
+		orchestrator = plan.BuildOrchestrator
+		// Update file path based on orchestrator
+		switch orchestrator {
+		case "just":
+			orchestratorFile = "justfile"
+		case "task":
+			orchestratorFile = "Taskfile.yml"
+		case "make":
+			orchestratorFile = *makefile
+		}
+	} else {
+		// Fallback: auto-detect orchestrator
+		if fileExists("justfile") {
+			orchestrator = "just"
+			orchestratorFile = "justfile"
+		} else if fileExists("Taskfile.yml") || fileExists("Taskfile.yaml") {
+			orchestrator = "task"
+			orchestratorFile = "Taskfile.yml"
+		}
+	}
+
 	// Log inputs
 	logInputs(map[string]string{
-		"target":    *target,
-		"makefile":  *makefile,
-		"visualize": fmt.Sprintf("%v", *visualize),
+		"target":       *target,
+		"orchestrator": orchestrator,
+		"file":         orchestratorFile,
+		"visualize":    fmt.Sprintf("%v", *visualize),
 	})
 
 	// Determine which target to use (ci- prefix or regular)
-	actualTarget, err := selectPublishTarget(*makefile, *target)
+	actualTarget, err := selectPublishTarget(orchestratorFile, *target)
 	if err != nil {
 		return err
 	}
 
-	fmt.Fprintf(os.Stderr, "🚀 Publishing with target: %s\n", actualTarget)
+	fmt.Fprintf(os.Stderr, "🚀 Releasing with target: %s (using %s)\n", actualTarget, orchestrator)
 
-	// Parse Makefile for visualization
+	// Parse orchestrator file for visualization
 	var graph *MakeGraph
 	if *visualize {
-		graph, err = ParseMakefile(*makefile)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "⚠️  Warning: Could not parse Makefile for visualization: %v\n", err)
+		switch orchestrator {
+		case "make":
+			graph, err = ParseMakefile(orchestratorFile)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "⚠️  Warning: Could not parse %s file for visualization: %v\n", orchestrator, err)
+				*visualize = false
+			}
+		case "just":
+			// Visualization not yet supported for justfile
+			*visualize = false
+		default:
+			// task not supported yet for visualization
 			*visualize = false
 		}
 	}
@@ -50,20 +88,20 @@ func runRelease(args []string) error {
 		completed := make(map[string]string)
 		mermaid := GenerateMakeflowMermaid(graph, actualTarget, completed)
 
-		if err := WriteMermaidToSummary("🚀 Publish Plan", mermaid); err != nil {
+		if err := WriteMermaidToSummary("🚀 Release Plan", mermaid); err != nil {
 			fmt.Fprintf(os.Stderr, "⚠️  Warning: Could not write visualization: %v\n", err)
 		}
 
 		// Also print to console
-		fmt.Println("::group::Publish Plan")
+		fmt.Println("::group::Release Plan")
 		fmt.Println(mermaid)
 		fmt.Println("::endgroup::")
 	}
 
-	// Execute make with progress tracking
-	fmt.Println("::group::Publish Execution")
+	// Execute orchestrator with progress tracking
+	fmt.Println("::group::Release Execution")
 
-	cmd := exec.Command("make", actualTarget)
+	cmd := exec.Command(orchestrator, actualTarget)
 	cmd.Env = os.Environ()
 
 	// Set up stdout/stderr forwarding with progress tracking
@@ -79,7 +117,7 @@ func runRelease(args []string) error {
 
 	// Start the command
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to start make: %w", err)
+		return fmt.Errorf("failed to start %s: %w", orchestrator, err)
 	}
 
 	// Create progress tracker
@@ -112,20 +150,20 @@ func runRelease(args []string) error {
 		// Write final visualization on failure
 		if *visualize && graph != nil {
 			mermaid := GenerateMakeflowMermaid(graph, actualTarget, tracker.Completed)
-			WriteMermaidToSummary("🚀 Publish Status (Failed)", mermaid)
+			WriteMermaidToSummary("🚀 Release Status (Failed)", mermaid)
 		}
-		return fmt.Errorf("make %s failed: %w", actualTarget, err)
+		return fmt.Errorf("%s %s failed: %w", orchestrator, actualTarget, err)
 	}
 
 	// Write final visualization on success
 	if *visualize && graph != nil {
 		mermaid := GenerateMakeflowMermaid(graph, actualTarget, tracker.Completed)
-		if err := WriteMermaidToSummary("🚀 Publish Status (Success)", mermaid); err != nil {
+		if err := WriteMermaidToSummary("🚀 Release Status (Success)", mermaid); err != nil {
 			fmt.Fprintf(os.Stderr, "⚠️  Warning: Could not write final visualization: %v\n", err)
 		}
 	}
 
-	fmt.Fprintf(os.Stderr, "✅ Publish completed successfully\n")
+	fmt.Fprintf(os.Stderr, "✅ Release completed successfully\n")
 
 	// Log outputs
 	logOutputs(map[string]string{
@@ -136,8 +174,8 @@ func runRelease(args []string) error {
 	return nil
 }
 
-// selectPublishTarget chooses between ci-publish and publish targets
-func selectPublishTarget(makefilePath, preferredTarget string) (string, error) {
+// selectPublishTarget chooses between ci-release and release targets
+func selectPublishTarget(orchestratorFile, preferredTarget string) (string, error) {
 	// If preferred target already has ci- prefix, use it
 	if strings.HasPrefix(preferredTarget, "ci-") {
 		return preferredTarget, nil
@@ -145,22 +183,46 @@ func selectPublishTarget(makefilePath, preferredTarget string) (string, error) {
 
 	// Try ci- prefix first
 	ciTarget := "ci-" + preferredTarget
-	graph, err := ParseMakefile(makefilePath)
-	if err != nil {
-		// If we can't parse Makefile, fallback to trying ci-publish
-		return ciTarget, nil
-	}
 
-	// Check if ci- target exists
-	if _, exists := graph.Targets[ciTarget]; exists {
-		return ciTarget, nil
-	}
+	// Detect file type and parse accordingly
+	if strings.Contains(orchestratorFile, "justfile") {
+		graph, err := ParseJustfile(orchestratorFile)
+		if err != nil {
+			// If we can't parse justfile, fallback to trying ci-release
+			return ciTarget, nil
+		}
 
-	// Check if regular target exists
-	if _, exists := graph.Targets[preferredTarget]; exists {
-		return preferredTarget, nil
-	}
+		// Check if ci- target exists
+		if _, exists := graph.Recipes[ciTarget]; exists {
+			return ciTarget, nil
+		}
 
-	// No target found
-	return "", fmt.Errorf("no %s or %s target found in Makefile", ciTarget, preferredTarget)
+		// Check if regular target exists
+		if _, exists := graph.Recipes[preferredTarget]; exists {
+			return preferredTarget, nil
+		}
+
+		// No target found
+		return "", fmt.Errorf("no %s or %s recipe found in justfile", ciTarget, preferredTarget)
+	} else {
+		// Assume Makefile
+		graph, err := ParseMakefile(orchestratorFile)
+		if err != nil {
+			// If we can't parse Makefile, fallback to trying ci-release
+			return ciTarget, nil
+		}
+
+		// Check if ci- target exists
+		if _, exists := graph.Targets[ciTarget]; exists {
+			return ciTarget, nil
+		}
+
+		// Check if regular target exists
+		if _, exists := graph.Targets[preferredTarget]; exists {
+			return preferredTarget, nil
+		}
+
+		// No target found
+		return "", fmt.Errorf("no %s or %s target found in Makefile", ciTarget, preferredTarget)
+	}
 }

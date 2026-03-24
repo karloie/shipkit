@@ -453,6 +453,18 @@ func (p *Plan) ToOutputMap() map[string]string {
 	for k, v := range rawMap {
 		m[k] = fmt.Sprintf("%v", v)
 	}
+
+	// Add boolean flags for CI hook existence (for conditional GitHub Actions jobs)
+	ciHooks := []string{"ci-generate", "ci-build", "ci-test", "ci-integration-test", "ci-release", "ci-summary"}
+	for _, hook := range ciHooks {
+		key := "has_" + strings.ReplaceAll(hook, "-", "_")
+		if _, exists := p.BuildTargets[hook]; exists {
+			m[key] = "true"
+		} else {
+			m[key] = "false"
+		}
+	}
+
 	return m
 }
 

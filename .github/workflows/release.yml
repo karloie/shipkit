@@ -67,6 +67,12 @@ jobs:
       tag_exists: ${{ steps.plan.outputs.tag_exists }}
       tag_latest: ${{ steps.plan.outputs.tag_latest }}
       version_clean: ${{ steps.plan.outputs.version_clean }}
+      has_ci_generate: ${{ steps.plan.outputs.has_ci_generate }}
+      has_ci_build: ${{ steps.plan.outputs.has_ci_build }}
+      has_ci_test: ${{ steps.plan.outputs.has_ci_test }}
+      has_ci_integration_test: ${{ steps.plan.outputs.has_ci_integration_test }}
+      has_ci_release: ${{ steps.plan.outputs.has_ci_release }}
+      has_ci_summary: ${{ steps.plan.outputs.has_ci_summary }}
 
     steps:
       - name: Checkout project
@@ -101,11 +107,12 @@ jobs:
           path: plan.json
           retention-days: 1
 
-  # Build: Run ci-build (project Makefile or justfile controls what gets built)
-  build:
-    name: 🏗️ build
+  # Generate: Run ci-generate (optional, code generation step)
+  generate:
+    name: 📦 generate
     runs-on: ubuntu-latest
     needs: plan
+    if: needs.plan.outputs.has_ci_generate == 'true'
     steps:
       - name: Checkout project
         uses: actions/checkout@v4
@@ -122,47 +129,53 @@ jobs:
           name: plan-data
           path: .
 
-      - name: Generate (optional)
+      - name: Run ci-generate
         run: |
           if [ -f justfile ]; then
-            if just --list 2>/dev/null | grep -q ci-generate; then
-              just ci-generate
-            else
-              echo "⏭️  No ci-generate recipe found, skipping"
-            fi
+            just ci-generate
           elif [ -f Makefile ]; then
-            if make -n ci-generate >/dev/null 2>&1; then
-              make ci-generate
-            else
-              echo "⏭️  No ci-generate target found, skipping"
-            fi
-          else
-            echo "⏭️  No build orchestrator found, skipping"
+            make ci-generate
           fi
         env:
-          # Pass all secrets so Makefile can use them
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           GITHUB_TOKEN: ${{ github.token }}
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
-          MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
-          MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
-          MAVEN_GPG_PRIVATE_KEY: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
-          MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Build (required)
+  # Build: Run ci-build (required, project Makefile or justfile controls what gets built)
+  build:
+    name: 🏗️ build
+    runs-on: ubuntu-latest
+    needs: [plan, generate]
+    if: |
+      always() &&
+      needs.plan.outputs.has_ci_build == 'true' &&
+      (needs.generate.result == 'success' || needs.generate.result == 'skipped')
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: karloie/shipkit/.github/actions/setup-shipkit@main
+        with:
+          tool_ref: ${{ inputs.tool_ref }}
+
+      - name: Download plan data
+        uses: actions/download-artifact@v4
+        with:
+          name: plan-data
+          path: .
+
+      - name: Run ci-build
         run: |
           if [ -f justfile ]; then
             just ci-build
           elif [ -f Makefile ]; then
             make ci-build
-          else
-            echo "❌ No build orchestrator found (Makefile or justfile)"
-            exit 1
           fi
         env:
-          # Pass all secrets so Makefile can use them
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           GITHUB_TOKEN: ${{ github.token }}
@@ -173,25 +186,39 @@ jobs:
           MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Test (optional)
+  # Test: Run ci-test (optional, unit/integration tests)
+  test:
+    name: 🧪 test
+    runs-on: ubuntu-latest
+    needs: [plan, build]
+    if: |
+      always() &&
+      needs.plan.outputs.has_ci_test == 'true' &&
+      (needs.build.result == 'success' || needs.build.result == 'skipped')
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: karloie/shipkit/.github/actions/setup-shipkit@main
+        with:
+          tool_ref: ${{ inputs.tool_ref }}
+
+      - name: Download plan data
+        uses: actions/download-artifact@v4
+        with:
+          name: plan-data
+          path: .
+
+      - name: Run ci-test
         run: |
           if [ -f justfile ]; then
-            if just --list 2>/dev/null | grep -q ci-test; then
-              just ci-test
-            else
-              echo "⏭️  No ci-test recipe found, skipping"
-            fi
+            just ci-test
           elif [ -f Makefile ]; then
-            if make -n ci-test >/dev/null 2>&1; then
-              make ci-test
-            else
-              echo "⏭️  No ci-test target found, skipping"
-            fi
-          else
-            echo "⏭️  No build orchestrator found, skipping"
+            make ci-test
           fi
         env:
-          # Pass all secrets so Makefile can use them
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           GITHUB_TOKEN: ${{ github.token }}
@@ -202,25 +229,39 @@ jobs:
           MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Integration Test (optional)
+  # Integration Test: Run ci-integration-test (optional, heavier test suite)
+  integration-test:
+    name: 🔬 integration-test
+    runs-on: ubuntu-latest
+    needs: [plan, test]
+    if: |
+      always() &&
+      needs.plan.outputs.has_ci_integration_test == 'true' &&
+      (needs.test.result == 'success' || needs.test.result == 'skipped')
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: karloie/shipkit/.github/actions/setup-shipkit@main
+        with:
+          tool_ref: ${{ inputs.tool_ref }}
+
+      - name: Download plan data
+        uses: actions/download-artifact@v4
+        with:
+          name: plan-data
+          path: .
+
+      - name: Run ci-integration-test
         run: |
           if [ -f justfile ]; then
-            if just --list 2>/dev/null | grep -q ci-integration-test; then
-              just ci-integration-test
-            else
-              echo "⏭️  No ci-integration-test recipe found, skipping"
-            fi
+            just ci-integration-test
           elif [ -f Makefile ]; then
-            if make -n ci-integration-test >/dev/null 2>&1; then
-              make ci-integration-test
-            else
-              echo "⏭️  No ci-integration-test target found, skipping"
-            fi
-          else
-            echo "⏭️  No build orchestrator found, skipping"
+            make ci-integration-test
           fi
         env:
-          # Pass all secrets so Makefile can use them
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           GITHUB_TOKEN: ${{ github.token }}
@@ -231,18 +272,20 @@ jobs:
           MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-  # Tag: Create git tag (only if build passes)
+  # Tag: Create git tag (only if all previous jobs passed or were skipped)
   tag:
     name: 🏷️ tag
     runs-on: ubuntu-latest
-    needs: [plan, build]
+    needs: [plan, generate, build, test, integration-test]
     if: |
       always() &&
       needs.plan.outputs.release_skip != 'true' &&
       needs.plan.outputs.tag_exists != 'true' &&
       inputs.mode == 'release' &&
       inputs.dry_run != true &&
-      needs.build.result == 'success'
+      (needs.build.result == 'success' || needs.build.result == 'skipped') &&
+      (needs.test.result == 'success' || needs.test.result == 'skipped') &&
+      (needs.integration-test.result == 'success' || needs.integration-test.result == 'skipped')
     steps:
       - name: Checkout project
         uses: actions/checkout@v4
@@ -263,7 +306,7 @@ jobs:
   decide:
     name: 🤔 decide
     runs-on: ubuntu-latest
-    needs: [plan, build, tag]
+    needs: [plan, build, test, integration-test, tag]
     if: always()
     outputs:
       should_release: ${{ steps.decide.outputs.should_release }}
@@ -281,12 +324,14 @@ jobs:
             -result-build=${{ needs.build.result }} \
             -result-tag=${{ needs.tag.result }}
 
-  # Release: Run ci-release via shipkit (project Makefile/justfile can override)
+  # Release: Run ci-release via shipkit (project Makefile/justfile controls release)
   release:
     name: 🚀 release
     runs-on: ubuntu-latest
-    needs: [plan, build, tag, decide]
-    if: needs.decide.outputs.should_release == 'true'
+    needs: [plan, decide]
+    if: |
+      needs.decide.outputs.should_release == 'true' &&
+      needs.plan.outputs.has_ci_release == 'true'
     steps:
       - name: Checkout project at tag
         uses: actions/checkout@v4
@@ -323,7 +368,7 @@ jobs:
     name: 📊 summary
     runs-on: ubuntu-latest
     if: always()
-    needs: [plan, build, tag, decide, release]
+    needs: [plan, build, test, integration-test, tag, decide, release]
     steps:
       - name: Checkout project
         uses: actions/checkout@v4
@@ -349,21 +394,10 @@ jobs:
             -result-release="${{ needs.release.result }}"
 
       - name: Run custom summary (if exists)
+        if: needs.plan.outputs.has_ci_summary == 'true'
         run: |
           if [ -f justfile ]; then
-            if just --list 2>/dev/null | grep -q ci-summary; then
-              echo "Running just ci-summary..."
-              just ci-summary
-            else
-              echo "No ci-summary recipe found, skipping"
-            fi
+            just ci-summary
           elif [ -f Makefile ]; then
-            if make -n ci-summary >/dev/null 2>&1; then
-              echo "Running make ci-summary..."
-              make ci-summary
-            else
-              echo "No ci-summary target found, skipping"
-            fi
-          else
-            echo "No build orchestrator found, skipping"
+            make ci-summary
           fi
