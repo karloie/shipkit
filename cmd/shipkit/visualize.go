@@ -66,8 +66,8 @@ func GenerateMakeflowMermaid(graph *MakeGraph, target string, completed map[stri
 // getTargetEmoji returns an appropriate emoji for common Make target names
 func getTargetEmoji(target string) string {
 	// Check for ci- prefixed targets first
-	if strings.HasPrefix(target, "ci-") {
-		target = strings.TrimPrefix(target, "ci-")
+	if after, ok := strings.CutPrefix(target, "ci-"); ok {
+		target = after
 	}
 
 	switch target {

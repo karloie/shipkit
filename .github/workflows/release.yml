@@ -109,7 +109,7 @@ jobs:
 
   # Generate: Run ci-generate (optional, code generation step)
   generate:
-    name: 📦 gen
+    name: 📦 generate
     runs-on: ubuntu-latest
     needs: plan
     if: needs.plan.outputs.has_ci_generate == 'true'
@@ -274,7 +274,7 @@ jobs:
 
   # Decide: Evaluate release decision (before creating tag)
   decide:
-    name: 🤔 decide
+    name: ✅ decide
     runs-on: ubuntu-latest
     needs: [plan, build, test, integration-test]
     if: always()
@@ -322,7 +322,7 @@ jobs:
 
   # Release: Run ci-release via shipkit (project Makefile/justfile controls release)
   release:
-    name: 🚀 ship
+    name: 🚀 release
     runs-on: ubuntu-latest
     needs: [plan, decide, tag]
     if: |
@@ -361,7 +361,7 @@ jobs:
 
   # Summary: Generate release summary
   summary:
-    name: 📊 sum
+    name: 📊 summary
     runs-on: ubuntu-latest
     if: always()
     needs: [plan, build, test, integration-test, decide, tag, release]
