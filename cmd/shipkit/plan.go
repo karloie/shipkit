@@ -252,6 +252,14 @@ func runPlanClean(plan *Plan, git GitProvider, pr PRProvider) error {
 			}
 		}
 
+		// Save resolved owner/repo back to plan
+		if ownerStr != "" {
+			plan.Owner = ownerStr
+		}
+		if repoStr != "" {
+			plan.Repo = repoStr
+		}
+
 		if ownerStr != "" && repoStr != "" {
 			plan.DockerImage = fmt.Sprintf("%s/%s", ownerStr, repoStr)
 		} else if plan.DockerImage == "" {

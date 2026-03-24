@@ -387,7 +387,7 @@ jobs:
       - name: Generate release summary
         run: |
           shipkit summary \
-            -plan-file=plan.json \
+            -plan-file=/tmp/shipkit/plan.json \
             -tool-ref="${{ inputs.tool_ref }}" \
             -result-plan="${{ needs.plan.result }}" \
             -result-build="${{ needs.build.result }}" \
