@@ -636,8 +636,9 @@ release:
 	if includeHomebrew {
 		homebrewConfig := fmt.Sprintf(`
 # Homebrew tap configuration
-brews:
-  - repository:
+homebrew_casks:
+  - name: %s
+    repository:
       owner: %s
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
@@ -647,30 +648,7 @@ brews:
     directory: Casks
     homepage: "https://github.com/%s/%s"
     description: "Application built with Go"
-    cask: |
-      cask "%s" do
-        name "%s"
-        desc "Application built with Go"
-        homepage "https://github.com/%s/%s"
-        version "{{ .Version }}"
-        
-        on_macos do
-          if Hardware::CPU.arm?
-            url "https://github.com/%s/%s/releases/download/v{{ .Version }}/%s_darwin_arm64"
-            sha256 "{{ .ArtifactChecksumFor \"%s_darwin_arm64\" }}"
-          else
-            url "https://github.com/%s/%s/releases/download/v{{ .Version }}/%s_darwin_amd64"
-            sha256 "{{ .ArtifactChecksumFor \"%s_darwin_amd64\" }}"
-          end
-        end
-        
-        livecheck do
-          skip "Auto-generated on release."
-        end
-        
-        binary "%s_darwin_#{Hardware::CPU.arch}", target: "%s"
-      end
-`, owner, owner, repoName, repoName, repoName, owner, repoName, owner, repoName, repoName, repoName, owner, repoName, repoName, repoName, repoName, repoName)
+`, repoName, owner, owner, repoName)
 		config += homebrewConfig
 	}
 
