@@ -84,6 +84,33 @@ func runPlan(args []string) error {
 
 	parseFlagsOrExit(fs, args)
 
+	// Populate owner/repo from environment if not provided via CLI
+	if *owner == "" {
+		*owner = os.Getenv("GITHUB_REPOSITORY_OWNER")
+		if *owner == "" {
+			// Try parsing from GITHUB_REPOSITORY (format: "owner/repo")
+			fullRepo := os.Getenv("GITHUB_REPOSITORY")
+			if fullRepo != "" {
+				parts := strings.Split(fullRepo, "/")
+				if len(parts) == 2 {
+					*owner = parts[0]
+					if *repo == "" {
+						*repo = parts[1]
+					}
+				}
+			}
+		}
+	}
+	if *repo == "" {
+		fullRepo := os.Getenv("GITHUB_REPOSITORY")
+		if fullRepo != "" {
+			parts := strings.Split(fullRepo, "/")
+			if len(parts) == 2 {
+				*repo = parts[1]
+			}
+		}
+	}
+
 	// Override plan with CLI args
 	plan.Bump = strings.TrimSpace(*bump)
 	plan.TagNext = strings.TrimSpace(*nextTag)
@@ -228,40 +255,11 @@ func runPlanClean(plan *Plan, git GitProvider, pr PRProvider) error {
 		}
 	}
 
-	// Compute docker image if not provided or is default and populate plan
+	// Compute docker image if not provided or is default
 	if plan.DockerImage == "" || plan.DockerImage == DefaultImage {
-		// Compute from owner/repo
-		ownerStr := plan.Owner
-		repoStr := plan.Repo
-
-		// Try to get from environment if not provided
-		if ownerStr == "" {
-			ownerStr = os.Getenv("GITHUB_REPOSITORY_OWNER")
-		}
-		if repoStr == "" {
-			// GITHUB_REPOSITORY is "owner/repo"
-			fullRepo := os.Getenv("GITHUB_REPOSITORY")
-			if fullRepo != "" {
-				parts := strings.Split(fullRepo, "/")
-				if len(parts) == 2 {
-					repoStr = parts[1]
-					if ownerStr == "" {
-						ownerStr = parts[0]
-					}
-				}
-			}
-		}
-
-		// Save resolved owner/repo back to plan
-		if ownerStr != "" {
-			plan.Owner = ownerStr
-		}
-		if repoStr != "" {
-			plan.Repo = repoStr
-		}
-
-		if ownerStr != "" && repoStr != "" {
-			plan.DockerImage = fmt.Sprintf("%s/%s", ownerStr, repoStr)
+		// Use owner/repo that were already populated from environment or CLI
+		if plan.Owner != "" && plan.Repo != "" {
+			plan.DockerImage = fmt.Sprintf("%s/%s", plan.Owner, plan.Repo)
 		} else if plan.DockerImage == "" {
 			plan.DockerImage = DefaultImage
 		}
