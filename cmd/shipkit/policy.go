@@ -21,7 +21,7 @@ type ReleasePolicy struct {
 type PolicyInput struct {
 	Mode            string
 	EventName       string
-	Publish         string
+	Release         string
 	LatestTag       string
 	NextTag         string
 	Image           string
@@ -35,7 +35,7 @@ func runPolicy(args []string) error {
 	fs := newFlagSet("policy")
 	mode := fs.String("mode", DefaultMode, "Release mode")
 	eventName := fs.String("event-name", os.Getenv(EnvGitHubEventName), "Event name")
-	publish := fs.String("publish", "", "Publish flag")
+	release := fs.String("publish", "", "Release flag")
 	latestTag := fs.String("latest-tag", "", "Latest tag")
 	nextTag := fs.String("next-tag", "", "Next tag")
 	image := fs.String("image", DefaultImage, "Docker image")
@@ -47,7 +47,7 @@ func runPolicy(args []string) error {
 	input := PolicyInput{
 		Mode:            strings.TrimSpace(*mode),
 		EventName:       strings.TrimSpace(*eventName),
-		Publish:         strings.TrimSpace(*publish),
+		Release:         strings.TrimSpace(*release),
 		LatestTag:       strings.TrimSpace(*latestTag),
 		NextTag:         strings.TrimSpace(*nextTag),
 		Image:           strings.TrimSpace(*image),
@@ -73,7 +73,7 @@ func runPolicy(args []string) error {
 		writeOutput(githubOutput, OutputDockerfile, policy.Dockerfile)
 	}
 	// Handle Docker login for docker mode
-	if input.Mode == ModeDocker && policy.Skip != PublishTrue {
+	if input.Mode == ModeDocker && policy.Skip != ReleaseTrue {
 		username := os.Getenv(EnvDockerHubUsername)
 		token := os.Getenv(EnvDockerHubToken)
 
@@ -81,10 +81,10 @@ func runPolicy(args []string) error {
 			if err := dockerLogin(username, token); err != nil {
 				return fmt.Errorf("docker login failed: %w", err)
 			}
-			writeOutput(githubOutput, "push", PublishTrue)
+			writeOutput(githubOutput, "push", ReleaseTrue)
 		} else {
 			fmt.Fprintln(os.Stderr, "⚠️  Warning: Missing DockerHub credentials - will build locally without pushing")
-			writeOutput(githubOutput, "push", PublishFalse)
+			writeOutput(githubOutput, "push", ReleaseFalse)
 		}
 	}
 
@@ -114,9 +114,9 @@ func computeReleasePolicy(input PolicyInput, env EnvProvider, git GitProvider) (
 		return computeTagBasedPolicy(input, env, git)
 	}
 
-	if input.Publish != PublishTrue {
+	if input.Release != ReleaseTrue {
 		return ReleasePolicy{
-			Skip:    PublishTrue,
+			Skip:    ReleaseTrue,
 			Message: "Info: No release markers found. Skipping tag creation and publish.",
 		}, nil
 	}
@@ -135,7 +135,7 @@ func computeReleasePolicy(input PolicyInput, env EnvProvider, git GitProvider) (
 	}
 
 	if resolvedTag == "" {
-		return ReleasePolicy{}, fmt.Errorf("next-tag is required when publish=true")
+		return ReleasePolicy{}, fmt.Errorf("next-tag is required when release=true")
 	}
 
 	if !input.DryRun {
@@ -163,7 +163,7 @@ func computeReleasePolicy(input PolicyInput, env EnvProvider, git GitProvider) (
 		VersionMajorMinor: majorMinor,
 		Dockerfile:        dockerfile,
 		ReleaseTag:        resolvedTag,
-		Skip:              PublishFalse,
+		Skip:              ReleaseFalse,
 		Message:           summary,
 	}, nil
 }
@@ -196,12 +196,12 @@ func computeTagBasedPolicy(input PolicyInput, env EnvProvider, git GitProvider) 
 		return ReleasePolicy{}, err
 	}
 
-	publishMode, err := resolvePublishMode(input.EventName, input.Publish, input.Mode)
+	releaseMode, err := resolveReleaseMode(input.EventName, input.Release, input.Mode)
 	if err != nil {
 		return ReleasePolicy{}, err
 	}
 
-	if publishMode == PublishTrue {
+	if releaseMode == ReleaseTrue {
 		if !input.DryRun {
 			if err := validateRequiredSecrets(input.RequiredSecrets, env); err != nil {
 				return ReleasePolicy{}, err
@@ -220,19 +220,19 @@ func computeTagBasedPolicy(input PolicyInput, env EnvProvider, git GitProvider) 
 				VersionMajorMinor: majorMinor,
 				Dockerfile:        "",
 				ReleaseTag:        resolvedTag,
-				Skip:              PublishTrue, // Skip the docker job
+				Skip:              ReleaseTrue, // Skip the docker job
 				Message:           msg,
 			}, nil
 		}
 	}
 
 	shortSHA := shortenSHA(input.SHA)
-	msg := buildTagModeSummary(input.Mode, resolvedTag, version, majorMinor, input.Image, shortSHA, publishMode)
+	msg := buildTagModeSummary(input.Mode, resolvedTag, version, majorMinor, input.Image, shortSHA, releaseMode)
 
-	// Invert publishMode to skip (true -> false, false/skip -> true)
-	skip := PublishTrue
-	if publishMode == PublishTrue {
-		skip = PublishFalse
+	// Invert releaseMode to skip (true -> false, false/skip -> true)
+	skip := ReleaseTrue
+	if releaseMode == ReleaseTrue {
+		skip = ReleaseFalse
 	}
 
 	return ReleasePolicy{
@@ -245,13 +245,13 @@ func computeTagBasedPolicy(input PolicyInput, env EnvProvider, git GitProvider) 
 	}, nil
 }
 
-func buildTagModeSummary(mode, tag, version, majorMinor, image, shortSHA, publishMode string) string {
+func buildTagModeSummary(mode, tag, version, majorMinor, image, shortSHA, releaseMode string) string {
 	if mode == ModeGoreleaser {
-		return fmt.Sprintf("Tag: %s\nMode: %s", tag, publishMode)
+		return fmt.Sprintf("Tag: %s\nMode: %s", tag, releaseMode)
 	}
 	if mode == ModeDocker {
 		lines := []string{fmt.Sprintf("Source ref: %s", tag)}
-		if publishMode == PublishTrue {
+		if releaseMode == ReleaseTrue {
 			lines = append(lines, "Image tags:")
 			lines = append(lines, fmt.Sprintf("  - %s:%s", image, version))
 			lines = append(lines, fmt.Sprintf("  - %s:%s", image, majorMinor))
@@ -339,20 +339,20 @@ func parseTagVersion(tag string) (string, error) {
 	return matches[1], nil
 }
 
-func resolvePublishMode(eventName, publishInput, mode string) (string, error) {
+func resolveReleaseMode(eventName, publishInput, mode string) (string, error) {
 	if eventName == "push" {
-		return PublishTrue, nil
+		return ReleaseTrue, nil
 	}
 
 	p := strings.TrimSpace(publishInput)
 	if p == "" {
 		if mode == ModeDocker {
-			return PublishTrue, nil
+			return ReleaseTrue, nil
 		}
-		return PublishFalse, nil
+		return ReleaseFalse, nil
 	}
 
-	if p != PublishTrue && p != PublishFalse {
+	if p != ReleaseTrue && p != ReleaseFalse {
 		return "", fmt.Errorf("invalid publish mode: %s", p)
 	}
 

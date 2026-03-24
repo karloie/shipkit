@@ -259,20 +259,20 @@ jobs:
       - name: Create and push tag
         run: shipkit git-tag -tag="${{ needs.plan.outputs.tag }}"
 
-  # Decide: Evaluate publish decision
+  # Decide: Evaluate release decision
   decide:
     name: 🤔 decide
     runs-on: ubuntu-latest
     needs: [plan, build, tag]
     if: always()
     outputs:
-      should_publish: ${{ steps.decide.outputs.should_publish }}
+      should_release: ${{ steps.decide.outputs.should_release }}
     steps:
       - uses: karloie/shipkit/.github/actions/setup-shipkit@main
         with:
           tool_ref: ${{ inputs.tool_ref }}
 
-      - name: Decide publish actions
+      - name: Decide release actions
         id: decide
         run: |
           shipkit decide \
@@ -281,12 +281,12 @@ jobs:
             -result-build=${{ needs.build.result }} \
             -result-tag=${{ needs.tag.result }}
 
-  # Publish: Run ci-publish via shipkit (project Makefile/justfile can override)
-  publish:
-    name: 🚀 publish
+  # Release: Run ci-release via shipkit (project Makefile/justfile can override)
+  release:
+    name: 🚀 release
     runs-on: ubuntu-latest
     needs: [plan, build, tag, decide]
-    if: needs.decide.outputs.should_publish == 'true'
+    if: needs.decide.outputs.should_release == 'true'
     steps:
       - name: Checkout project at tag
         uses: actions/checkout@v4
@@ -304,8 +304,8 @@ jobs:
           name: plan-data
           path: .
 
-      - name: Run publish
-        run: shipkit publish
+      - name: Run release
+        run: shipkit release
         env:
           # Pass all secrets so Makefile can use them
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -323,7 +323,7 @@ jobs:
     name: 📊 summary
     runs-on: ubuntu-latest
     if: always()
-    needs: [plan, build, tag, decide, publish]
+    needs: [plan, build, tag, decide, release]
     steps:
       - name: Checkout project
         uses: actions/checkout@v4
@@ -346,7 +346,7 @@ jobs:
             -result-plan="${{ needs.plan.result }}" \
             -result-build="${{ needs.build.result }}" \
             -result-tag="${{ needs.tag.result }}" \
-            -result-publish="${{ needs.publish.result }}"
+            -result-release="${{ needs.release.result }}"
 
       - name: Run custom summary (if exists)
         run: |

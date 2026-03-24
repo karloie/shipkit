@@ -82,7 +82,7 @@ func TestComputeVersionWithPRLabels(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 			if tt.wantBump == "skip" {
-				if publish != PublishSkip {
+				if publish != ReleaseSkip {
 					t.Errorf("expected skip, got publish=%s", publish)
 				}
 			} else {
@@ -125,7 +125,7 @@ func TestComputeVersionWithCommitAnalysis(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 			if tt.wantNext == "" {
-				if publish != PublishSkip {
+				if publish != ReleaseSkip {
 					t.Errorf("expected skip for %s, got publish=%s", tt.name, publish)
 				}
 			} else {

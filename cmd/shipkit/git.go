@@ -122,10 +122,10 @@ func runDockerHubStatus(args []string) error {
 	githubOutput := os.Getenv(EnvGitHubOutput)
 
 	if hasGoreleaserDocker {
-		writeOutput(githubOutput, "should_build_docker_goreleaser", PublishTrue)
+		writeOutput(githubOutput, "should_build_docker_goreleaser", ReleaseTrue)
 		fmt.Println("GoReleaser will handle Docker builds")
 	} else {
-		writeOutput(githubOutput, "should_build_docker_goreleaser", PublishFalse)
+		writeOutput(githubOutput, "should_build_docker_goreleaser", ReleaseFalse)
 		fmt.Println("Docker workflow will handle Docker builds")
 	}
 

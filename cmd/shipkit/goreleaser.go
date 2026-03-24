@@ -106,9 +106,9 @@ func runGoReleaser(args []string) error {
 	// Check for Docker/Containerfile
 	hasDocker, dockerFile := detectDockerFiles("goreleaser")
 	if hasDocker {
-		fmt.Fprintf(os.Stderr, "  🐳 Detected %s - will publish Docker image\n", dockerFile)
+		fmt.Fprintf(os.Stderr, "  🐳 Detected %s - will release Docker image\n", dockerFile)
 	} else {
-		fmt.Fprintln(os.Stderr, "  No Containerfile.goreleaser or Dockerfile.goreleaser found - skipping Docker publishing")
+		fmt.Fprintln(os.Stderr, "  No Containerfile.goreleaser or Dockerfile.goreleaser found - skipping Docker release")
 	}
 
 	config := GoReleaserConfig{

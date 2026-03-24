@@ -28,7 +28,7 @@ func TestGenerateSummary(t *testing.T) {
 		ResultPlan:              "success",
 		ResultBuild:             "success",
 		ResultTag:               "success",
-		ResultPublish:           "success",
+		ResultRelease:           "success",
 	}
 
 	result := GenerateSummary(inputs)

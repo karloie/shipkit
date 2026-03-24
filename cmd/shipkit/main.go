@@ -35,18 +35,18 @@ func main() {
 		err = runPlan(os.Args[2:])
 	case "build":
 		err = runBuild(os.Args[2:])
-	case "publish":
-		err = runPublish(os.Args[2:])
-	case "publish-goreleaser":
-		err = runPublishGoreleaser(os.Args[2:])
-	case "publish-docker":
-		err = runPublishDocker(os.Args[2:])
+	case "release":
+		err = runRelease(os.Args[2:])
+	case "release-goreleaser":
+		err = runReleaseGoreleaser(os.Args[2:])
+	case "release-docker":
+		err = runReleaseDocker(os.Args[2:])
 	case "decide":
 		err = runDecide(os.Args[2:])
 	case "summary":
 		err = runSummary(os.Args[2:])
-	case "assets-delete":
-		err = runAssetsDelete(os.Args[2:])
+// 	case "assets-delete":
+// 		err = runAssetsDelete(os.Args[2:])
 	case "docker-hub-status":
 		err = runDockerHubStatus(os.Args[2:])
 	case "docker-hub-readme":
@@ -128,7 +128,7 @@ func printHelp() {
 	fmt.Fprintln(os.Stderr, "  version               Compute next release version")
 	fmt.Fprintln(os.Stderr, "  plan                  Plan release workflow")
 	fmt.Fprintln(os.Stderr, "  build                 Execute build using Make/just/task")
-	fmt.Fprintln(os.Stderr, "  decide                Validate build results and decide on publishing")
+	fmt.Fprintln(os.Stderr, "  decide                Validate build results and decide on releasing")
 	fmt.Fprintln(os.Stderr, "  publish               Execute publish using Make/just/task")
 	fmt.Fprintln(os.Stderr, "  publish-goreleaser    Publish release using GoReleaser")
 	fmt.Fprintln(os.Stderr, "  publish-docker        Build and publish Docker images")
@@ -138,7 +138,6 @@ func printHelp() {
 	fmt.Fprintln(os.Stderr, "  git-config            Configure git for release")
 	fmt.Fprintln(os.Stderr, "  git-tag               Create and push git tag")
 	fmt.Fprintln(os.Stderr, "  git-tag-cleanup       Delete tag on release failure")
-	fmt.Fprintln(os.Stderr, "  assets-delete         Delete release assets")
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Options:")
 	fmt.Fprintln(os.Stderr, "  -v, --version         Show version information")

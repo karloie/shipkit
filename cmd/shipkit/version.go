@@ -20,14 +20,14 @@ func runVersion(args []string) error {
 	git := &GitProviderReal{}
 	pr := &PRProviderReal{token: token}
 
-	latest, next, publish, err := computeVersion(eventName, *bump, git, pr)
+	latest, next, release, err := computeVersion(eventName, *bump, git, pr)
 	if err != nil {
 		return err
 	}
 
-	if publish == PublishSkip {
+	if release == ReleaseSkip {
 		fmt.Println("⏭️  No release markers found. Skipping release.")
-		writeOutput(githubOutput, "bump", PublishSkip)
+		writeOutput(githubOutput, "bump", ReleaseSkip)
 		return nil
 	}
 
@@ -35,11 +35,11 @@ func runVersion(args []string) error {
 	fmt.Printf("🎉 Released new: %s\n", next)
 	writeOutput(githubOutput, OutputTagCurrent, latest)
 	writeOutput(githubOutput, OutputTagNext, next)
-	writeOutput(githubOutput, OutputPublish, PublishTrue)
+	writeOutput(githubOutput, OutputRelease, ReleaseTrue)
 	return nil
 }
 
-func computeVersion(eventName, bumpInput string, git GitProvider, pr PRProvider) (latest, next, publish string, err error) {
+func computeVersion(eventName, bumpInput string, git GitProvider, pr PRProvider) (latest, next, release string, err error) {
 	latest, err = git.GetLatestTag()
 	if err != nil {
 		latest = "v0.0.0" // No tags found - start from v0.0.0
@@ -72,7 +72,7 @@ func computeVersion(eventName, bumpInput string, git GitProvider, pr PRProvider)
 		}
 
 		if bump == "" {
-			return latest, "", PublishSkip, nil
+			return latest, "", ReleaseSkip, nil
 		}
 	} else {
 		if bumpInput == "" {
@@ -110,7 +110,7 @@ func computeVersion(eventName, bumpInput string, git GitProvider, pr PRProvider)
 		next = fmt.Sprintf("v%d.%d.%d", major, minor, patch)
 	}
 
-	return latest, next, PublishTrue, nil
+	return latest, next, ReleaseTrue, nil
 }
 
 func analyzeCommits(latestTag string, git GitProvider) (string, error) {

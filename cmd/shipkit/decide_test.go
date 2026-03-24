@@ -19,7 +19,7 @@ func TestDecide(t *testing.T) {
 				Tag:    "success",
 			},
 			expected: DecideOutputs{
-				ShouldPublish: true,
+				ShouldRelease: true,
 			},
 		},
 		{
@@ -31,7 +31,7 @@ func TestDecide(t *testing.T) {
 				Tag:    "success",
 			},
 			expected: DecideOutputs{
-				ShouldPublish: false,
+				ShouldRelease: false,
 			},
 		},
 		{
@@ -43,7 +43,7 @@ func TestDecide(t *testing.T) {
 				Tag:    "success",
 			},
 			expected: DecideOutputs{
-				ShouldPublish: false,
+				ShouldRelease: false,
 			},
 		},
 		{
@@ -55,7 +55,7 @@ func TestDecide(t *testing.T) {
 				Tag:    "failure",
 			},
 			expected: DecideOutputs{
-				ShouldPublish: false,
+				ShouldRelease: false,
 			},
 		},
 		{
@@ -67,7 +67,7 @@ func TestDecide(t *testing.T) {
 				Tag:    "skipped",
 			},
 			expected: DecideOutputs{
-				ShouldPublish: true,
+				ShouldRelease: true,
 			},
 		},
 		{
@@ -79,7 +79,7 @@ func TestDecide(t *testing.T) {
 				Tag:    "success",
 			},
 			expected: DecideOutputs{
-				ShouldPublish: true,
+				ShouldRelease: true,
 			},
 		},
 		{
@@ -91,7 +91,7 @@ func TestDecide(t *testing.T) {
 				Tag:    "skipped",
 			},
 			expected: DecideOutputs{
-				ShouldPublish: true,
+				ShouldRelease: true,
 			},
 		},
 		{
@@ -103,7 +103,7 @@ func TestDecide(t *testing.T) {
 				Tag:    "",
 			},
 			expected: DecideOutputs{
-				ShouldPublish: false,
+				ShouldRelease: false,
 			},
 		},
 		{
@@ -115,7 +115,7 @@ func TestDecide(t *testing.T) {
 				Tag:    "Success",
 			},
 			expected: DecideOutputs{
-				ShouldPublish: true,
+				ShouldRelease: true,
 			},
 		},
 		{
@@ -127,7 +127,7 @@ func TestDecide(t *testing.T) {
 				Tag:    " success ",
 			},
 			expected: DecideOutputs{
-				ShouldPublish: true,
+				ShouldRelease: true,
 			},
 		},
 	}
@@ -136,8 +136,8 @@ func TestDecide(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := Decide(tt.inputs)
 
-			if result.ShouldPublish != tt.expected.ShouldPublish {
-				t.Errorf("ShouldPublish: got %v, want %v", result.ShouldPublish, tt.expected.ShouldPublish)
+			if result.ShouldRelease != tt.expected.ShouldRelease {
+				t.Errorf("ShouldRelease: got %v, want %v", result.ShouldRelease, tt.expected.ShouldRelease)
 			}
 		})
 	}

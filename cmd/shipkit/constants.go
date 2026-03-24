@@ -38,11 +38,11 @@ const (
 	BumpMajor = "major"
 )
 
-// Publish states
+// Release states
 const (
-	PublishTrue  = "true"
-	PublishSkip  = "skip"
-	PublishFalse = "false"
+	ReleaseTrue  = "true"
+	ReleaseSkip  = "skip"
+	ReleaseFalse = "false"
 )
 
 // PR label prefixes
@@ -76,7 +76,7 @@ const (
 	OutputTagCurrent           = "tag_latest"
 	OutputTagNext              = "tag_next"
 	OutputTagExists            = "tag_exists"
-	OutputPublish              = "publish"
+	OutputRelease              = "publish"
 	OutputSkip                 = "skip"
 	OutputVersionMajorMinor    = "version_major_minor"
 	OutputDockerfile           = "dockerfile"

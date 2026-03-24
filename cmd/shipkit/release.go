@@ -7,8 +7,8 @@ import (
 	"strings"
 )
 
-// runPublish executes the publish command using Make
-func runPublish(args []string) error {
+// runRelease executes the publish command using Make
+func runRelease(args []string) error {
 	// Log raw args BEFORE parsing
 	logInputs(map[string]string{
 		"raw_args": strings.Join(args, " "),

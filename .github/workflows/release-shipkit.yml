@@ -119,8 +119,8 @@ jobs:
           git tag -a "${{ steps.version.outputs.tag }}" -m "Release ${{ steps.version.outputs.tag }}"
           git push origin "${{ steps.version.outputs.tag }}"
 
-  publish:
-    name: 🚀 Publish
+  release:
+    name: 🚀 Release
     needs: [build, tag]
     if: github.event.inputs.dry_run != 'true'
     runs-on: ubuntu-latest
@@ -161,11 +161,11 @@ jobs:
   cleanup:
     name: 🧹 Cleanup
     runs-on: ubuntu-latest
-    needs: [tag, publish]
+    needs: [tag, release]
     if: |
       always() &&
       needs.tag.result == 'success' &&
-      needs.publish.result == 'failure'
+      needs.release.result == 'failure'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -175,14 +175,14 @@ jobs:
       - name: Delete failed release tag
         run: |
           TAG="${{ needs.tag.outputs.tag }}"
-          echo "Deleting tag $TAG due to publish failure"
+          echo "Deleting tag $TAG due to release failure"
           git push --delete origin "$TAG" || echo "Tag already deleted or doesn't exist"
 
   summary:
     name: 📊 Summary
     runs-on: ubuntu-latest
     if: always()
-    needs: [build, tag, publish, cleanup]
+    needs: [build, tag, release, cleanup]
     steps:
       - name: Generate summary
         run: |
@@ -195,16 +195,16 @@ jobs:
             echo "|-----|--------|"
             echo "| 🔨 Build | ${{ needs.build.result }} |"
             echo "| 🏷️ Tag | ${{ needs.tag.result }} |"
-            echo "| 🚀 Publish | ${{ needs.publish.result }} |"
+            echo "| 🚀 Release | ${{ needs.release.result }} |"
             if [ "${{ needs.cleanup.result }}" != "skipped" ]; then
               echo "| 🧹 Cleanup | ${{ needs.cleanup.result }} |"
             fi
             echo ""
             if [ "${{ needs.tag.outputs.tag }}" != "" ]; then
-              if [ "${{ needs.publish.result }}" == "success" ]; then
+              if [ "${{ needs.release.result }}" == "success" ]; then
                 echo "**Released:** ${{ needs.tag.outputs.tag }}"
               elif [ "${{ needs.cleanup.result }}" == "success" ]; then
-                echo "**Tag ${{ needs.tag.outputs.tag }} cleaned up after publish failure**"
+                echo "**Tag ${{ needs.tag.outputs.tag }} cleaned up after release failure**"
               fi
             fi
           } >> "$GITHUB_STEP_SUMMARY"

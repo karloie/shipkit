@@ -19,7 +19,7 @@ func TestRereleaseSkipsComputeVersion(t *testing.T) {
 	// ResolveLatest=true, no NextTag — must resolve from git, not skip
 	p, err := computeReleasePolicy(PolicyInput{
 		Mode:            ModeRerelease,
-		Publish:         PublishTrue,
+		Release:         ReleaseTrue,
 		ResolveLatest:   true,
 		Image:           "karloie/kompass",
 		RequiredSecrets: []string{"DOCKERHUB_USERNAME", "DOCKERHUB_TOKEN", "HOMEBREW_TAP_GITHUB_TOKEN"},
@@ -27,7 +27,7 @@ func TestRereleaseSkipsComputeVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("rerelease should not error: %v", err)
 	}
-	if p.Skip == PublishTrue {
+	if p.Skip == ReleaseTrue {
 		t.Fatal("rerelease must not be skipped when publish=true and tag is resolvable")
 	}
 	if p.ReleaseTag != "v0.0.16" {
@@ -55,7 +55,7 @@ func TestPlanWritesDockerfileOutput(t *testing.T) {
 	}}
 	p, err := computeReleasePolicy(PolicyInput{
 		Mode:            ModeRerelease,
-		Publish:         PublishTrue,
+		Release:         ReleaseTrue,
 		NextTag:         "v1.2.3",
 		Image:           "karloie/kompass",
 		RequiredSecrets: []string{"DOCKERHUB_USERNAME", "DOCKERHUB_TOKEN", "HOMEBREW_TAP_GITHUB_TOKEN"},
@@ -246,7 +246,7 @@ func TestDockerModeSkipsWhenNoDockerfile(t *testing.T) {
 
 	p, err := computeReleasePolicy(PolicyInput{
 		Mode:            ModeDocker,
-		Publish:         PublishTrue,
+		Release:         ReleaseTrue,
 		NextTag:         "v1.0.0",
 		Image:           "test/image",
 		RequiredSecrets: []string{"DOCKERHUB_USERNAME", "DOCKERHUB_TOKEN"},
@@ -257,8 +257,8 @@ func TestDockerModeSkipsWhenNoDockerfile(t *testing.T) {
 	}
 
 	// Must set skip=true to skip the docker job in workflow
-	if p.Skip != PublishTrue {
-		t.Errorf("expected Skip=PublishTrue when no dockerfile exists, got %q", p.Skip)
+	if p.Skip != ReleaseTrue {
+		t.Errorf("expected Skip=ReleaseTrue when no dockerfile exists, got %q", p.Skip)
 	}
 
 	// Must have informative message
@@ -338,14 +338,14 @@ func TestPlanOutputsHasDockerForWorkflowCondition(t *testing.T) {
 
 			// Simulate what plan.go writes to outputs
 			if hasStandaloneDocker {
-				writeOutput(outFile, OutputHasDocker, PublishTrue)
+				writeOutput(outFile, OutputHasDocker, ReleaseTrue)
 			} else {
-				writeOutput(outFile, OutputHasDocker, PublishFalse)
+				writeOutput(outFile, OutputHasDocker, ReleaseFalse)
 			}
 			if hasGoreleaserDocker {
-				writeOutput(outFile, OutputGoreleaserDocker, PublishTrue)
+				writeOutput(outFile, OutputGoreleaserDocker, ReleaseTrue)
 			} else {
-				writeOutput(outFile, OutputGoreleaserDocker, PublishFalse)
+				writeOutput(outFile, OutputGoreleaserDocker, ReleaseFalse)
 			}
 
 			// Read outputs

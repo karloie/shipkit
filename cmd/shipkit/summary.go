@@ -32,7 +32,7 @@ type SummaryInputs struct {
 	ResultPlan    string `json:"result_plan"`
 	ResultBuild   string `json:"result_build"` // Single build result from `shipkit build`
 	ResultTag     string `json:"result_tag"`
-	ResultPublish string `json:"result_publish"` // Single publish result from `shipkit publish`
+	ResultRelease string `json:"result_publish"` // Single publish result from `shipkit publish`
 }
 
 // GenerateSummary creates a markdown summary of the release
@@ -152,8 +152,8 @@ func GenerateSummary(inputs SummaryInputs) string {
 	if jobRan(inputs.ResultTag) {
 		sb.WriteString(fmt.Sprintf("| 🏷️ Tag | %s |\n", statusBadge(inputs.ResultTag)))
 	}
-	if jobRan(inputs.ResultPublish) {
-		sb.WriteString(fmt.Sprintf("| 🚀 Publish | %s |\n", statusBadge(inputs.ResultPublish)))
+	if jobRan(inputs.ResultRelease) {
+		sb.WriteString(fmt.Sprintf("| 🚀 Publish | %s |\n", statusBadge(inputs.ResultRelease)))
 	}
 	sb.WriteString("\n")
 
@@ -202,7 +202,7 @@ func determineOverallStatus(inputs SummaryInputs) string {
 	}
 
 	// Check if publish succeeded
-	anyPublished := inputs.ResultPublish == "success"
+	anyPublished := inputs.ResultRelease == "success"
 
 	if anyPublished {
 		return fmt.Sprintf("## ✅ Overall Status: **SUCCESS**\n\nRelease `%s` completed successfully!\n", inputs.Tag)
@@ -240,7 +240,7 @@ func runSummary(args []string) error {
 	resultPlan := fs.String("result-plan", "", "plan job result")
 	resultBuild := fs.String("result-build", "", "build job result")
 	resultTag := fs.String("result-tag", "", "tag job result")
-	resultPublish := fs.String("result-publish", "", "publish job result")
+	resultPublish := fs.String("result-release", "", "publish job result")
 	
 	parseFlagsOrExit(fs, args)
 
@@ -277,7 +277,7 @@ func runSummary(args []string) error {
 	inputs.ResultPlan = strings.TrimSpace(*resultPlan)
 	inputs.ResultBuild = strings.TrimSpace(*resultBuild)
 	inputs.ResultTag = strings.TrimSpace(*resultTag)
-	inputs.ResultPublish = strings.TrimSpace(*resultPublish)
+	inputs.ResultRelease = strings.TrimSpace(*resultPublish)
 
 	summary := GenerateSummary(inputs)
 
@@ -323,7 +323,7 @@ func runMakeSummary(makefilePath string, args []string) error {
 	resultPlan := fs.String("result-plan", "", "Plan result")
 	resultBuild := fs.String("result-build", "", "Build result")
 	resultTag := fs.String("result-tag", "", "Tag result")
-	resultPublish := fs.String("result-publish", "", "Publish result")
+	resultPublish := fs.String("result-release", "", "Publish result")
 	parseFlagsOrExit(fs, args)
 
 	// Set environment variables for Makefile to use

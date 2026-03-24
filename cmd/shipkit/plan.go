@@ -294,7 +294,7 @@ func runPlanClean(plan *Plan, git GitProvider, pr PRProvider) error {
 		pr = &PRProviderReal{token: token}
 	}
 
-	var publish string
+	var release string
 	var err error
 
 	// Step 1: Compute or use provided version and populate plan
@@ -304,13 +304,13 @@ func runPlanClean(plan *Plan, git GitProvider, pr PRProvider) error {
 			// Try to get latest from git if not provided
 			plan.TagLatest, _ = git.GetLatestTag()
 		}
-		publish = PublishTrue
+		release = ReleaseTrue
 	} else if plan.Mode == ModeRerelease {
 		// Rerelease resolves the tag itself — skip commit-based version computation
-		publish = PublishTrue
+		release = ReleaseTrue
 	} else {
 		// Compute version from git/commits and populate plan
-		plan.TagLatest, plan.TagNext, publish, err = computeVersion(eventName, plan.Bump, git, pr)
+		plan.TagLatest, plan.TagNext, release, err = computeVersion(eventName, plan.Bump, git, pr)
 		if err != nil {
 			return outputPartialPlanOnError(githubOutput, plan, err)
 		}
@@ -328,7 +328,7 @@ func runPlanClean(plan *Plan, git GitProvider, pr PRProvider) error {
 	}
 
 	// If we're skipping, stop early (but write plan.json first for downstream)
-	if publish == PublishSkip {
+	if release == ReleaseSkip {
 		// Populate remaining plan fields for skip case
 		plan.TagRelease = plan.TagLatest
 		plan.ReleaseSkip = true
@@ -355,7 +355,7 @@ func runPlanClean(plan *Plan, git GitProvider, pr PRProvider) error {
 	input := PolicyInput{
 		Mode:            plan.Mode,
 		EventName:       eventName,
-		Publish:         publish,
+		Release:         release,
 		LatestTag:       plan.TagLatest,
 		NextTag:         plan.TagNext,
 		Image:           plan.DockerImage,
@@ -375,7 +375,7 @@ func runPlanClean(plan *Plan, git GitProvider, pr PRProvider) error {
 	}
 
 	// Populate plan with policy results
-	plan.ReleaseSkip = policy.Skip == PublishTrue
+	plan.ReleaseSkip = policy.Skip == ReleaseTrue
 	plan.VersionMajorMinor = policy.VersionMajorMinor
 	plan.DockerFile = policy.Dockerfile
 
@@ -476,11 +476,11 @@ func outputPartialPlanOnError(githubOutput string, p *Plan, err error) error {
 	return err
 }
 
-// writeBoolOutput writes a boolean value as PublishTrue or PublishFalse
+// writeBoolOutput writes a boolean value as ReleaseTrue or ReleaseFalse
 func writeBoolOutput(githubOutput, key string, value bool) {
 	if value {
-		writeOutput(githubOutput, key, PublishTrue)
+		writeOutput(githubOutput, key, ReleaseTrue)
 	} else {
-		writeOutput(githubOutput, key, PublishFalse)
+		writeOutput(githubOutput, key, ReleaseFalse)
 	}
 }

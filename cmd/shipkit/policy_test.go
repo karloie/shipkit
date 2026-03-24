@@ -9,7 +9,7 @@ func TestComputeReleasePolicyReleaseSuccess(t *testing.T) {
 	env := &EnvProviderMock{values: map[string]string{"DOCKERHUB_USERNAME": "u", "DOCKERHUB_TOKEN": "t"}}
 	p, err := computeReleasePolicy(PolicyInput{
 		Mode:            "release",
-		Publish:         "true",
+		Release:         "true",
 		LatestTag:       "v1.2.2",
 		NextTag:         "v1.2.3",
 		Image:           "karloie/kompass",
@@ -32,7 +32,7 @@ func TestComputeReleasePolicyRereleaseResolveLatest(t *testing.T) {
 	}}
 	p, err := computeReleasePolicy(PolicyInput{
 		Mode:            "rerelease",
-		Publish:         "true",
+		Release:         "true",
 		ResolveLatest:   true,
 		Image:           "karloie/kompass",
 		RequiredSecrets: []string{"DOCKERHUB_USERNAME", "DOCKERHUB_TOKEN", "HOMEBREW_TAP_GITHUB_TOKEN"},
@@ -66,7 +66,7 @@ func TestComputeReleasePolicyDockerMode(t *testing.T) {
 }
 
 func TestComputeReleasePolicyGoReleaserModes(t *testing.T) {
-	p, err := computeReleasePolicy(PolicyInput{Mode: "goreleaser", EventName: "workflow_dispatch", Publish: "false", NextTag: "v1.2.3"}, &EnvProviderMock{}, &GitProviderMock{})
+	p, err := computeReleasePolicy(PolicyInput{Mode: "goreleaser", EventName: "workflow_dispatch", Release: "false", NextTag: "v1.2.3"}, &EnvProviderMock{}, &GitProviderMock{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -75,7 +75,7 @@ func TestComputeReleasePolicyGoReleaserModes(t *testing.T) {
 	}
 
 	env := &EnvProviderMock{values: map[string]string{"HOMEBREW_TAP_GITHUB_TOKEN": "h"}}
-	p, err = computeReleasePolicy(PolicyInput{Mode: "goreleaser", EventName: "push", Publish: "false", NextTag: "v1.2.3", RequiredSecrets: []string{"HOMEBREW_TAP_GITHUB_TOKEN"}}, env, &GitProviderMock{})
+	p, err = computeReleasePolicy(PolicyInput{Mode: "goreleaser", EventName: "push", Release: "false", NextTag: "v1.2.3", RequiredSecrets: []string{"HOMEBREW_TAP_GITHUB_TOKEN"}}, env, &GitProviderMock{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -99,7 +99,7 @@ func TestComputeReleasePolicyInvalidMode(t *testing.T) {
 func TestComputeReleasePolicyMissingNextTag(t *testing.T) {
 	_, err := computeReleasePolicy(PolicyInput{
 		Mode:            ModeRelease,
-		Publish:         PublishTrue,
+		Release:         ReleaseTrue,
 		RequiredSecrets: []string{},
 	}, &EnvProviderMock{}, &GitProviderMock{})
 	if err == nil {
@@ -113,7 +113,7 @@ func TestComputeReleasePolicyMissingNextTag(t *testing.T) {
 func TestComputeReleasePolicyMissingSecrets(t *testing.T) {
 	_, err := computeReleasePolicy(PolicyInput{
 		Mode:            ModeRelease,
-		Publish:         PublishTrue,
+		Release:         ReleaseTrue,
 		NextTag:         "v1.0.0",
 		RequiredSecrets: []string{"MISSING_SECRET"},
 	}, &EnvProviderMock{}, &GitProviderMock{})
@@ -132,7 +132,7 @@ func TestComputeTagBasedPolicyResolveLatest(t *testing.T) {
 	p, err := computeTagBasedPolicy(PolicyInput{
 		Mode:            ModeDocker,
 		EventName:       "workflow_dispatch",
-		Publish:         PublishTrue,
+		Release:         ReleaseTrue,
 		ResolveLatest:   true,
 		RequiredSecrets: []string{"DOCKERHUB_USERNAME", "DOCKERHUB_TOKEN"},
 	}, env, git)
@@ -198,24 +198,24 @@ func TestResolvePublishMode(t *testing.T) {
 		want         string
 		wantErr      bool
 	}{
-		{"push event always true", "push", "", "release", PublishTrue, false},
-		{"push overrides false input", "push", "false", "goreleaser", PublishTrue, false},
-		{"workflow_dispatch with true", "workflow_dispatch", "true", "release", PublishTrue, false},
-		{"workflow_dispatch with false", "workflow_dispatch", "false", "release", PublishFalse, false},
-		{"workflow_dispatch empty docker mode", "workflow_dispatch", "", ModeDocker, PublishTrue, false},
-		{"workflow_dispatch empty goreleaser mode", "workflow_dispatch", "", ModeGoreleaser, PublishFalse, false},
+		{"push event always true", "push", "", "release", ReleaseTrue, false},
+		{"push overrides false input", "push", "false", "goreleaser", ReleaseTrue, false},
+		{"workflow_dispatch with true", "workflow_dispatch", "true", "release", ReleaseTrue, false},
+		{"workflow_dispatch with false", "workflow_dispatch", "false", "release", ReleaseFalse, false},
+		{"workflow_dispatch empty docker mode", "workflow_dispatch", "", ModeDocker, ReleaseTrue, false},
+		{"workflow_dispatch empty goreleaser mode", "workflow_dispatch", "", ModeGoreleaser, ReleaseFalse, false},
 		{"invalid publish value", "workflow_dispatch", "maybe", "release", "", true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := resolvePublishMode(tt.eventName, tt.publishInput, tt.mode)
+			got, err := resolveReleaseMode(tt.eventName, tt.publishInput, tt.mode)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("resolvePublishMode() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("resolveReleaseMode() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("resolvePublishMode() = %v, want %v", got, tt.want)
+				t.Errorf("resolveReleaseMode() = %v, want %v", got, tt.want)
 			}
 		})
 	}

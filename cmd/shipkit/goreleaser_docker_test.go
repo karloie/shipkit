@@ -148,7 +148,7 @@ func TestRunGoReleaserDockerDetection(t *testing.T) {
 		{
 			name:              "no docker files",
 			setupFiles:        map[string]string{"go.mod": "module test\n\ngo 1.22\n"},
-			expectNoDockerMsg: "No Containerfile or Dockerfile found - skipping Docker publishing",
+			expectNoDockerMsg: "No Containerfile or Dockerfile found - skipping Docker release",
 		},
 		{
 			name: "Containerfile present",
@@ -156,7 +156,7 @@ func TestRunGoReleaserDockerDetection(t *testing.T) {
 				"go.mod":        "module test\n\ngo 1.22\n",
 				"Containerfile": "FROM scratch\n",
 			},
-			expectDockerMsg: "🐳 Detected Containerfile - will publish Docker image",
+			expectDockerMsg: "🐳 Detected Containerfile - will release Docker image",
 		},
 		{
 			name: "Dockerfile present",
@@ -164,7 +164,7 @@ func TestRunGoReleaserDockerDetection(t *testing.T) {
 				"go.mod":     "module test\n\ngo 1.22\n",
 				"Dockerfile": "FROM alpine\n",
 			},
-			expectDockerMsg: "🐳 Detected Dockerfile - will publish Docker image",
+			expectDockerMsg: "🐳 Detected Dockerfile - will release Docker image",
 		},
 	}
 

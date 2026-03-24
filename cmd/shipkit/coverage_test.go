@@ -167,7 +167,7 @@ func TestPrintReleaseDiagramAllModes(t *testing.T) {
 // ── policy ───────────────────────────────────────────────────────────────────
 
 func TestBuildTagModeSummaryDockerWithSHA(t *testing.T) {
-	got := buildTagModeSummary(ModeDocker, "v1.2.3", "1.2.3", "1.2", "owner/img", "abc123", PublishTrue)
+	got := buildTagModeSummary(ModeDocker, "v1.2.3", "1.2.3", "1.2", "owner/img", "abc123", ReleaseTrue)
 	if !strings.Contains(got, "sha-abc123") {
 		t.Errorf("expected sha tag, got: %s", got)
 	}
@@ -177,14 +177,14 @@ func TestBuildTagModeSummaryDockerWithSHA(t *testing.T) {
 }
 
 func TestBuildTagModeSummaryDockerDryRun(t *testing.T) {
-	got := buildTagModeSummary(ModeDocker, "v1.2.3", "1.2.3", "1.2", "owner/img", "", PublishFalse)
+	got := buildTagModeSummary(ModeDocker, "v1.2.3", "1.2.3", "1.2", "owner/img", "", ReleaseFalse)
 	if strings.Contains(got, "Image tags") {
 		t.Errorf("dry-run should not list image tags, got: %s", got)
 	}
 }
 
 func TestBuildTagModeSummaryGoreleaser(t *testing.T) {
-	got := buildTagModeSummary(ModeGoreleaser, "v1.2.3", "1.2.3", "1.2", "", "", PublishTrue)
+	got := buildTagModeSummary(ModeGoreleaser, "v1.2.3", "1.2.3", "1.2", "", "", ReleaseTrue)
 	if !strings.Contains(got, "v1.2.3") {
 		t.Errorf("expected tag in summary, got: %s", got)
 	}
@@ -220,7 +220,7 @@ func TestComputeTagBasedPolicyResolveLatestError(t *testing.T) {
 func TestComputeReleasePolicyRereleaseResolveGitError(t *testing.T) {
 	_, err := computeReleasePolicy(PolicyInput{
 		Mode:          ModeRerelease,
-		Publish:       PublishTrue,
+		Release:       ReleaseTrue,
 		ResolveLatest: true,
 	}, &EnvProviderMock{}, &GitProviderMock{Err: os.ErrNotExist})
 	if err == nil {
@@ -243,7 +243,7 @@ func TestComputeVersionPushWithCommitMarker(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if publish != PublishTrue || next != "v1.2.4" {
+	if publish != ReleaseTrue || next != "v1.2.4" {
 		t.Errorf("expected publish=true next=v1.2.4, got publish=%s next=%s", publish, next)
 	}
 }

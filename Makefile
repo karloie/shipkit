@@ -4,7 +4,7 @@ ACT ?= act
 ACT_IMAGE ?= ghcr.io/catthehacker/ubuntu:full-latest
 
 test:
-	@go test ./...
+	go test ./...
 
 # ci-generate is called before ci-build (optional target)
 # Use this for: code generation (protobuf, OpenAPI), frontend builds, npm install, etc.
@@ -12,10 +12,10 @@ ci-generate:
 	@echo "📦 No code generation needed for shipkit"
 
 ci-build:
-	@go build ./...
+	go build ./...
 
 ci-test:
-	@go test ./...
+	go test ./...
 
 # ci-integration-test is called after ci-test (optional target)
 # Use this for: integration tests, e2e tests, heavier test suites

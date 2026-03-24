@@ -19,7 +19,7 @@ type DecideInputs struct {
 
 // DecideOutputs contains the decision outputs
 type DecideOutputs struct {
-	ShouldPublish bool
+	ShouldRelease bool
 }
 
 // Decide makes publish decision based on build success
@@ -32,7 +32,7 @@ func Decide(inputs DecideInputs) DecideOutputs {
 	allOk := buildPassed && tagPassed && !inputs.DryRun
 
 	// Single publish decision: everything passed
-	outputs.ShouldPublish = allOk
+	outputs.ShouldRelease = allOk
 
 	return outputs
 }
@@ -72,7 +72,7 @@ func runDecide(args []string) error {
 		"result-tag":   inputs.Tag,
 	})
 
-	fmt.Println("::group::Decide publish actions")
+	fmt.Println("::group::Decide release actions")
 	defer fmt.Println("::endgroup::")
 
 	outputs := Decide(inputs)
@@ -83,11 +83,11 @@ func runDecide(args []string) error {
 		return fmt.Errorf("GITHUB_OUTPUT environment variable not set")
 	}
 
-	writeBoolOutput(githubOutput, "should_publish", outputs.ShouldPublish)
+	writeBoolOutput(githubOutput, "should_release", outputs.ShouldRelease)
 
 	// Log outputs
 	logOutputs(map[string]string{
-		"should_publish": fmt.Sprintf("%v", outputs.ShouldPublish),
+		"should_release": fmt.Sprintf("%v", outputs.ShouldRelease),
 	})
 
 	return nil
