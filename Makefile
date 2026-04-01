@@ -23,15 +23,15 @@ SNAP_REAL_CONTEXT   ?= tool-test-01
 SNAP_REAL_NAMESPACE ?= applikasjonsplattform
 
 build: test
-	go build $(if $(strip $(LDFLAGS)),-ldflags "$(LDFLAGS)") -o kompass ./cmd/kompass
-	@OUT_SIZE=$$(du -hs kompass | cut -f1); OUT_PATH=$$(realpath kompass); \
+	go build $(if $(strip $(LDFLAGS)),-ldflags "$(LDFLAGS)") -o shipkit ./cmd/shipkit
+	@OUT_SIZE=$$(du -hs shipkit | cut -f1); OUT_PATH=$$(realpath shipkit); \
 	echo "\n$$OUT_PATH $(GIT_VERSION) # $(GIT_COMMIT) ~ $$OUT_SIZE"
 
 build-release: LDFLAGS := $(RELEASE_LDFLAGS)
 build-release: test
 	npm run build
-	go build -tags release $(if $(strip $(LDFLAGS)),-ldflags "$(LDFLAGS)") -o kompass ./cmd/kompass
-	@OUT_SIZE=$$(du -hs kompass | cut -f1); OUT_PATH=$$(realpath kompass); \
+	go build -tags release $(if $(strip $(LDFLAGS)),-ldflags "$(LDFLAGS)") -o shipkit ./cmd/shipkit
+	@OUT_SIZE=$$(du -hs shipkit | cut -f1); OUT_PATH=$$(realpath shipkit); \
 	echo "\n$$OUT_PATH $(GIT_VERSION) # $(GIT_COMMIT) ~ $$OUT_SIZE"
 
 docker-build:
@@ -105,7 +105,7 @@ ci-generate:
 	@echo "📦 No code generation needed for shipkit"
 
 ci-build:
-	$(SHIPKIT) go-build --output=kompass --main=./cmd/kompass
+	go build $(if $(strip $(LDFLAGS)),-ldflags "$(LDFLAGS)") -o shipkit ./cmd/shipkit
 
 ci-test:
 	go test -count=1 ./...

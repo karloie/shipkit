@@ -15,6 +15,9 @@ func runEnv(args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to load plan.json: %w", err)
 	}
+	if plan == nil {
+		plan = &Plan{}
+	}
 
 	// Get version
 	version := plan.TagRelease
@@ -62,6 +65,9 @@ func runGoBuild(args []string) error {
 	plan, err := loadPlan(getPlanPath())
 	if err != nil {
 		return fmt.Errorf("failed to load plan.json: %w", err)
+	}
+	if plan == nil {
+		plan = &Plan{}
 	}
 
 	// Get version info
