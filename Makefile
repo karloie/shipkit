@@ -9,6 +9,7 @@ DOCKER ?= docker
 DOCKER_IMAGE ?= karloie/kompass
 DOCKER_DEV_TAG ?= dev
 LDFLAGS ?= $(VERSION_LDFLAGS)
+SHIPKIT ?= go run ./cmd/shipkit
 ARGS    ?=
 COVERPKG ?= ./...
 GO_RUN   = go run $(if $(strip $(LDFLAGS)),-ldflags "$(LDFLAGS)") ./cmd/kompass
@@ -104,7 +105,7 @@ ci-generate:
 	@echo "📦 No code generation needed for shipkit"
 
 ci-build:
-	shipkit go-build --output=kompass --main=./cmd/kompass
+	$(SHIPKIT) go-build --output=kompass --main=./cmd/kompass
 
 ci-test:
 	go test -count=1 ./...
@@ -114,6 +115,6 @@ ci-integration-test:
 
 ci-release:
 	echo "📦 Building release artifacts..."
-	shipkit install --force goreleaser
-	shipkit docker --release
-	shipkit goreleaser --generate --homebrew
+	$(SHIPKIT) install --force goreleaser
+	$(SHIPKIT) docker --release
+	$(SHIPKIT) goreleaser --generate --homebrew
