@@ -118,3 +118,5 @@ ci-release:
 	$(SHIPKIT) install --force goreleaser
 	$(SHIPKIT) docker --release
 	$(SHIPKIT) goreleaser --generate --homebrew
+ci-validate:
+	@echo "✅ No validation steps defined for shipkit"

@@ -11,13 +11,15 @@ func TestDecide(t *testing.T) {
 		expected DecideOutputs
 	}{
 		{
-			name: "build and tag success - should publish",
+			name: "verify and tag success - should publish",
 			plan: &Plan{
 				Mode:   ModeRelease,
 				DryRun: false,
 				JobResults: map[string]string{
-					"build": "success",
-					"tag":   "success",
+					"build":            "success",
+					"test":             "success",
+					"integration-test": "success",
+					"tag":              "success",
 				},
 			},
 			expected: DecideOutputs{
@@ -30,8 +32,10 @@ func TestDecide(t *testing.T) {
 				Mode:   ModeRelease,
 				DryRun: true,
 				JobResults: map[string]string{
-					"build": "success",
-					"tag":   "success",
+					"build":            "success",
+					"test":             "success",
+					"integration-test": "success",
+					"tag":              "success",
 				},
 			},
 			expected: DecideOutputs{
@@ -44,8 +48,42 @@ func TestDecide(t *testing.T) {
 				Mode:   ModeRelease,
 				DryRun: false,
 				JobResults: map[string]string{
-					"build": "failure",
-					"tag":   "success",
+					"build":            "failure",
+					"test":             "success",
+					"integration-test": "success",
+					"tag":              "success",
+				},
+			},
+			expected: DecideOutputs{
+				ShouldRelease: false,
+			},
+		},
+		{
+			name: "test failed - no publish",
+			plan: &Plan{
+				Mode:   ModeRelease,
+				DryRun: false,
+				JobResults: map[string]string{
+					"build":            "success",
+					"test":             "failure",
+					"integration-test": "success",
+					"tag":              "success",
+				},
+			},
+			expected: DecideOutputs{
+				ShouldRelease: false,
+			},
+		},
+		{
+			name: "integration test failed - no publish",
+			plan: &Plan{
+				Mode:   ModeRelease,
+				DryRun: false,
+				JobResults: map[string]string{
+					"build":            "success",
+					"test":             "success",
+					"integration-test": "failure",
+					"tag":              "success",
 				},
 			},
 			expected: DecideOutputs{
@@ -58,8 +96,10 @@ func TestDecide(t *testing.T) {
 				Mode:   ModeRelease,
 				DryRun: false,
 				JobResults: map[string]string{
-					"build": "success",
-					"tag":   "failure",
+					"build":            "success",
+					"test":             "success",
+					"integration-test": "success",
+					"tag":              "failure",
 				},
 			},
 			expected: DecideOutputs{
@@ -72,8 +112,10 @@ func TestDecide(t *testing.T) {
 				Mode:   ModeRelease,
 				DryRun: false,
 				JobResults: map[string]string{
-					"build": "skipped",
-					"tag":   "skipped",
+					"build":            "skipped",
+					"test":             "skipped",
+					"integration-test": "skipped",
+					"tag":              "skipped",
 				},
 			},
 			expected: DecideOutputs{
@@ -81,13 +123,15 @@ func TestDecide(t *testing.T) {
 			},
 		},
 		{
-			name: "build skipped, tag success",
+			name: "build skipped, tests success, tag success",
 			plan: &Plan{
 				Mode:   ModeRelease,
 				DryRun: false,
 				JobResults: map[string]string{
-					"build": "skipped",
-					"tag":   "success",
+					"build":            "skipped",
+					"test":             "success",
+					"integration-test": "success",
+					"tag":              "success",
 				},
 			},
 			expected: DecideOutputs{
@@ -95,13 +139,15 @@ func TestDecide(t *testing.T) {
 			},
 		},
 		{
-			name: "build success, tag skipped",
+			name: "verify success, tag skipped",
 			plan: &Plan{
 				Mode:   ModeRelease,
 				DryRun: false,
 				JobResults: map[string]string{
-					"build": "success",
-					"tag":   "skipped",
+					"build":            "success",
+					"test":             "success",
+					"integration-test": "success",
+					"tag":              "skipped",
 				},
 			},
 			expected: DecideOutputs{
@@ -114,8 +160,10 @@ func TestDecide(t *testing.T) {
 				Mode:   ModeRelease,
 				DryRun: false,
 				JobResults: map[string]string{
-					"build": "",
-					"tag":   "",
+					"build":            "",
+					"test":             "",
+					"integration-test": "",
+					"tag":              "",
 				},
 			},
 			expected: DecideOutputs{
@@ -128,8 +176,10 @@ func TestDecide(t *testing.T) {
 				Mode:   ModeRelease,
 				DryRun: false,
 				JobResults: map[string]string{
-					"build": "SUCCESS",
-					"tag":   "Success",
+					"build":            "SUCCESS",
+					"test":             "Success",
+					"integration-test": "SKIPPED",
+					"tag":              "Success",
 				},
 			},
 			expected: DecideOutputs{
@@ -142,8 +192,10 @@ func TestDecide(t *testing.T) {
 				Mode:   ModeRelease,
 				DryRun: false,
 				JobResults: map[string]string{
-					"build": " success ",
-					"tag":   " success ",
+					"build":            " success ",
+					"test":             " skipped ",
+					"integration-test": " success ",
+					"tag":              " success ",
 				},
 			},
 			expected: DecideOutputs{

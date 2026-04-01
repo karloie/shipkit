@@ -12,7 +12,7 @@ type DecideOutputs struct {
 	ShouldRelease bool
 }
 
-// Decide makes publish decision based on build success
+// Decide makes publish decision based on verification and publish readiness.
 func Decide(plan *Plan) DecideOutputs {
 	outputs := DecideOutputs{}
 
@@ -21,10 +21,12 @@ func Decide(plan *Plan) DecideOutputs {
 		plan.JobResults = make(map[string]string)
 	}
 
-	// Build & tag must pass (or be skipped)
+	// Verification steps and tag must pass (or be skipped).
 	buildPassed := jobOk(plan.JobResults["build"])
+	testPassed := jobOk(plan.JobResults["test"])
+	integrationTestPassed := jobOk(plan.JobResults["integration-test"])
 	tagPassed := jobOk(plan.JobResults["tag"])
-	allOk := buildPassed && tagPassed && !plan.DryRun
+	allOk := buildPassed && testPassed && integrationTestPassed && tagPassed && !plan.DryRun
 
 	// Single publish decision: everything passed
 	outputs.ShouldRelease = allOk
@@ -63,6 +65,8 @@ func runDecide(args []string) error {
 	mode := fs.String("mode", plan.Mode, "Release mode")
 	dryRun := fs.Bool("dry-run", plan.DryRun, "Dry run")
 	build := fs.String("result-build", "skipped", "Build result")
+	test := fs.String("result-test", "skipped", "Test result")
+	integrationTest := fs.String("result-integration-test", "skipped", "Integration test result")
 	tag := fs.String("result-tag", "skipped", "Tag result")
 	parseFlagsOrExit(fs, args)
 
@@ -72,6 +76,8 @@ func runDecide(args []string) error {
 	}
 	plan.DryRun = *dryRun
 	plan.JobResults["build"] = strings.TrimSpace(*build)
+	plan.JobResults["test"] = strings.TrimSpace(*test)
+	plan.JobResults["integration-test"] = strings.TrimSpace(*integrationTest)
 	plan.JobResults["tag"] = strings.TrimSpace(*tag)
 
 	// Log inputs
@@ -79,6 +85,8 @@ func runDecide(args []string) error {
 		"mode":         plan.Mode,
 		"dry-run":      fmt.Sprintf("%v", plan.DryRun),
 		"result-build": plan.JobResults["build"],
+		"result-test":  plan.JobResults["test"],
+		"result-int":   plan.JobResults["integration-test"],
 		"result-tag":   plan.JobResults["tag"],
 	})
 
