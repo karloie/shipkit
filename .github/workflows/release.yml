@@ -264,10 +264,10 @@ jobs:
     needs: [plan, verify]
     if: |
       always() &&
+      needs.plan.outputs.release_skip != 'true' &&
       needs.verify.outputs.should_release == 'true' &&
       (
         (
-          needs.plan.outputs.release_skip != 'true' &&
           needs.plan.outputs.tag_exists != 'true' &&
           inputs.mode == 'release' &&
           inputs.dry_run != true
@@ -298,11 +298,11 @@ jobs:
           tool_ref: ${{ inputs.tool_ref }}
 
       - name: Set up QEMU
-        if: needs.plan.outputs.has_ci_release == 'true'
+        if: needs.plan.outputs.release_skip != 'true' && needs.plan.outputs.has_ci_release == 'true'
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
-        if: needs.plan.outputs.has_ci_release == 'true'
+        if: needs.plan.outputs.release_skip != 'true' && needs.plan.outputs.has_ci_release == 'true'
         uses: docker/setup-buildx-action@v3
 
       - name: Configure Git
@@ -322,21 +322,40 @@ jobs:
           inputs.dry_run != true
         run: shipkit git-tag -tag="${{ needs.plan.outputs.tag }}"
 
-      - name: Checkout project at tag
-        if: needs.plan.outputs.has_ci_release == 'true'
+      - name: Checkout project at release ref
+        id: checkout_release_ref
+        if: |
+          needs.plan.outputs.release_skip != 'true' &&
+          needs.plan.outputs.has_ci_release == 'true' &&
+          (
+            (
+              inputs.mode == 'release' &&
+              steps.tag.conclusion == 'success'
+            ) ||
+            (
+              inputs.mode == 'rerelease' &&
+              needs.plan.outputs.tag != ''
+            )
+          )
         uses: actions/checkout@v4
         with:
           ref: ${{ needs.plan.outputs.tag }}
           fetch-depth: 0
 
       - name: Set up Go (for go install tools)
-        if: needs.plan.outputs.has_ci_release == 'true'
+        if: |
+          needs.plan.outputs.release_skip != 'true' &&
+          needs.plan.outputs.has_ci_release == 'true' &&
+          steps.checkout_release_ref.conclusion == 'success'
         uses: actions/setup-go@v5
         with:
           go-version: '1.23'
 
       - name: Download plan data
-        if: needs.plan.outputs.has_ci_release == 'true'
+        if: |
+          needs.plan.outputs.release_skip != 'true' &&
+          needs.plan.outputs.has_ci_release == 'true' &&
+          steps.checkout_release_ref.conclusion == 'success'
         uses: actions/download-artifact@v4
         with:
           name: plan-data
@@ -344,7 +363,10 @@ jobs:
 
       - name: Run release
         id: release
-        if: needs.plan.outputs.has_ci_release == 'true'
+        if: |
+          needs.plan.outputs.release_skip != 'true' &&
+          needs.plan.outputs.has_ci_release == 'true' &&
+          steps.checkout_release_ref.conclusion == 'success'
         run: shipkit release
 
       - name: Record publish results
