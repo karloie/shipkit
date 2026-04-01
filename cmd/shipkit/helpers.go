@@ -67,3 +67,16 @@ func writePlanJSON(path string, data interface{}) error {
 	}
 	return nil
 }
+
+func persistPlanJSON(data interface{}) error {
+	if err := os.MkdirAll(getTempDir(), 0755); err != nil {
+		return fmt.Errorf("create temp dir: %w", err)
+	}
+	if err := writePlanJSON(filepath.Join(getTempDir(), "plan.json"), data); err != nil {
+		return err
+	}
+	if err := writePlanJSON("plan.json", data); err != nil {
+		return err
+	}
+	return nil
+}
