@@ -58,8 +58,8 @@ func (g *GitProviderReal) GetCommitLog(since string) (string, error) {
 	var out []byte
 	var err error
 
-	if since == "v0.0.1" {
-		out, err = exec.Command("git", "log", "-n", "10", "--oneline").CombinedOutput()
+	if since == "" {
+		out, err = exec.Command("git", "log", "--oneline").CombinedOutput()
 	} else {
 		out, err = exec.Command("git", "log", since+"..HEAD", "--oneline").CombinedOutput()
 	}

@@ -39,8 +39,10 @@ func runVersion(args []string) error {
 }
 
 func computeVersion(eventName, bumpInput string, git GitProvider, pr PRProvider) (latest, next, release string, err error) {
+	hasLatestTag := true
 	latest, err = git.GetLatestTag()
 	if err != nil {
+		hasLatestTag = false
 		latest = "v0.0.0" // No tags found - start from v0.0.0
 	}
 
@@ -64,7 +66,7 @@ func computeVersion(eventName, bumpInput string, git GitProvider, pr PRProvider)
 		}
 
 		if bump == "" {
-			bump, err = analyzeCommits(latest, git)
+			bump, err = analyzeCommits(latest, hasLatestTag, git)
 			if err != nil {
 				return "", "", "", err
 			}
@@ -112,8 +114,13 @@ func computeVersion(eventName, bumpInput string, git GitProvider, pr PRProvider)
 	return latest, next, ReleaseTrue, nil
 }
 
-func analyzeCommits(latestTag string, git GitProvider) (string, error) {
-	log, err := git.GetCommitLog(latestTag)
+func analyzeCommits(latestTag string, hasLatestTag bool, git GitProvider) (string, error) {
+	since := ""
+	if hasLatestTag {
+		since = latestTag
+	}
+
+	log, err := git.GetCommitLog(since)
 	if err != nil {
 		return "", err
 	}

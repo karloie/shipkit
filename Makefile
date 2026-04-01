@@ -1,54 +1,56 @@
-.PHONY: test ci-validate lint plan-release plan-rerelease plan-docker plan-all ci-generate ci-build ci-test ci-integration-test ci-publish ci-summary
+.PHONY: test build build-release coverage dev snapshot snapshot-real mock real tui service help docker-dev ci-build ci-test
 
-ACT ?= act
+GIT_VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+GIT_COMMIT  := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+GIT_DATE       := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+VERSION_LDFLAGS := -X main.buildVersion=$(GIT_VERSION) -X main.buildCommit=$(GIT_COMMIT) -X main.buildDate=$(GIT_DATE)
+RELEASE_LDFLAGS := -s -w $(VERSION_LDFLAGS)
+DOCKER ?= docker
+DOCKER_IMAGE ?= karloie/kompass
+DOCKER_DEV_TAG ?= dev
+LDFLAGS ?= $(VERSION_LDFLAGS)
+ARGS    ?=
+COVERPKG ?= ./...
+GO_RUN   = go run $(if $(strip $(LDFLAGS)),-ldflags "$(LDFLAGS)") ./cmd/kompass
+GOW     ?= gow
+ACT     ?= act
 ACT_IMAGE ?= ghcr.io/catthehacker/ubuntu:full-latest
+
+SNAP_DIR            ?= testdata/fixtures
+SNAP_MOCK_NAMESPACE ?= petshop
+SNAP_REAL_CONTEXT   ?= tool-test-01
+SNAP_REAL_NAMESPACE ?= applikasjonsplattform
+
+build: test
+	go build $(if $(strip $(LDFLAGS)),-ldflags "$(LDFLAGS)") -o kompass ./cmd/kompass
+	@OUT_SIZE=$$(du -hs kompass | cut -f1); OUT_PATH=$$(realpath kompass); \
+	echo "\n$$OUT_PATH $(GIT_VERSION) # $(GIT_COMMIT) ~ $$OUT_SIZE"
+
+build-release: LDFLAGS := $(RELEASE_LDFLAGS)
+build-release: test
+	npm run build
+	go build -tags release $(if $(strip $(LDFLAGS)),-ldflags "$(LDFLAGS)") -o kompass ./cmd/kompass
+	@OUT_SIZE=$$(du -hs kompass | cut -f1); OUT_PATH=$$(realpath kompass); \
+	echo "\n$$OUT_PATH $(GIT_VERSION) # $(GIT_COMMIT) ~ $$OUT_SIZE"
+
+docker-build:
+	$(DOCKER) build -f Containerfile \
+		--build-arg VERSION=$(GIT_VERSION) \
+		--build-arg COMMIT=$(GIT_COMMIT) \
+		--build-arg BUILD_DATE=$(GIT_DATE) \
+		-t $(DOCKER_IMAGE):$(DOCKER_DEV_TAG) .
+
+docker-run: docker-build
+	$(DOCKER) run --rm --entrypoint=/bin/ash -ti $(DOCKER_IMAGE):$(DOCKER_DEV_TAG)
+
+docker-push: docker-build
+	$(DOCKER) push $(DOCKER_IMAGE):$(DOCKER_DEV_TAG)
 
 test:
 	go test -count=1 ./...
 
-# ci-generate is called before ci-build (optional target)
-# Use this for: code generation (protobuf, OpenAPI), frontend builds, npm install, etc.
-ci-generate:
-	@echo "📦 No code generation needed for shipkit"
-
-ci-build:
-	go build ./...
-
-ci-test:
-	go test -count=1 ./...
-
-# ci-integration-test is called after ci-test (optional target)
-# Use this for: integration tests, e2e tests, heavier test suites
-ci-integration-test:
-	@echo "🧪 No integration tests defined for shipkit"
-
-# Example ci-publish target that uses shipkit subcommands
-# The workflow will call this if it exists, allowing full control over publishing
-# Note: plan.json is auto-loaded by publish commands (tag, version, image)
-ci-publish:
-	@shipkit publish-goreleaser --clean
-
-# Example ci-summary target that extends the default summary
-# The workflow will call this if it exists, allowing custom post-summary actions
-ci-summary:
-	@shipkit summary \
-		-plan-file=$${SHIPKIT_PLAN_FILE} \
-		-tool-ref=$${SHIPKIT_TOOL_REF} \
-		-result-plan=$${SHIPKIT_RESULT_PLAN} \
-		-result-build=$${SHIPKIT_RESULT_BUILD} \
-		-result-tag=$${SHIPKIT_RESULT_TAG} \
-		-result-update-versions=$${SHIPKIT_RESULT_UPDATE_VERSIONS} \
-		-result-publish=$${SHIPKIT_RESULT_PUBLISH} \
-		-use-make=false
-	@echo ""
-	@echo "🔥 Custom summary extension: Everything is on fire, but it's fine! 🔥"
-
-#ci-validate: test lint plan-release plan-rerelease plan-docker
-ci-validate:
-	echo "Skipping ci-validate for now, as it takes too long to run. Please run individual targets instead."
-
-coverage:
-	@go test -count=1 ./... -coverpkg=./... -coverprofile=coverage.out -covermode=atomic >/dev/null 2>&1 || true
+coverage: build
+	@go test -count=1 ./... -coverpkg=$(COVERPKG) -coverprofile=coverage.out -covermode=atomic >/dev/null 2>&1 || true
 	@echo "┌─────────────────────────────────────────────────────────┬──────────┬──────────┐"
 	@echo "│ Package                                                 │  LOCAL   │  CROSS   │"
 	@echo "├─────────────────────────────────────────────────────────┼──────────┼──────────┤"
@@ -65,42 +67,53 @@ coverage:
 	@go tool cover -func=coverage.out | grep 'total:' | awk '{printf "│ %-55s │ %7s  │ %7s  │\n", "TOTAL", "-", $$3}'
 	@echo "└─────────────────────────────────────────────────────────┴──────────┴──────────┘"
 
-lint:
-	@command -v actionlint >/dev/null 2>&1 || { \
-		echo "actionlint is required (install: go install github.com/rhysd/actionlint/cmd/actionlint@latest)"; \
-		exit 1; \
-	}
-	actionlint .github/workflows/*.yml
+coverage-func: build
+	@go test ./... -coverpkg=$(COVERPKG) -coverprofile=coverage.out -covermode=atomic >/dev/null 2>&1 || true
+	@echo "┌───────────────────────────────────────────────────────────────────────────────┐"
+	@echo "│ Function Coverage                                                             │"
+	@echo "├────────────────────────────────────────────────────────────────────┬──────────┤"
+	@go tool cover -func=coverage.out | grep -v 'total:' | awk '{printf "│ %-66s │ %7s  │\n", substr($$1":"$$2, 1, 66), $$3}'
+	@echo "└────────────────────────────────────────────────────────────────────┴──────────┘"
 
-plan-release:
-	@$(ACT) -n workflow_call -W .github/workflows/release.yml -j plan \
-		--input image=example/image \
-		--input event_name=workflow_dispatch \
-		--input bump=patch \
-		--input tool_ref=main \
-		-P ubuntu-latest=$(ACT_IMAGE)
+dev:
+	@echo "Starting dev server ($(GIT_VERSION) # $(GIT_COMMIT))"
+	@set -e; \
+	trap 'kill $$gow_pid $$vite_pid 2>/dev/null || true' INT TERM EXIT; \
+	$(GOW) -e=go -e=mod -e=sum -e=tmpl -e=html -e=js -e=css run -ldflags "$(VERSION_LDFLAGS)" ./cmd/kompass --debug --mock --service $(ARGS) & gow_pid=$$!; \
+	npm run dev & vite_pid=$$!; \
+	wait $$gow_pid $$vite_pid
 
-plan-rerelease:
-	@$(ACT) -n workflow_call -W .github/workflows/release.yml -j plan \
-		--input image=example/image \
-		--input mode=rerelease \
-		--input tool_ref=main \
-		-P ubuntu-latest=$(ACT_IMAGE)
+help:    ; @$(GO_RUN) --help
+mock:    ; @$(GO_RUN) --mock $(ARGS)
+real:    ; @$(GO_RUN) $(ARGS)
+service: ; @$(GOW) -e=go -e=mod -e=sum -e=tmpl -e=html -e=js -e=css run -ldflags "$(VERSION_LDFLAGS)" ./cmd/kompass --mock --service $(ARGS)
 
-plan-docker:
-	@$(ACT) -n workflow_call -W .github/workflows/docker-publish.yml -j publish \
-		--input image=example/image \
-		--input event_name=workflow_dispatch \
-		--input tag=v0.1.0 \
-		--input tool_ref=main \
-		-P ubuntu-latest=$(ACT_IMAGE)
+snapshot:
+	$(GO_RUN) --json --mock -n $(SNAP_MOCK_NAMESPACE) > $(SNAP_DIR)/mock.json
+	$(GO_RUN)        --mock -n $(SNAP_MOCK_NAMESPACE) > $(SNAP_DIR)/mock.txt
 
-# Update workflow to use current HEAD commit SHA everywhere
-update-workflow-ref:
-	@HASH=$$(git rev-parse HEAD); \
-	echo "Updating workflow references to: $$HASH"; \
-	sed -i "s|uses: karloie/shipkit/.github/workflows/release.yml@[a-f0-9]*|uses: karloie/shipkit/.github/workflows/release.yml@$$HASH|g" .github/workflows/release-shipkit.yml; \
-	sed -i "s|default: [a-f0-9]\{40\}|default: $$HASH|g" .github/workflows/release-shipkit.yml; \
-	sed -i "s|- [a-f0-9]\{40\}|- $$HASH|g" .github/workflows/release-shipkit.yml; \
-	sed -i "s||| '[a-f0-9]\{40\}'||| '$$HASH'|g" .github/workflows/release-shipkit.yml; \
-	echo "✓ Updated all references to $$HASH"
+snapshot-real:
+	$(GO_RUN) --json  -c $(SNAP_REAL_CONTEXT) -n $(SNAP_REAL_NAMESPACE) > $(SNAP_DIR)/real.json
+	$(GO_RUN)         -c $(SNAP_REAL_CONTEXT) -n $(SNAP_REAL_NAMESPACE) > $(SNAP_DIR)/real.txt
+
+#
+# CI targets for shipkit
+#
+
+ci-generate:
+	@echo "📦 No code generation needed for shipkit"
+
+ci-build:
+    shipkit go-build --output=kompass --main=./cmd/kompass
+
+ci-test:
+	go test -count=1 ./...
+
+ci-integration-test:
+	@echo "🧪 No integration tests defined for shipkit"
+
+ci-release:
+    echo "📦 Building release artifacts..."
+    shipkit install --force goreleaser
+    shipkit docker --release
+    shipkit goreleaser --generate --homebrew

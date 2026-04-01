@@ -6,6 +6,26 @@ import (
 	"testing"
 )
 
+type noTagGitProvider struct {
+	commitLog string
+	existsTag map[string]bool
+}
+
+func (g *noTagGitProvider) GetLatestTag() (string, error) {
+	return "", errors.New("no tags")
+}
+
+func (g *noTagGitProvider) GetCommitLog(since string) (string, error) {
+	if since != "" {
+		return "", errors.New("expected full history lookup when no tags exist")
+	}
+	return g.commitLog, nil
+}
+
+func (g *noTagGitProvider) TagExists(tag string) (bool, error) {
+	return g.existsTag[tag], nil
+}
+
 func TestComputeVersionManualPatch(t *testing.T) {
 	git := &GitProviderMock{LatestTag: "v0.0.14", ExistsTags: map[string]bool{"v0.0.15": false}}
 	pr := &PRProviderMock{}
@@ -53,6 +73,21 @@ func TestComputeVersionNoTagFallback(t *testing.T) {
 	}
 	if next != "v0.0.1" {
 		t.Errorf("expected v0.0.1 (first release with no tags), got %s", next)
+	}
+}
+
+func TestComputeVersionPushNoTagsUsesFullHistory(t *testing.T) {
+	git := &noTagGitProvider{
+		commitLog: "abc123 fix: bootstrap release",
+		existsTag: map[string]bool{"v0.0.1": false},
+	}
+
+	latest, next, publish, err := computeVersion("push", "", git, &PRProviderMock{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if latest != "v0.0.0" || next != "v0.0.1" || publish != ReleaseTrue {
+		t.Fatalf("unexpected outputs latest=%s next=%s publish=%s", latest, next, publish)
 	}
 }
 
