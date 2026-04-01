@@ -104,7 +104,7 @@ ci-generate:
 	@echo "📦 No code generation needed for shipkit"
 
 ci-build:
-    shipkit go-build --output=kompass --main=./cmd/kompass
+	shipkit go-build --output=kompass --main=./cmd/kompass
 
 ci-test:
 	go test -count=1 ./...
@@ -113,7 +113,7 @@ ci-integration-test:
 	@echo "🧪 No integration tests defined for shipkit"
 
 ci-release:
-    echo "📦 Building release artifacts..."
-    shipkit install --force goreleaser
-    shipkit docker --release
-    shipkit goreleaser --generate --homebrew
+	echo "📦 Building release artifacts..."
+	shipkit install --force goreleaser
+	shipkit docker --release
+	shipkit goreleaser --generate --homebrew
