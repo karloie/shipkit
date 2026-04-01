@@ -149,10 +149,16 @@ jobs:
         if: needs.plan.outputs.has_ci_generate == 'true'
         continue-on-error: true
         run: |
-          if [ -f justfile ]; then
-            just ci-generate
-          elif [ -f Makefile ]; then
+          if [ -f Makefile ] && grep -Eq '^ci-generate:' Makefile; then
             make ci-generate
+          elif [ -f justfile ] && grep -Eq '^[[:space:]]*@?ci-generate:' justfile; then
+            just ci-generate
+          elif [ -f Taskfile.yml ] && grep -Eq '^[[:space:]]+ci-generate:' Taskfile.yml; then
+            task ci-generate
+          elif [ -f Taskfile.yaml ] && grep -Eq '^[[:space:]]+ci-generate:' Taskfile.yaml; then
+            task ci-generate
+          else
+            echo "⏭️  No ci-generate hook found, skipping"
           fi
 
       - name: Run ci-build
@@ -162,10 +168,16 @@ jobs:
           (steps.generate.conclusion == 'success' || steps.generate.conclusion == 'skipped')
         continue-on-error: true
         run: |
-          if [ -f justfile ]; then
-            just ci-build
-          elif [ -f Makefile ]; then
+          if [ -f Makefile ] && grep -Eq '^ci-build:' Makefile; then
             make ci-build
+          elif [ -f justfile ] && grep -Eq '^[[:space:]]*@?ci-build:' justfile; then
+            just ci-build
+          elif [ -f Taskfile.yml ] && grep -Eq '^[[:space:]]+ci-build:' Taskfile.yml; then
+            task ci-build
+          elif [ -f Taskfile.yaml ] && grep -Eq '^[[:space:]]+ci-build:' Taskfile.yaml; then
+            task ci-build
+          else
+            echo "⏭️  No ci-build hook found, skipping"
           fi
 
       - name: Run ci-test
@@ -175,10 +187,16 @@ jobs:
           (steps.build.conclusion == 'success' || steps.build.conclusion == 'skipped')
         continue-on-error: true
         run: |
-          if [ -f justfile ]; then
-            just ci-test
-          elif [ -f Makefile ]; then
+          if [ -f Makefile ] && grep -Eq '^ci-test:' Makefile; then
             make ci-test
+          elif [ -f justfile ] && grep -Eq '^[[:space:]]*@?ci-test:' justfile; then
+            just ci-test
+          elif [ -f Taskfile.yml ] && grep -Eq '^[[:space:]]+ci-test:' Taskfile.yml; then
+            task ci-test
+          elif [ -f Taskfile.yaml ] && grep -Eq '^[[:space:]]+ci-test:' Taskfile.yaml; then
+            task ci-test
+          else
+            echo "⏭️  No ci-test hook found, skipping"
           fi
 
       - name: Run ci-integration-test
@@ -188,10 +206,16 @@ jobs:
           (steps.test.conclusion == 'success' || steps.test.conclusion == 'skipped')
         continue-on-error: true
         run: |
-          if [ -f justfile ]; then
-            just ci-integration-test
-          elif [ -f Makefile ]; then
+          if [ -f Makefile ] && grep -Eq '^ci-integration-test:' Makefile; then
             make ci-integration-test
+          elif [ -f justfile ] && grep -Eq '^[[:space:]]*@?ci-integration-test:' justfile; then
+            just ci-integration-test
+          elif [ -f Taskfile.yml ] && grep -Eq '^[[:space:]]+ci-integration-test:' Taskfile.yml; then
+            task ci-integration-test
+          elif [ -f Taskfile.yaml ] && grep -Eq '^[[:space:]]+ci-integration-test:' Taskfile.yaml; then
+            task ci-integration-test
+          else
+            echo "⏭️  No ci-integration-test hook found, skipping"
           fi
 
       - name: Record verify results
@@ -272,6 +296,14 @@ jobs:
       - uses: karloie/shipkit/.github/actions/setup-shipkit@main
         with:
           tool_ref: ${{ inputs.tool_ref }}
+
+      - name: Set up QEMU
+        if: needs.plan.outputs.has_ci_release == 'true'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        if: needs.plan.outputs.has_ci_release == 'true'
+        uses: docker/setup-buildx-action@v3
 
       - name: Configure Git
         if: |
@@ -362,8 +394,14 @@ jobs:
       - name: Run custom summary (if exists)
         if: needs.plan.outputs.has_ci_summary == 'true'
         run: |
-          if [ -f justfile ]; then
-            just ci-summary
-          elif [ -f Makefile ]; then
+          if [ -f Makefile ] && grep -Eq '^ci-summary:' Makefile; then
             make ci-summary
+          elif [ -f justfile ] && grep -Eq '^[[:space:]]*@?ci-summary:' justfile; then
+            just ci-summary
+          elif [ -f Taskfile.yml ] && grep -Eq '^[[:space:]]+ci-summary:' Taskfile.yml; then
+            task ci-summary
+          elif [ -f Taskfile.yaml ] && grep -Eq '^[[:space:]]+ci-summary:' Taskfile.yaml; then
+            task ci-summary
+          else
+            echo "⏭️  No ci-summary hook found, skipping"
           fi

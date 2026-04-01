@@ -210,22 +210,49 @@ This repository also provides parameterized reusable workflows for callers:
 
 ### Consumer Project Contract
 
-Projects using shipkit's CI workflow must expose two Makefile targets:
+Projects using shipkit's CI and release workflows may expose optional `ci-*` hooks in a `Makefile`, `justfile`, or `Taskfile`.
 
-| Target | Purpose |
+If a hook is present, shipkit will run it. If it is absent, shipkit skips it and falls back to the normal release/build flow.
+
+| Hook | Purpose |
 |---|---|
-| `make ci-build` | Build the project for CI (may differ from local `make build`) |
-| `make ci-test` | Run tests for CI |
+| `ci-generate` | Optional code generation step before build |
+| `ci-build` | Optional CI-specific build step |
+| `ci-test` | Optional CI-specific test step |
+| `ci-integration-test` | Optional heavier integration test step |
+| `ci-release` | Optional CI-specific release step |
+| `ci-summary` | Optional post-release summary hook |
 
-These are kept separate from `make build` / `make test` intentionally — local dev workflows often have different flags, side-effects, or assumptions (e.g. requiring a running database). `ci-build` and `ci-test` are the clean, repeatable CI contract.
+These are kept separate from normal `build` / `test` / `release` targets intentionally. Local dev workflows often have different flags, side-effects, or assumptions, so CI hooks can stay clean and repeatable without being required.
 
-**Minimal example:**
+**Optional Makefile example:**
 ```makefile
 ci-build:
 	go build -o myapp ./cmd/myapp
 
 ci-test:
 	go test ./...
+```
+
+**Optional justfile example:**
+```just
+ci-build:
+    go build -o myapp ./cmd/myapp
+
+ci-test:
+    go test ./...
+```
+
+**Optional Taskfile example:**
+```yaml
+version: '3'
+tasks:
+  ci-build:
+    cmds:
+      - go build -o myapp ./cmd/myapp
+  ci-test:
+    cmds:
+      - go test ./...
 ```
 
 **Example with Node frontend (like kompass):**
@@ -242,7 +269,7 @@ ci-test:
 
 `ci.yml` supports two modes:
 - `validation` - Runs Make targets (default: `ci-validate`)
-- `build-test` - Builds and tests with `make ci-build` and `make ci-test`
+- `build-test` - Runs optional `ci-generate`, `ci-build`, `ci-test`, and `ci-integration-test` hooks when present
 
 **Inputs:**
 - `mode` - `validation` or `build-test` (default: validation on push/PR)
@@ -272,7 +299,7 @@ jobs:
       node_version: '22'
 ```
 
-**Note:** Build-test mode runs `npm ci` + `npm run build` when `node_version` is set, then `make ci-build` and `make ci-test`. Consumer projects must expose these targets — see [Consumer Project Contract](#consumer-project-contract) below.
+**Note:** Build-test mode runs `npm ci` + `npm run build` when `node_version` is set, then executes optional `ci-*` hooks from `Makefile`, `justfile`, or `Taskfile` when present. Missing hooks are skipped.
 
 ### Release Workflow
 

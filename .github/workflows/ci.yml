@@ -63,6 +63,21 @@ jobs:
           node-version: ${{ inputs.node_version }}
           cache: ${{ inputs.node_cache }}
 
+      - name: Install optional task runners
+        if: ${{ inputs.mode == 'build-test' }}
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          if [ -f justfile ]; then
+            wget -qO- https://github.com/casey/just/releases/download/1.36.0/just-1.36.0-x86_64-unknown-linux-musl.tar.gz | tar xvz -C "$HOME/.local/bin" just
+            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+            just --version
+          fi
+          if [ -f Taskfile.yml ] || [ -f Taskfile.yaml ]; then
+            sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b "$HOME/.local/bin"
+            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+            task --version
+          fi
+
       - name: Install frontend dependencies
         if: ${{ inputs.mode == 'build-test' && inputs.node_version != '' }}
         run: npm ci
@@ -77,16 +92,60 @@ jobs:
 
       - name: Generate
         if: ${{ inputs.mode == 'build-test' }}
-        run: make ci-generate
+        run: |
+          if [ -f Makefile ] && grep -Eq '^ci-generate:' Makefile; then
+            make ci-generate
+          elif [ -f justfile ] && grep -Eq '^[[:space:]]*@?ci-generate:' justfile; then
+            just ci-generate
+          elif [ -f Taskfile.yml ] && grep -Eq '^[[:space:]]+ci-generate:' Taskfile.yml; then
+            task ci-generate
+          elif [ -f Taskfile.yaml ] && grep -Eq '^[[:space:]]+ci-generate:' Taskfile.yaml; then
+            task ci-generate
+          else
+            echo "⏭️  No ci-generate hook found, skipping"
+          fi
 
       - name: Build
         if: ${{ inputs.mode == 'build-test' }}
-        run: make ci-build
+        run: |
+          if [ -f Makefile ] && grep -Eq '^ci-build:' Makefile; then
+            make ci-build
+          elif [ -f justfile ] && grep -Eq '^[[:space:]]*@?ci-build:' justfile; then
+            just ci-build
+          elif [ -f Taskfile.yml ] && grep -Eq '^[[:space:]]+ci-build:' Taskfile.yml; then
+            task ci-build
+          elif [ -f Taskfile.yaml ] && grep -Eq '^[[:space:]]+ci-build:' Taskfile.yaml; then
+            task ci-build
+          else
+            echo "⏭️  No ci-build hook found, skipping"
+          fi
 
       - name: Test
         if: ${{ inputs.mode == 'build-test' }}
-        run: make ci-test
+        run: |
+          if [ -f Makefile ] && grep -Eq '^ci-test:' Makefile; then
+            make ci-test
+          elif [ -f justfile ] && grep -Eq '^[[:space:]]*@?ci-test:' justfile; then
+            just ci-test
+          elif [ -f Taskfile.yml ] && grep -Eq '^[[:space:]]+ci-test:' Taskfile.yml; then
+            task ci-test
+          elif [ -f Taskfile.yaml ] && grep -Eq '^[[:space:]]+ci-test:' Taskfile.yaml; then
+            task ci-test
+          else
+            echo "⏭️  No ci-test hook found, skipping"
+          fi
 
       - name: Integration Test
         if: ${{ inputs.mode == 'build-test' }}
-        run: make ci-integration-test
+        run: |
+          if [ -f Makefile ] && grep -Eq '^ci-integration-test:' Makefile; then
+            make ci-integration-test
+          elif [ -f justfile ] && grep -Eq '^[[:space:]]*@?ci-integration-test:' justfile; then
+            just ci-integration-test
+          elif [ -f Taskfile.yml ] && grep -Eq '^[[:space:]]+ci-integration-test:' Taskfile.yml; then
+            task ci-integration-test
+          elif [ -f Taskfile.yaml ] && grep -Eq '^[[:space:]]+ci-integration-test:' Taskfile.yaml; then
+            task ci-integration-test
+          else
+            echo "⏭️  No ci-integration-test hook found, skipping"
+          fi
