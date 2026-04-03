@@ -8,6 +8,29 @@ import (
 	"strings"
 )
 
+func releaseDockerBuildMetadata(plan *Plan, tag string) (string, string, string) {
+	version := strings.TrimSpace(tag)
+	if version == "" && plan != nil {
+		version = strings.TrimSpace(plan.TagRelease)
+	}
+	if version == "" && plan != nil {
+		version = strings.TrimSpace(plan.TagNext)
+	}
+	if version == "" {
+		version = "latest"
+	}
+
+	commit := ""
+	if plan != nil {
+		commit = strings.TrimSpace(plan.Sha)
+	}
+	if commit == "" {
+		commit = getCurrentCommit()
+	}
+
+	return version, commit, getCurrentDate()
+}
+
 // loadPlan loads plan.json if it exists, returns nil if not found
 func loadPlan(path string) (*Plan, error) {
 	data, err := os.ReadFile(path)
@@ -153,6 +176,7 @@ func runReleaseDocker(args []string) error {
 	if *tag == "" {
 		*tag = "latest"
 	}
+	buildVersion, buildCommit, buildDate := releaseDockerBuildMetadata(plan, *tag)
 
 	// Check if docker is installed
 	if _, err := exec.LookPath("docker"); err != nil {
@@ -180,6 +204,11 @@ func runReleaseDocker(args []string) error {
 	buildArgs = append(buildArgs, "--platform", *platform)
 	buildArgs = append(buildArgs, "-f", *dockerfile)
 	buildArgs = append(buildArgs, "-t", fullTag)
+	buildArgs = append(buildArgs,
+		"--build-arg", fmt.Sprintf("BUILD_VERSION=%s", buildVersion),
+		"--build-arg", fmt.Sprintf("BUILD_COMMIT=%s", buildCommit),
+		"--build-arg", fmt.Sprintf("BUILD_DATE=%s", buildDate),
+	)
 
 	if *tagLatest {
 		latestTag := *image + ":latest"
